@@ -42,7 +42,6 @@ add_subdirectory(third_party/tinympc)
 # 相机厂商 SDK 头文件
 include_directories(third_party/camera_sdk/hikrobot/include)
 include_directories(third_party/camera_sdk/mindvision/include)
-include_directories(third_party/camera_sdk/dahengvision/include)
 
 #################### 图像预处理库 ####################
 # STATIC：作为基础工具模块被 auto_aim/auto_buff 等 OBJECT 库复用，
@@ -84,7 +83,6 @@ add_library(io OBJECT
     src/camera/video_camera.cpp
     src/camera/hikrobot.cpp
     src/camera/mindvision.cpp
-    src/camera/dahengvision.cpp
     # 通信模块
     src/comm/gimbal.cpp
     src/comm/cboard.cpp
@@ -101,9 +99,8 @@ else()
 endif()
 link_directories(third_party/camera_sdk/hikrobot/lib/${SDK_ARCH})
 link_directories(third_party/camera_sdk/mindvision/lib/${SDK_ARCH})
-link_directories(third_party/camera_sdk/dahengvision/lib/${SDK_ARCH})
 
-target_link_libraries(io PUBLIC MvCameraControl MVSDK gxiapi usb-1.0 yaml-cpp serial)
+target_link_libraries(io PUBLIC MvCameraControl MVSDK usb-1.0 yaml-cpp serial)
 
 #################### 自瞄任务库 ####################
 add_library(auto_aim OBJECT

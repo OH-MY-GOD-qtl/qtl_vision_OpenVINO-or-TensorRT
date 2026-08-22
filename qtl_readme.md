@@ -65,7 +65,7 @@ qtl_vision/
 ├── third_party/
 │   ├── serial/                 # 串口库（wjwwood/serial）
 │   ├── tinympc/                # MPC 规划库（vendored）
-│   └── camera_sdk/             # 海康/迈德威视/大恒 相机 SDK（头文件+库）
+│   └── camera_sdk/             # 海康/迈德威视 相机 SDK（头文件+库）
 ├── watchdog.sh autostart.sh    # 部署自启动脚本（screen 会话名 qtl_vision）
 └── logs/ patterns/ records/    # 运行时生成（gitignore）
 ```
@@ -76,7 +76,7 @@ qtl_vision/
 | `image` | 图像预处理：灰度/二值/膨胀、letterbox、分离颜色通道双阈值 |
 | `lightbar` | 灯条模型与算法：几何量计算、轮廓提取、几何筛选、颜色判定、PCA 角点修正 |
 | `tools` | EKF、PID、弹道、数学工具、绘图、录像、CRC、日志、yaml 封装 |
-| `camera` | 相机抽象：海康/迈德威视/大恒/USB/视频文件 |
+| `camera` | 相机抽象：海康/迈德威视/USB/视频文件 |
 | `comm` | 串口云台、裁判系统 cboard（CAN）、达妙 IMU、socketcan（ros2 预留） |
 | `armor` | 装甲板数据模型（大小板类型、名称、优先级） |
 | `classifier` | ONNX 数字分类器 |
@@ -114,7 +114,7 @@ sudo udevadm control --reload && sudo udevadm trigger
 - 程序已通过 rpath 链接该目录，**不需要**设置 `LD_LIBRARY_PATH`。
 - `lib/arm64/`（机器人 Jetson 用）仍是旧版且**不完整**：上机前需用
   MVS 官方 aarch64 包按同样方式补齐，否则会出现与 x86 相同的枚举失败。
-- 大恒 SDK 的 .cti 与 lib 已齐全；迈德威视目录仅有 `libMVSDK.so`。
+- 迈德威视目录仅有 `libMVSDK.so`。
 
 ROS2 非编译必需（通讯为 ros2 预留，对应源码未参与构建）。
 
@@ -165,7 +165,7 @@ cmake .. && make -j
 
 ```yaml
 enemy_color: "blue"            # 敌方颜色：blue/red（打错颜色=检出不到灯条）
-camera_name: "hikrobot"        # hikrobot / mindvision / dahengvision / usb / video
+camera_name: "hikrobot"        # hikrobot / mindvision / usb / video
 exposure_ms: 10                # 曝光（海康）
 gain: 16                       # 增益（海康）
 vid_pid: "2bdf:0001"           # 相机 VID:PID，lsusb 查看
@@ -191,14 +191,11 @@ simulate: true                 # 模拟模式（见上）
 |---|---|---|
 | `standard1.yaml` / `standard3.yaml` / `mvs.yaml` / `calibration.yaml` | hikrobot | 实机自瞄/标定主配置 |
 | `standard1_sim.yaml` / `calibration_sim.yaml` | hikrobot | 模拟模式（本次接入海康相机时生成） |
-| `camera_auto_aim.yaml` | 大恒（见下方注意） | 相机+自瞄离线测试 |
-| `camera.yaml` / `hero.yaml` | 大恒 | 相机测试/英雄 |
+| `camera_auto_aim.yaml` | hikrobot | 相机+自瞄离线测试 |
+| `camera.yaml` / `hero.yaml` | hikrobot | 相机测试/英雄 |
 | `example.yaml` | 迈德威视 | 示例 |
 | `demo.yaml` | hikrobot | YOLO 回放测试 |
 | `video_demo.yaml` | 视频文件 | 无硬件调试（自带 `simulate: true`） |
-
-注意：`camera_auto_aim.yaml` 当前相机段是大恒，用海康相机跑
-`camera_auto_aim_test` 前需把相机段改成 hikrobot（可参照 `standard1.yaml`）。
 
 ---
 
@@ -292,7 +289,7 @@ simulate: true                 # 模拟模式（见上）
 | 检测不到装甲板 | ① `enemy_color` 与实际敌方颜色不符；② 曝光/增益不适配现场光照；③ 调 `color_threshold`/`brightness_threshold`；④ YOLO 检查 `min_confidence` |
 | 自瞄弹道/距离明显偏 | 相机内参未更新（`camera_matrix` 仍是别的相机标定值），按标定流程重标 |
 | `calibrate_camera` 没写文件 | 设计如此：结果只打印在终端，需手动复制进配置 |
-| 想换相机型号 | 改配置 `camera_name` + `vid_pid`（大恒还需 `gamma`），确认对应 SDK 目录 lib 齐全 |
+| 想换相机型号 | 改配置 `camera_name` + `vid_pid`，确认对应 SDK 目录 lib 齐全 |
 | 机器人（arm64）相机打不开 | `third_party/camera_sdk/*/lib/arm64/` SDK 不完整，用官方 aarch64 包补齐 |
 
 ---

@@ -2,7 +2,6 @@
 
 #include <stdexcept>
 
-#include "camera/dahengvision.hpp"
 #include "camera/hikrobot.hpp"
 #include "camera/mindvision.hpp"
 #include "camera/usbcamera.hpp"
@@ -27,12 +26,6 @@ Camera::Camera(const std::string & config_path)
     auto gain = yaml_read<double>(yaml, "gain");
     auto vid_pid = yaml_read<std::string>(yaml, "vid_pid");
     camera_ = std::make_unique<HikRobot>(exposure_ms, gain, vid_pid);
-  }
-
-  else if (camera_name == "dahengvision") {
-    auto gamma = yaml_read<double>(yaml, "gamma");
-    auto vid_pid = yaml_read<std::string>(yaml, "vid_pid");
-    camera_ = std::make_unique<DahengVision>(exposure_ms, gamma, vid_pid);
   }
 
   else if (camera_name == "usb") {
