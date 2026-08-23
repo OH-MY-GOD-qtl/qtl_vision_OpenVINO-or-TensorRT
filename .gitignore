@@ -1,6 +1,5 @@
 build/
 assets/demo.avi
-assets/*.engine
 logs/*.log
 patterns/
 records/
