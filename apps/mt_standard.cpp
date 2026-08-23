@@ -84,8 +84,10 @@ int main(int argc, char * argv[])
             if (mode.load() == Mode::auto_aim) {
                 camera.read(img, t);
                 detector.push(img, t);
-            } else
+            } else {
+                std::this_thread::sleep_for(10ms);
                 continue;
+            }
         }
     });
 
@@ -115,8 +117,10 @@ int main(int argc, char * argv[])
             commandgener.push(targets, t, gimbal.state().bullet_speed, ypr);  // 发送给决策线程
         }
 
-        else
+        else {
+            std::this_thread::sleep_for(10ms);
             continue;
+        }
     }
 
     detect_thread.join();// 等待自瞄线程结束

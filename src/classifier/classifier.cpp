@@ -45,6 +45,9 @@ void Classifier::classify(Armor & armor)
         return;
     }
 
+    // 分类器输入尺寸逐帧变化，letterbox roi 大小不固定：先清空输入缓冲，
+    // 避免上一帧大图案残留污染本帧 padding 区域
+    input_f32_.setTo(0.0f);
     letterbox_u8_(roi).convertTo(input_f32_(roi), CV_32F, 1.0 / 255.0);
 
     infer_request_.infer();
