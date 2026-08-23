@@ -16,17 +16,17 @@
 class Publish2Nav : public rclcpp::Node
 {
 public:
-  Publish2Nav();
+    Publish2Nav();
 
-  ~Publish2Nav();
+    ~Publish2Nav();
 
-  void start();
+    void start();
 
-  void send_data(const Eigen::Vector4d & data);
+    void send_data(const Eigen::Vector4d & data);
 
 private:
-  // ROS2 发布者
-  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr publisher_;
+    // ROS2 发布者
+    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr publisher_;
 };
 
 

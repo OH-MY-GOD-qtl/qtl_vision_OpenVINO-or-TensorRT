@@ -2,7 +2,7 @@
 
 RoboMaster 视觉系统：**自瞄**（传统视觉 / YOLO v5·v8·v11 + EKF 跟踪 + MPC 规划）、
 **能量机关**（yolo11_buff）、**全向感知**、相机标定工具链与测试套件。
-算法源自 dx_vision（同济 SuperPower 25 赛季开源），按"功能等价、模块化清晰"标准重构。
+算法源自 dx_vision（同济 SuperPower 25 赛季开源），按"功能等价、算法优化、模块化清晰"标准重构。
 
 ---
 
@@ -14,6 +14,7 @@ RoboMaster 视觉系统：**自瞄**（传统视觉 / YOLO v5·v8·v11 + EKF 跟
 - [编译](#编译)
 - [程序入口速查](#程序入口速查)
 - [配置说明](#配置说明)
+- [模型与推理后端](#模型与推理后端)
 - [标定流程](#标定流程)
 - [通讯与串口协议](#通讯与串口协议)
 - [部署自启动](#部署自启动可选)
@@ -37,6 +38,7 @@ cd qtl_vision_OpenVINO-or-TensorRT  # 进入项目根目录
 
 # ③ 接上云台串口后的实机自瞄
 ./build/traditional_debug configs/standard1.yaml
+./build/auto_aim_debug_mpc configs/standard1.yaml
 ```
 
 前提：
@@ -61,7 +63,7 @@ qtl_vision_OpenVINO-or-TensorRT/
 ├── tests/                      # 测试（22 个，其中 3 个 ROS2 默认不编译）
 ├── smoke/                      # 冒烟工具（yolo_smoke）
 ├── configs/                    # yaml 配置
-├── assets/                     # 模型文件（onnx/xml/bin）+ demo 视频
+├── assets/                     # 模型文件（onnx/xml/bin/engine）+ demo 视频
 ├── third_party/
 │   ├── serial/                 # 串口库（wjwwood/serial）
 │   ├── tinympc/                # MPC 规划库（vendored）
@@ -98,6 +100,18 @@ sudo apt install -y libopencv-dev libyaml-cpp-dev libfmt-dev libeigen3-dev \
 # OpenVINO：apt 安装 openvino-2024.6.0（CMake 自动探测 /opt/intel 与 /usr/lib/cmake）
 ```
 
+**TensorRT + CUDA**（本机 NVIDIA 显卡推理，CMake 构建必需，缺失则配置阶段报错）：
+
+- 安装 NVIDIA 驱动、CUDA toolkit（`cuda_runtime_api.h` 与 `libcudart`）与 TensorRT
+  （`NvInfer.h` 与 `libnvinfer`）。
+- CMake 会自动探测头文件/库路径，默认 Hint 为
+  `/usr/local/cuda`、`/usr/include/x86_64-linux-gnu`、`/usr/local/tensorrt`、`/opt/TensorRT`；
+  自定义安装位置可手动指定 `TENSORRT_INCLUDE_DIR` / `TENSORRT_LIBRARY` /
+  `CUDA_INCLUDE_DIR` / `CUDA_RUNTIME_LIBRARY`。
+- 机器人端 CPU 部署若无需 TensorRT，当前 CMake 仍将其作为硬依赖；如需裁剪可
+  在 `CMakeLists.txt` 中把 `find_*` 的 `FATAL_ERROR` 改为可选并去掉
+  `tensorrt_infer.cpp` 的参与（详见[模型与推理后端](#模型与推理后端)）。
+
 **海康相机 USB 权限**（必须，否则普通用户打不开相机，日志刷 `Unable to open usb!`）：
 
 ```bash
@@ -128,6 +142,9 @@ cmake .. && make -j
 ```
 
 生成 32 个可执行文件：主程序入口 7 个、标定工具 5 个、测试 19 个、冒烟工具 1 个。
+
+> 构建同时依赖 OpenVINO 与 TensorRT/CUDA（见[环境准备](#环境准备)）；三者任一缺失
+> 都会在 `cmake` 配置阶段报错。TensorRT 仅 YOLOv5 链路用到，其余模型走 OpenVINO。
 
 ---
 
@@ -171,6 +188,9 @@ exposure_ms: 10                # 曝光（海康）
 gain: 16                       # 增益（海康）
 vid_pid: "2bdf:0001"           # 相机 VID:PID，lsusb 查看
 yolo_name: yolov5              # yolov5/yolov8/yolo11
+yolov5_model_path: assets/0526.onnx      # YOLOv5 OpenVINO 后端模型（深圳大学开源）
+use_tensorrt: true             # YOLOv5 推理后端：true=TensorRT / false=OpenVINO
+yolov5_engine_path: assets/yolov5.engine # TensorRT 引擎（use_tensorrt=true 时生效）
 min_confidence: 0.8            # 检测置信度阈值
 use_traditional: true          # 传统视觉二次矫正（仅 YOLO 链路）
 use_roi: false                 # 是否启用 roi 区域
@@ -197,6 +217,76 @@ simulate: true                 # 模拟模式（见上）
 | `example.yaml` | 迈德威视 | 示例 |
 | `demo.yaml` | hikrobot | YOLO 回放测试 |
 | `video_demo.yaml` | 视频文件 | 无硬件调试（自带 `simulate: true`） |
+
+---
+
+## 模型与推理后端
+
+推理引擎有两套：**OpenVINO**（机器人端 CPU 部署，默认）与 **TensorRT**
+（WSL 本机 NVIDIA 显卡），YOLOv5 链路可通过配置一键切换。
+
+### 模型清单
+
+| 模型文件 | 用途 | 后端 | 说明 |
+|---|---|---|---|
+| `assets/0526.onnx` | YOLOv5 装甲板检测 | OpenVINO / TensorRT | 深圳大学开源模型，本项目默认自瞄检测模型 |
+| `assets/yolov5.engine` | YOLOv5 装甲板检测 | TensorRT | 由 `0526.onnx` 转换的 TensorRT 序列化引擎 |
+| `assets/yolov8.xml` | YOLOv8 装甲板检测 | OpenVINO | `yolo_name: yolov8` 时选用 |
+| `assets/yolo11.xml` | YOLO11 装甲板检测 | OpenVINO | `yolo_name: yolo11` 时选用 |
+| `assets/yolo11_buff_int8.xml` | 能量机关检测 | OpenVINO | INT8 量化，供 buff 模块 |
+| `assets/tiny_resnet.onnx` | 装甲板数字分类器 | OpenVINO | 数字 1~5 识别 |
+
+> 除 YOLOv5 外，其余模型（v8 / v11 / buff / 分类器）当前仅接入 OpenVINO 后端。
+
+### 架构切换（YOLOv5）
+
+切换由配置项控制，改 `use_tensorrt` 即可：
+
+```yaml
+use_tensorrt: true                      # true=TensorRT；false=OpenVINO
+yolov5_model_path: assets/0526.onnx     # OpenVINO 后端加载的 ONNX
+yolov5_engine_path: assets/yolov5.engine # TensorRT 后端加载的引擎
+```
+
+- `use_tensorrt: true`（本机 NVIDIA 显卡）：加载 `.engine` 引擎，
+  经 `TensorRTInfer` 反序列化并推理。
+- `use_tensorrt: false`（机器人端 CPU）：加载 `0526.onnx`，
+  经 OpenVINO Runtime 编译推理（`device: CPU`）。
+
+两种后端**共用同一套 letterbox 预处理与后处理解析**（
+`src/detector/yolos/yolov5.cpp`），输入/输出语义一致，仅推理引擎不同。
+
+### ONNX → TensorRT 引擎导出（trtexec）
+
+`assets/yolov5.engine` 由 `0526.onnx` 通过 TensorRT 自带工具 `trtexec` 导出：
+
+```bash
+# 仅支持 FP32 精度（务必不要加 --fp16，见下方说明）
+trtexec --onnx=assets/0526.onnx \ --saveEngine=assets/yolov5.engine
+```
+
+> ⚠️ **只能用 FP32**：`--fp16` 导出的引擎在推理时会报错（踩过的坑）。
+> 导出时**不要**加 `--fp16`、`--int8`、`--fp32`等精度参数。
+
+说明：
+
+- `trtexec` 随 TensorRT 一起安装（deb 包通常在 `/usr/src/tensorrt/bin/trtexec`，
+  也可直接调用系统 PATH 中的 `trtexec`）。
+- 引擎文件与 **GPU 架构、TensorRT / CUDA 版本绑定**，换机器或升级版本后需重新
+  导出，否则运行时报 `反序列化引擎失败`（见[常见问题 FAQ](#常见问题-faq)）。
+- 本项目推理接口要求**静态形状、单输入**，`0526.onnx` 输入固定为 `1x3x640x640`，
+  无需设置 `--minShapes / --optShapes / --maxShapes`。
+
+### TensorRT 接口
+
+`TensorRTInfer`（`include/detector/tensorrt_infer.hpp` +
+`src/detector/tensorrt_infer.cpp`）是对 TensorRT C++ API 的 RAII 封装：
+
+- 读取 `.engine` 序列化文件，复用 `IRuntime` / `ICudaEngine` / `IExecutionContext`
+  与 CUDA 显存、主机缓冲（帧间零重复分配）；
+- 当前约束：静态形状、单输入、**FP32**（引擎须以 FP32 导出，`--fp16` 会报错）；
+- 推理接口 `infer(const float * input_nchw)` 接受主机 NCHW float32，返回主机侧
+  输出张量（float32）。
 
 ---
 
@@ -291,14 +381,16 @@ simulate: true                 # 模拟模式（见上）
 | 自瞄弹道/距离明显偏 | 相机内参未更新（`camera_matrix` 仍是别的相机标定值），按标定流程重标 |
 | `calibrate_camera` 没写文件 | 设计如此：结果只打印在终端，需手动复制进配置 |
 | 想换相机型号 | 改配置 `camera_name` + `vid_pid`，确认对应 SDK 目录 lib 齐全 |
+| 想在 CPU / GPU 间切换推理后端 | 改配置 `use_tensorrt`：`true` 走 TensorRT 引擎（`yolov5_engine_path`），`false` 走 OpenVINO（`yolov5_model_path`），仅 YOLOv5 支持 |
+| `[TensorRT] 反序列化引擎失败` / `无法打开引擎文件` | ① `yolov5_engine_path` 指向的 `.engine` 不存在或与当前 TensorRT / GPU 架构不匹配；② 用同版本 TensorRT 重新导出引擎；③ 检查 CUDA 驱动与 `libnvinfer` 版本 |
 | 机器人（arm64）相机打不开 | `third_party/camera_sdk/*/lib/arm64/` SDK 不完整，用官方 aarch64 包补齐 |
 
 ---
 
 ## 与 dx_vision 的关系
 
-**标准：功能等价，不逐字节等价。** 算法逻辑与 dx 同源（检测→PnP→EKF→弹道/MPC→
-下发全链路一致），工程层面重构：
+**标准：功能等价。** 算法逻辑与 dx 同源（检测→PnP→EKF→弹道/MPC→
+下发全链路大体一致），工程层面重构：
 
 1. **结构**：去除命名空间；`io/tools/tasks` 重组为 `include/<模块>/` +
    `src/<模块>/` 镜像；主程序收进 `apps/`；单文件扁平 CMake；从 detector/armor/buff
@@ -309,5 +401,7 @@ simulate: true                 # 模拟模式（见上）
    （颜色差 + 亮度双掩码，默认 40/100），与桌面版 `PreProcess::process` 一致；
    注意 demo.avi 的过曝灯条在该阈值下检出率低，实机按需调整。
 4. **有意差异**：新增 `usb`/`video` 相机源、`simulate` 串口模拟、GimbalState
-   默认值；日志节流；资产平铺到 `assets/`；命名冲突改名。
+   默认值；日志节流；资产平铺到 `assets/`；命名冲突改名；
+   **YOLOv5 双后端推理**（新增 `TensorRTInfer` 接口，`use_tensorrt` 一键切换
+   OpenVINO / TensorRT，见[模型与推理后端](#模型与推理后端)）。
 5. **清理**：删除无人引用的 ceres 源码包、`archive/` 等残留与孤儿模型。

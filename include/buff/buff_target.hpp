@@ -19,12 +19,12 @@
 class Voter
 {
 public:
-  Voter();
-  void vote(const double angle_last, const double angle_now);
-  int clockwise();
+    Voter();
+    void vote(const double angle_last, const double angle_now);
+    int clockwise();
 
 private:
-  int clockwise_;
+    int clockwise_;
 };
 
 /// BuffTarget 基类
@@ -32,37 +32,37 @@ private:
 class BuffTarget
 {
 public:
-  BuffTarget();
-  virtual void get_target(
-    const std::optional<PowerRune> & p,
-    std::chrono::steady_clock::time_point & timestamp) = 0;  // 纯虚函数
+    BuffTarget();
+    virtual void get_target(
+        const std::optional<PowerRune> & p,
+        std::chrono::steady_clock::time_point & timestamp) = 0;  // 纯虚函数
 
-  virtual void predict(double dt) = 0;  // 纯虚函数
+    virtual void predict(double dt) = 0;  // 纯虚函数
 
-  Eigen::Vector3d point_buff2world(const Eigen::Vector3d & point_in_buff) const;
+    Eigen::Vector3d point_buff2world(const Eigen::Vector3d & point_in_buff) const;
 
-  bool is_unsolve() const;
+    bool is_unsolve() const;
 
-  Eigen::VectorXd ekf_x() const;
+    Eigen::VectorXd ekf_x() const;
 
-  double spd = 0;  //调试用
+    double spd = 0;  //调试用
 
 protected:
-  virtual void init(double nowtime, const PowerRune & p) = 0;  // 纯虚函数
+    virtual void init(double nowtime, const PowerRune & p) = 0;  // 纯虚函数
 
-  virtual void update(double nowtime, const PowerRune & p) = 0;  // 纯虚函数
+    virtual void update(double nowtime, const PowerRune & p) = 0;  // 纯虚函数
 
-  Eigen::VectorXd x0_;
-  Eigen::MatrixXd P0_;
-  Eigen::MatrixXd A_;
-  Eigen::MatrixXd Q_;
-  Eigen::MatrixXd H_;
-  Eigen::MatrixXd R_;
-  ExtendedKalmanFilter ekf_;
-  double lasttime_ = 0;
-  Voter voter;  // 逆时针-1 顺时针1
-  bool first_in_;
-  bool unsolvable_;
+    Eigen::VectorXd x0_;
+    Eigen::MatrixXd P0_;
+    Eigen::MatrixXd A_;
+    Eigen::MatrixXd Q_;
+    Eigen::MatrixXd H_;
+    Eigen::MatrixXd R_;
+    ExtendedKalmanFilter ekf_;
+    double lasttime_ = 0;
+    Voter voter;  // 逆时针-1 顺时针1
+    bool first_in_;
+    bool unsolvable_;
 };
 
 /// SmallTarget子类
@@ -70,22 +70,22 @@ protected:
 class SmallTarget : public BuffTarget
 {
 public:
-  SmallTarget();
+    SmallTarget();
 
-  void get_target(
-    const std::optional<PowerRune> & p, std::chrono::steady_clock::time_point & timestamp) override;
+    void get_target(
+        const std::optional<PowerRune> & p, std::chrono::steady_clock::time_point & timestamp) override;
 
-  void predict(double dt) override;
+    void predict(double dt) override;
 
 private:
-  void init(double nowtime, const PowerRune & p) override;
+    void init(double nowtime, const PowerRune & p) override;
 
-  void update(double nowtime, const PowerRune & p) override;
+    void update(double nowtime, const PowerRune & p) override;
 
-  Eigen::MatrixXd h_jacobian() const;
+    Eigen::MatrixXd h_jacobian() const;
 
-  const double SMALL_W = CV_PI / 3;
-  // const double SMALL_W = 0;
+    const double SMALL_W = CV_PI / 3;
+    // const double SMALL_W = 0;
 };
 
 /// BigTarget子类
@@ -93,23 +93,23 @@ private:
 class BigTarget : public BuffTarget
 {
 public:
-  BigTarget();
+    BigTarget();
 
-  void get_target(
-    const std::optional<PowerRune> & p, std::chrono::steady_clock::time_point & timestamp) override;
+    void get_target(
+        const std::optional<PowerRune> & p, std::chrono::steady_clock::time_point & timestamp) override;
 
-  void predict(double dt) override;
+    void predict(double dt) override;
 
 private:
-  void init(double nowtime, const PowerRune & p) override;
+    void init(double nowtime, const PowerRune & p) override;
 
-  void update(double nowtime, const PowerRune & p) override;
+    void update(double nowtime, const PowerRune & p) override;
 
-  Eigen::MatrixXd h_jacobian() const;
+    Eigen::MatrixXd h_jacobian() const;
 
-  RansacSineFitter spd_fitter_;
+    RansacSineFitter spd_fitter_;
 
-  double fit_spd_;
+    double fit_spd_;
 };
 
 #endif

@@ -11,16 +11,16 @@
 class Plotter
 {
 public:
-  Plotter(std::string host = "127.0.0.1", uint16_t port = 9870);
+    Plotter(std::string host = "127.0.0.1", uint16_t port = 9870);
 
-  ~Plotter();
+    ~Plotter();
 
-  void plot(const nlohmann::json & json);
+    void plot(const nlohmann::json & json);
 
 private:
-  int socket_;
-  sockaddr_in destination_;
-  std::mutex mutex_;
+    int socket_;
+    sockaddr_in destination_;
+    std::mutex mutex_;
 };
 
 

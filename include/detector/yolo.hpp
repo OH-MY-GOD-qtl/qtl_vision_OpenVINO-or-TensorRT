@@ -9,24 +9,24 @@
 class YOLOBase
 {
 public:
-  virtual std::vector<Armor> detect(const cv::Mat & img, int frame_count) = 0;
+    virtual std::vector<Armor> detect(const cv::Mat & img, int frame_count) = 0;
 
-  virtual std::vector<Armor> postprocess(
-    double scale, cv::Mat & output, const cv::Mat & bgr_img, int frame_count) = 0;
+    virtual std::vector<Armor> postprocess(
+        double scale, cv::Mat & output, const cv::Mat & bgr_img, int frame_count) = 0;
 };
 
 class YOLO
 {
 public:
-  YOLO(const std::string & config_path, bool debug = true);
+    YOLO(const std::string & config_path, bool debug = true);
 
-  std::vector<Armor> detect(const cv::Mat & img, int frame_count = -1);
+    std::vector<Armor> detect(const cv::Mat & img, int frame_count = -1);
 
-  std::vector<Armor> postprocess(
-    double scale, cv::Mat & output, const cv::Mat & bgr_img, int frame_count);
+    std::vector<Armor> postprocess(
+        double scale, cv::Mat & output, const cv::Mat & bgr_img, int frame_count);
 
 private:
-  std::unique_ptr<YOLOBase> yolo_;
+    std::unique_ptr<YOLOBase> yolo_;
 };
 
 

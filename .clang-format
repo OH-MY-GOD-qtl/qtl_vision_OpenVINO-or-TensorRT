@@ -3,7 +3,7 @@
 Language: Cpp
 BasedOnStyle: Google
 
-AccessModifierOffset: -2
+AccessModifierOffset: -4
 AlignAfterOpenBracket: AlwaysBreak
 BraceWrapping:
   AfterClass: true
@@ -14,8 +14,9 @@ BraceWrapping:
 BreakBeforeBraces: Custom
 ColumnLimit: 100
 ConstructorInitializerIndentWidth: 0
-ContinuationIndentWidth: 2
+ContinuationIndentWidth: 4
 DerivePointerAlignment: false
+IndentWidth: 4
 PointerAlignment: Middle
 ReflowComments: false
 ...

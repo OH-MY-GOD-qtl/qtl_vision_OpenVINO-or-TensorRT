@@ -25,7 +25,7 @@ void to_binary(const cv::Mat & gray, double threshold, cv::Mat & dst);
 // 矩形核膨胀
 cv::Mat dilate_binary(const cv::Mat & binary, const cv::Size & kernel_size, int iterations = 1);
 void dilate_binary(
-  const cv::Mat & binary, const cv::Size & kernel_size, cv::Mat & dst, int iterations = 1);
+    const cv::Mat & binary, const cv::Size & kernel_size, cv::Mat & dst, int iterations = 1);
 
 // letterbox：等比缩放 img 后写入 dst 左上角，返回实际放置区域 roi 与缩放系数 scale。
 // 约定：dst 为目标尺寸的零初始化缓冲，函数只写 roi 区域、不再逐帧清零
@@ -42,22 +42,22 @@ cv::Rect letterbox(const cv::Mat & img, cv::Mat & dst, double & scale);
 class ChannelThresholder
 {
 public:
-  ChannelThresholder(
-    Color enemy_color = Color::blue, double color_threshold = 40,
-    double brightness_threshold = 100);
+    ChannelThresholder(
+        Color enemy_color = Color::blue, double color_threshold = 40,
+        double brightness_threshold = 100);
 
-  void configure(Color enemy_color, double color_threshold, double brightness_threshold);
+    void configure(Color enemy_color, double color_threshold, double brightness_threshold);
 
-  cv::Mat binary(const cv::Mat & bgr);
-  void binary(const cv::Mat & bgr, cv::Mat & dst);
+    cv::Mat binary(const cv::Mat & bgr);
+    void binary(const cv::Mat & bgr, cv::Mat & dst);
 
 private:
-  Color enemy_color_;
-  double color_threshold_, brightness_threshold_;
+    Color enemy_color_;
+    double color_threshold_, brightness_threshold_;
 
-  // 帧间复用缓冲
-  std::vector<cv::Mat> channels_;
-  cv::Mat diff_, color_mask_, gray_, bright_mask_, kernel_;
+    // 帧间复用缓冲
+    std::vector<cv::Mat> channels_;
+    cv::Mat diff_, color_mask_, gray_, bright_mask_, kernel_;
 };
 
 

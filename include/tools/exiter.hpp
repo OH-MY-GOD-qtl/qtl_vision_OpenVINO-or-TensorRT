@@ -5,9 +5,9 @@
 class Exiter
 {
 public:
-  Exiter();
+    Exiter();
 
-  bool exit() const;
+    bool exit() const;
 };
 
 

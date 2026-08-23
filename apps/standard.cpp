@@ -23,62 +23,62 @@
 using namespace std::chrono;
 
 const std::string keys =
-  "{help h usage ? |      | 输出命令行参数说明}"
-  "{@config-path   | configs/standard3.yaml | 位置参数，yaml配置文件路径 }";
+    "{help h usage ? |      | 输出命令行参数说明}"
+    "{@config-path   | configs/standard3.yaml | 位置参数，yaml配置文件路径 }";
 
 int main(int argc, char * argv[])
 {
-  cv::CommandLineParser cli(argc, argv, keys);
-  auto config_path = cli.get<std::string>(0);
-  if (cli.has("help") || config_path.empty()) {
-    cli.printMessage();
-    return 0;
-  }
-
-  Exiter exiter;
-  Plotter plotter;
-  Recorder recorder;
-
-  CBoard cboard(config_path);
-  Camera camera(config_path);
-
-  YOLO detector(config_path, false);
-  Solver solver(config_path);
-  Tracker tracker(config_path, solver);
-  Aimer aimer(config_path);
-  Shooter shooter(config_path);
-
-  cv::Mat img;
-  Eigen::Quaterniond q;
-  std::chrono::steady_clock::time_point t;
-
-  auto mode = Mode::idle;
-  auto last_mode = Mode::idle;
-
-  while (!exiter.exit()) {
-    camera.read(img, t);
-    q = cboard.imu_at(t - 1ms);
-    mode = cboard.mode;
-
-    if (last_mode != mode) {
-      logger()->info("Switch to {}", MODES[mode]);
-      last_mode = mode;
+    cv::CommandLineParser cli(argc, argv, keys);
+    auto config_path = cli.get<std::string>(0);
+    if (cli.has("help") || config_path.empty()) {
+        cli.printMessage();
+        return 0;
     }
 
-    // recorder.record(img, q, t);
+    Exiter exiter;
+    Plotter plotter;
+    Recorder recorder;
 
-    solver.set_R_gimbal2world(q);
+    CBoard cboard(config_path);
+    Camera camera(config_path);
 
-    Eigen::Vector3d ypr = eulers(solver.R_gimbal2world(), 2, 1, 0);
+    YOLO detector(config_path, false);
+    Solver solver(config_path);
+    Tracker tracker(config_path, solver);
+    Aimer aimer(config_path);
+    Shooter shooter(config_path);
 
-    auto armors = detector.detect(img);
+    cv::Mat img;
+    Eigen::Quaterniond q;
+    std::chrono::steady_clock::time_point t;
 
-    auto targets = tracker.track(armors, t);
+    auto mode = Mode::idle;
+    auto last_mode = Mode::idle;
 
-    auto command = aimer.aim(targets, t, cboard.bullet_speed);
+    while (!exiter.exit()) {
+        camera.read(img, t);
+        q = cboard.imu_at(t - 1ms);
+        mode = cboard.mode;
 
-    cboard.send(command);
-  }
+        if (last_mode != mode) {
+            logger()->info("Switch to {}", MODES[mode]);
+            last_mode = mode;
+        }
 
-  return 0;
+        // recorder.record(img, q, t);
+
+        solver.set_R_gimbal2world(q);
+
+        Eigen::Vector3d ypr = eulers(solver.R_gimbal2world(), 2, 1, 0);
+
+        auto armors = detector.detect(img);
+
+        auto targets = tracker.track(armors, t);
+
+        auto command = aimer.aim(targets, t, cboard.bullet_speed);
+
+        cboard.send(command);
+    }
+
+    return 0;
 }
