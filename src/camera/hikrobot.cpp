@@ -8,10 +8,12 @@ using namespace std::chrono_literals;
 
 
 HikRobot::HikRobot(double exposure_ms, double gain, const std::string & vid_pid)
-: exposure_us_(exposure_ms * 1e3), gain_(gain), queue_(1), daemon_quit_(false), vid_(-1), pid_(-1)
+: exposure_us_(exposure_ms * 1e3), gain_(gain), queue_(1), daemon_quit_(false),
+  handle_(nullptr), libusb_ok_(false), vid_(-1), pid_(-1)
 {
   set_vid_pid(vid_pid);
-  if (libusb_init(NULL)) logger()->warn("Unable to init libusb!");
+  libusb_ok_ = (libusb_init(NULL) == 0);
+  if (!libusb_ok_) logger()->warn("Unable to init libusb!");
 
   daemon_thread_ = std::thread{[this] {
     logger()->info("HikRobot's daemon thread started.");
@@ -159,6 +161,8 @@ void HikRobot::capture_stop()
   capture_quit_ = true;
   if (capture_thread_.joinable()) capture_thread_.join();
 
+  if (handle_ == nullptr) return;
+
   unsigned int ret;
 
   ret = MV_CC_StopGrabbing(handle_);
@@ -225,7 +229,7 @@ void HikRobot::set_vid_pid(const std::string & vid_pid)
 
 void HikRobot::reset_usb() const
 {
-  if (vid_ == -1 || pid_ == -1) return;
+  if (!libusb_ok_ || vid_ == -1 || pid_ == -1) return;
 
   // https://github.com/ralight/usb-reset/blob/master/usb-reset.c
   auto handle = libusb_open_device_with_vid_pid(NULL, vid_, pid_);

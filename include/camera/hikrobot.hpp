@@ -38,6 +38,7 @@ private:
   std::atomic<bool> capture_quit_;
   ThreadSafeQueue<CameraData> queue_;
 
+  bool libusb_ok_;
   int vid_, pid_;
 
   void capture_start();

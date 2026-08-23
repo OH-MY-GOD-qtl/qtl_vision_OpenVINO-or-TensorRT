@@ -14,11 +14,13 @@ MindVision::MindVision(double exposure_ms, double gamma, const std::string & vid
   quit_(false),
   ok_(false),
   queue_(1),
+  libusb_ok_(false),
   vid_(-1),
   pid_(-1)
 {
   set_vid_pid(vid_pid);
-  if (libusb_init(NULL)) logger()->warn("Unable to init libusb!");
+  libusb_ok_ = (libusb_init(NULL) == 0);
+  if (!libusb_ok_) logger()->warn("Unable to init libusb!");
 
   try_open();
 
@@ -148,7 +150,7 @@ void MindVision::set_vid_pid(const std::string & vid_pid)
 
 void MindVision::reset_usb() const
 {
-  if (vid_ == -1 || pid_ == -1) return;
+  if (!libusb_ok_ || vid_ == -1 || pid_ == -1) return;
 
   // https://github.com/ralight/usb-reset/blob/master/usb-reset.c
   auto handle = libusb_open_device_with_vid_pid(NULL, vid_, pid_);

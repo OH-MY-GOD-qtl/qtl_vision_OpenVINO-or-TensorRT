@@ -31,6 +31,7 @@ private:
   std::thread capture_thread_;
   std::thread daemon_thread_;
   ThreadSafeQueue<CameraData> queue_;
+  bool libusb_ok_;
   int vid_, pid_;
 
   void open();
