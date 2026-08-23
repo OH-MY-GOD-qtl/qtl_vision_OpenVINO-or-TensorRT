@@ -29,12 +29,27 @@ if(NOT OpenVINO_DIR)
 endif()
 find_package(OpenVINO REQUIRED COMPONENTS Runtime)
 
+# TensorRT（WSL 本机 NVIDIA 显卡推理）：头文件 / 库 + CUDA runtime
+find_path(TENSORRT_INCLUDE_DIR NvInfer.h
+  HINTS /usr/include/x86_64-linux-gnu /usr/local/tensorrt/include /opt/TensorRT/include)
+find_library(TENSORRT_LIBRARY nvinfer
+  HINTS /usr/lib/x86_64-linux-gnu /usr/local/tensorrt/lib /opt/TensorRT/lib)
+if(NOT TENSORRT_INCLUDE_DIR OR NOT TENSORRT_LIBRARY)
+  message(FATAL_ERROR "TensorRT not found. 请安装 TensorRT 或手动指定 TENSORRT_INCLUDE_DIR / TENSORRT_LIBRARY")
+endif()
+find_path(CUDA_INCLUDE_DIR cuda_runtime_api.h HINTS /usr/local/cuda/include)
+find_library(CUDA_RUNTIME_LIBRARY cudart HINTS /usr/local/cuda/lib64)
+if(NOT CUDA_INCLUDE_DIR OR NOT CUDA_RUNTIME_LIBRARY)
+  message(FATAL_ERROR "CUDA runtime not found. 请安装 CUDA 或手动指定 CUDA_INCLUDE_DIR / CUDA_RUNTIME_LIBRARY")
+endif()
+
 # 第三方库（自带 CMakeLists，内部不动）
 add_subdirectory(third_party/serial)
 
 include_directories(${CMAKE_SOURCE_DIR}/include)
 include_directories(${EIGEN3_INCLUDE_DIR})
 include_directories(${OpenCV_INCLUDE_DIRS})
+include_directories(${TENSORRT_INCLUDE_DIR} ${CUDA_INCLUDE_DIR})
 
 # tinympc 依赖 Eigen 头文件路径，需在 include_directories 之后加入
 add_subdirectory(third_party/tinympc)
@@ -111,6 +126,7 @@ add_library(auto_aim OBJECT
     # 检测器（传统 + YOLO）
     src/detector/detector.cpp
     src/detector/yolo.cpp
+    src/detector/tensorrt_infer.cpp
     src/detector/yolos/yolov5.cpp
     src/detector/yolos/yolov8.cpp
     src/detector/yolos/yolo11.cpp
@@ -128,7 +144,8 @@ add_library(auto_aim OBJECT
     src/planner/planner.cpp
 )
 
-target_link_libraries(auto_aim PUBLIC io openvino::runtime tinympcstatic lightbar image)
+target_link_libraries(auto_aim PUBLIC io openvino::runtime tinympcstatic lightbar image
+    ${TENSORRT_LIBRARY} ${CUDA_RUNTIME_LIBRARY})
 
 #################### 全向感知任务库 ####################
 add_library(omni OBJECT
@@ -230,7 +247,7 @@ foreach(t   camera_test
             multi_usbcamera_test
             usbcamera_test dm_test)
     target_link_libraries(${t} ${TEST_BASE_LIBS})
-    
+
 endforeach()
 
 # ROS2 相关测试（需要 ROS 环境，默认不编译）

@@ -18,6 +18,7 @@ YOLOV5::YOLOV5(const std::string & config_path, bool debug)
 
   model_path_ = yaml_read<std::string>(yaml, "yolov5_model_path");
   device_ = yaml_read<std::string>(yaml, "device");
+  use_tensorrt_ = yaml["use_tensorrt"] ? yaml["use_tensorrt"].as<bool>() : false;
   int x = 0, y = 0, width = 0, height = 0;
   x = yaml["roi"]["x"].as<int>();
   y = yaml["roi"]["y"].as<int>();
@@ -27,6 +28,26 @@ YOLOV5::YOLOV5(const std::string & config_path, bool debug)
   use_traditional_ = yaml_read<bool>(yaml, "use_traditional");
   roi_ = cv::Rect(x, y, width, height);
   offset_ = cv::Point2f(x, y);
+
+  // 预分配 letterbox 输入缓冲（两后端共用）
+  input_ = cv::Mat(640, 640, CV_8UC3, cv::Scalar(0, 0, 0));
+
+  if (use_tensorrt_) {
+    // ---- TensorRT 后端 ----
+    std::string engine_path = yaml_read<std::string>(yaml, "yolov5_engine_path");
+    trt_ = std::make_unique<TensorRTInfer>(engine_path);
+    if (!trt_->is_ok()) {
+      logger()->error("[YOLOV5] TensorRT 引擎加载失败: {}", engine_path);
+      exit(1);
+    }
+    int64_t vol = 1;
+    for (auto d : trt_->input_info().dims) vol *= d;
+    blob_.assign(vol, 0.0f);
+    logger()->info("[YOLOV5] 使用 TensorRT 后端: {}", engine_path);
+    return;
+  }
+
+  // ---- OpenVINO 后端 ----
   auto model = core_.read_model(model_path_);
   ov::preprocess::PrePostProcessor ppp(model);
   auto & input = ppp.input();
@@ -49,9 +70,8 @@ YOLOV5::YOLOV5(const std::string & config_path, bool debug)
   compiled_model_ = core_.compile_model(
     model, device_, ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY));
 
-  // 复用 InferRequest 与 letterbox 输入缓冲，避免逐帧创建推理请求和分配内存
+  // 复用 InferRequest，避免逐帧创建推理请求
   infer_request_ = compiled_model_.create_infer_request();
-  input_ = cv::Mat(640, 640, CV_8UC3, cv::Scalar(0, 0, 0));
 }
 
 std::vector<Armor> YOLOV5::detect(const cv::Mat & raw_img, int frame_count)
@@ -77,6 +97,37 @@ std::vector<Armor> YOLOV5::detect(const cv::Mat & raw_img, int frame_count)
   // preproces（letterbox 见 image 模块）
   double scale;
   letterbox(bgr_img, input_, scale);
+
+  if (use_tensorrt_) {
+    // TensorRT 预处理：u8 BGR letterbox -> f32 NCHW RGB /255
+    // （与 OpenVINO PrePostProcessor 的 convert_color(RGB) + scale(255) 完全一致）
+    const int plane = 640 * 640;
+    const uchar * src = input_.data;
+    float * dst = blob_.data();
+    for (int c = 0; c < 3; ++c) {
+      const uchar * sc = src + (2 - c);  // BGR -> RGB 通道交换
+      float * dc = dst + c * plane;
+      for (int i = 0; i < plane; ++i) dc[i] = sc[i * 3] * (1.0f / 255.0f);
+    }
+
+    auto & outputs = trt_->infer(blob_.data());
+    auto & o = outputs[0];
+    int rows = 0, cols = 0;
+    if (o.dims.size() == 3) {  // [1, anchors, features]
+      rows = static_cast<int>(o.dims[1]);
+      cols = static_cast<int>(o.dims[2]);
+    } else if (o.dims.size() == 2) {  // [anchors, features]
+      rows = static_cast<int>(o.dims[0]);
+      cols = static_cast<int>(o.dims[1]);
+    } else {
+      logger()->error("[YOLOV5] 非法输出维度: {}", o.dims.size());
+      return {};
+    }
+    cv::Mat output(rows, cols, CV_32F, o.data.data());
+    return parse(scale, output, raw_img, frame_count);
+  }
+
+  // OpenVINO 后端
   ov::Tensor input_tensor(ov::element::u8, {1, 640, 640, 3}, input_.data);
 
   // infer
