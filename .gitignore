@@ -4,3 +4,4 @@ logs/*.log
 patterns/
 records/
 MvSdkLog/
+assets/*.engine
