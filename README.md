@@ -1,4 +1,4 @@
-# qtl_vision
+# qtl_vision_OpenVINO-or-TensorRT
 
 RoboMaster 视觉系统：**自瞄**（传统视觉 / YOLO v5·v8·v11 + EKF 跟踪 + MPC 规划）、
 **能量机关**（yolo11_buff）、**全向感知**、相机标定工具链与测试套件。
@@ -26,7 +26,7 @@ RoboMaster 视觉系统：**自瞄**（传统视觉 / YOLO v5·v8·v11 + EKF 跟
 ## 快速上手（海康相机 + 自瞄）
 
 ```bash
-cd qtl_vision  # 进入项目根目录
+cd qtl_vision_OpenVINO-or-TensorRT  # 进入项目根目录
 
 # ① 验证相机出图（-d 显示画面，窗口按 q 退出）
 ./build/camera_test configs/standard1.yaml -d
@@ -52,7 +52,7 @@ cd qtl_vision  # 进入项目根目录
 ## 项目结构
 
 ```
-qtl_vision/
+qtl_vision_OpenVINO-or-TensorRT/
 ├── CMakeLists.txt              # 扁平构建：每模块一个 OBJECT 库，按注释分组
 ├── include/<模块>/xxx.hpp      # 头文件，按模块分目录
 ├── src/<模块>/xxx.cpp          # 源文件，与 include/ 镜像
@@ -151,8 +151,9 @@ cmake .. && make -j
 | `split_video` | `calibration/split_video.cpp` | 视频切帧 | — | — | — | — |
 | `yolo_smoke` | `smoke/yolo_smoke.cpp` | YOLO 模型加载+推理冒烟 | YOLO | — | — | `video_demo.yaml` |
 
-除 `MAIN` 外，所有程序均以 yaml 配置路径作为第一个命令行参数（`MAIN` 不传参数时默认
-`configs/standard1.yaml`）；标定类工具的额外参数见[标定流程](#标定流程)。
+除 `MAIN` 与 `split_video` 外，所有程序均以 yaml 配置路径作为第一个命令行参数
+（`MAIN` 不传参数时默认 `configs/standard1.yaml`）；`split_video` 的参数为
+`输入路径 起始帧 结束帧 输出路径`，其余标定类工具的额外参数见[标定流程](#标定流程)。
 
 约定：`*_sim.yaml` 为模拟配置（`simulate: true`），不打开串口、固定自瞄模式、
 只打印模拟下发，用于无云台硬件时跑通算法链路。
@@ -243,7 +244,7 @@ simulate: true                 # 模拟模式（见上）
 - **串口云台**（`comm/gimbal`）：帧头 'S','P' + CRC16，与下位机约定保持一致，
   修改需两边同步；支持 `simulate` 模拟模式。
 - **裁判系统 CBoard**（`comm/cboard`）：SocketCAN 读取裁判系统数据（imu/模式/弹速），
-  `standard`/`standard_mpc` 依赖 can0。
+  仅 `standard` 依赖 can0（`standard_mpc` 使用串口 `Gimbal`）。
 - **达妙 IMU**（`comm/dm_imu`）：串口读取 IMU 姿态。
 - **ros2**（`comm/ros2`）：publish2nav/subscribe2nav 预留，未参与构建。
 
