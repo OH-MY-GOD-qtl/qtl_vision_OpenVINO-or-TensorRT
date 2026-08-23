@@ -207,15 +207,30 @@ add_executable(gimbal_test tests/gimbal_test.cpp)
 add_executable(planner_test tests/planner_test.cpp)
 add_executable(planner_test_offline tests/planner_test_offline.cpp)
 
-foreach(t auto_aim_test camera_detect_test camera_thread_test detector_video_test
-          usbcamera_detect_test handeye_test minimum_vision_system camera_auto_aim_test
-          gimbal_test planner_test planner_test_offline)
+foreach(t   auto_aim_test
+            camera_detect_test
+            camera_thread_test
+            detector_video_test
+            usbcamera_detect_test
+            handeye_test
+            minimum_vision_system
+            camera_auto_aim_test
+            gimbal_test
+            planner_test
+            planner_test_offline)
     target_link_libraries(${t} ${TEST_BASE_LIBS} auto_aim)
+
 endforeach()
 target_link_libraries(auto_buff_test ${TEST_BASE_LIBS} auto_aim auto_buff)
-foreach(t camera_test cboard_test fire_test gimbal_response_test
-          multi_usbcamera_test usbcamera_test dm_test)
+
+foreach(t   camera_test
+            cboard_test
+            fire_test
+            gimbal_response_test
+            multi_usbcamera_test
+            usbcamera_test dm_test)
     target_link_libraries(${t} ${TEST_BASE_LIBS})
+    
 endforeach()
 
 # ROS2 相关测试（需要 ROS 环境，默认不编译）
