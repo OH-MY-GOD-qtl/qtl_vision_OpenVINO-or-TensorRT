@@ -262,11 +262,13 @@ yolov5_engine_path: assets/yolov5.engine # TensorRT 后端加载的引擎
 
 ```bash
 # 仅支持 FP32 精度（务必不要加 --fp16，见下方说明）
-trtexec --onnx=assets/0526.onnx \ --saveEngine=assets/yolov5.engine
+trtexec --onnx=assets/0526.onnx \--saveEngine=assets/yolov5.engine
 ```
 
 > ⚠️ **只能用 FP32**：`--fp16` 导出的引擎在推理时会报错。
 > 导出时**不要**加 `--fp16`、`--int8`、`--fp32`等精度参数。
+> **AI**给的命令是带精度参数的是错的。
+
 
 说明：
 
