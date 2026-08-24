@@ -26,17 +26,24 @@ public:
     std::tuple<cv::Mat, std::vector<Armor>, std::chrono::steady_clock::time_point> debug_pop();
 
 private:
+    // 推理请求池大小：即最大 in-flight 帧数，兼顾吞吐与内存占用
+    static constexpr int kPoolSize = 4;
+
     ov::Core core_;
     ov::CompiledModel compiled_model_;
     std::string device_;
     YOLO yolo_;
 
-    // 修改队列配置，当队列满时弹出旧帧
-    // 队列同时持有 letterbox 输入缓冲(input)与原始帧(img)，保证异步推理期间输入数据生命周期有效
-    ThreadSafeQueue<
-        std::tuple<cv::Mat, cv::Mat, std::chrono::steady_clock::time_point, ov::InferRequest>,
-        true>  // 设置PopWhenFull为true
-        queue_{16, [] { logger()->debug("[MultiThreadDetector] queue is full!"); }};
+    // 复用池：避免每帧 create_infer_request() 与 640x640 输入缓冲分配
+    std::vector<ov::InferRequest> infer_requests_;
+    std::vector<cv::Mat> inputs_;
+    // 空闲槽位队列：push 时取槽位，pop 完成后归还
+    ThreadSafeQueue<int> free_slots_{kPoolSize};
+
+    // 结果队列仅存槽位索引 + 原始帧引用 + 时间戳；容量 = 池大小，
+    // push 前已持有空闲槽位时入队必成功，不会覆盖 in-flight 请求
+    ThreadSafeQueue<std::tuple<int, cv::Mat, std::chrono::steady_clock::time_point>>
+        queue_{kPoolSize, [] { logger()->debug("[MultiThreadDetector] queue is full!"); }};
 };
 
 }  // namespace multithread

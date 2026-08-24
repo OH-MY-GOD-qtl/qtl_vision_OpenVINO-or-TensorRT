@@ -265,7 +265,7 @@ yolov5_engine_path: assets/yolov5.engine # TensorRT 后端加载的引擎
 trtexec --onnx=assets/0526.onnx \ --saveEngine=assets/yolov5.engine
 ```
 
-> ⚠️ **只能用 FP32**：`--fp16` 导出的引擎在推理时会报错（踩过的坑）。
+> ⚠️ **只能用 FP32**：`--fp16` 导出的引擎在推理时会报错。
 > 导出时**不要**加 `--fp16`、`--int8`、`--fp32`等精度参数。
 
 说明：

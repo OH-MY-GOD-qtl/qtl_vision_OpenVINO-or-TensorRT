@@ -42,29 +42,39 @@ MultiThreadDetector::MultiThreadDetector(const std::string & config_path, bool d
         // 启用CPU优化
         ov::hint::enable_cpu_pinning(true));
 
+    // 预创建推理请求池与输入缓冲（帧间复用，避免每帧 create_infer_request / 分配）
+    for (int i = 0; i < kPoolSize; ++i) {
+        infer_requests_.push_back(compiled_model_.create_infer_request());
+        inputs_.emplace_back(640, 640, CV_8UC3, cv::Scalar(0, 0, 0));
+        free_slots_.push(i);
+    }
+
     logger()->info("[MultiThreadDetector] initialized !");
 }
 
 void MultiThreadDetector::push(cv::Mat img, std::chrono::steady_clock::time_point t)
 {
-    // preproces（letterbox 见 image 模块）
-    auto input = cv::Mat(640, 640, CV_8UC3, cv::Scalar(0, 0, 0));
+    // 取一个空闲槽位；全部 in-flight 时丢帧（消费跟不上，避免覆盖未完成推理）
+    int slot = -1;
+    if (!free_slots_.try_pop(slot, 0)) return;
+
+    // letterbox 写入复用缓冲（该槽位在 pop 归还前不会被再次使用）
+    inputs_[slot].setTo(cv::Scalar(0, 0, 0));
     double scale;
-    letterbox(img, input, scale);
+    letterbox(img, inputs_[slot], scale);
 
-    auto input_port = compiled_model_.input();
-    auto infer_request = compiled_model_.create_infer_request();
-    ov::Tensor input_tensor(ov::element::u8, {1, 640, 640, 3}, input.data);
+    ov::Tensor input_tensor(ov::element::u8, {1, 640, 640, 3}, inputs_[slot].data);
+    infer_requests_[slot].set_input_tensor(input_tensor);
+    infer_requests_[slot].start_async();
 
-    infer_request.set_input_tensor(input_tensor);
-    infer_request.start_async();
-    // 输入缓冲随队列移动以延续生命周期；img 为引用计数浅拷贝，无需逐帧 clone 整幅图
-    queue_.push({std::move(input), img, t, std::move(infer_request)});
+    // img 为引用计数浅拷贝，无需逐帧 clone 整幅图
+    queue_.push({slot, img, t});
 }
 
 std::tuple<std::vector<Armor>, std::chrono::steady_clock::time_point> MultiThreadDetector::pop()
 {
-    auto [input, img, t, infer_request] = queue_.pop();
+    auto [slot, img, t] = queue_.pop();
+    auto & infer_request = infer_requests_[slot];
     infer_request.wait();
 
     // postprocess
@@ -75,6 +85,9 @@ std::tuple<std::vector<Armor>, std::chrono::steady_clock::time_point> MultiThrea
     auto y_scale = static_cast<double>(640) / img.cols;
     auto scale = std::min(x_scale, y_scale);
     auto armors = yolo_.postprocess(scale, output, img, 0);  //暂不支持ROI
+
+    // 归还槽位供下一帧复用
+    free_slots_.push(slot);
 
     return {std::move(armors), t};
 }
@@ -82,7 +95,8 @@ std::tuple<std::vector<Armor>, std::chrono::steady_clock::time_point> MultiThrea
 std::tuple<cv::Mat, std::vector<Armor>, std::chrono::steady_clock::time_point>
 MultiThreadDetector::debug_pop()
 {
-    auto [input, img, t, infer_request] = queue_.pop();
+    auto [slot, img, t] = queue_.pop();
+    auto & infer_request = infer_requests_[slot];
     infer_request.wait();
 
     // postprocess
@@ -93,6 +107,9 @@ MultiThreadDetector::debug_pop()
     auto y_scale = static_cast<double>(640) / img.cols;
     auto scale = std::min(x_scale, y_scale);
     auto armors = yolo_.postprocess(scale, output, img, 0);  //暂不支持ROI
+
+    // 归还槽位供下一帧复用
+    free_slots_.push(slot);
 
     return {img, std::move(armors), t};
 }
