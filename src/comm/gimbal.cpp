@@ -5,6 +5,8 @@
 #include "tools/math_tools.hpp"
 #include "tools/yaml.hpp"
 
+#include <fmt/format.h>
+
 
 Gimbal::Gimbal(const std::string & config_path)
 {
@@ -12,6 +14,7 @@ Gimbal::Gimbal(const std::string & config_path)
 
     // 无硬件模拟模式：不打开串口，固定自瞄模式
     simulate_ = yaml["simulate"] ? yaml["simulate"].as<bool>() : false;
+    debug_serial_ = yaml["debug_serial"] ? yaml["debug_serial"].as<bool>() : false;
     if (simulate_) {
         mode_ = GimbalMode::AUTO_AIM;
         logger()->info("[Gimbal] 模拟模式：不打开串口，固定为自瞄模式");
@@ -101,6 +104,7 @@ void Gimbal::send(VisionToGimbal VisionToGimbal)
 
     try {
         serial_.write(reinterpret_cast<uint8_t *>(&tx_data_), sizeof(tx_data_));
+        if (debug_serial_) dump_hex("TX", reinterpret_cast<uint8_t *>(&tx_data_), sizeof(tx_data_));
     } catch (const std::exception & e) {
         logger()->warn("[Gimbal] Failed to write serial: {}", e.what());
     }
@@ -129,6 +133,7 @@ void Gimbal::send(
 
     try {
         serial_.write(reinterpret_cast<uint8_t *>(&tx_data_), sizeof(tx_data_));
+        if (debug_serial_) dump_hex("TX", reinterpret_cast<uint8_t *>(&tx_data_), sizeof(tx_data_));
     } catch (const std::exception & e) {
         logger()->warn("[Gimbal] Failed to write serial: {}", e.what());
     }
@@ -142,6 +147,15 @@ void Gimbal::log_sim()
         logger()->info(
             "[Gimbal][sim] mode={} fire={} yaw={:.2f} pitch={:.2f}", tx_data_.mode, tx_data_.shoot,
             tx_data_.yaw * 57.3, tx_data_.pitch * 57.3);
+}
+
+void Gimbal::dump_hex(const char * tag, const uint8_t * data, size_t size)
+{
+    std::string hex;
+    hex.reserve(size * 3);
+    for (size_t i = 0; i < size; ++i)
+        hex += fmt::format("{:02X} ", static_cast<int>(data[i]));
+    logger()->info("[Gimbal][{}] {}bytes: {}", tag, size, hex);
 }
 
 bool Gimbal::read(uint8_t * buffer, size_t size)
@@ -195,6 +209,7 @@ void Gimbal::read_thread()
         }
 
         error_count = 0;
+        if (debug_serial_) dump_hex("RX", reinterpret_cast<uint8_t *>(&rx_data_), sizeof(rx_data_));
         // 直接从packed结构体复制值到临时变量
         float temp_yaw = rx_data_.yaw;
         float temp_pitch = rx_data_.pitch;

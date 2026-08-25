@@ -85,6 +85,7 @@ public:
 
 private:
     bool simulate_ = false;  // 无硬件模拟模式：不打开串口，固定自瞄
+    bool debug_serial_ = false;  // 打印串口收发原始字节（调试用）
     serial::Serial serial_;
 
     std::thread thread_;
@@ -104,6 +105,7 @@ private:
     void read_thread();
     void reconnect();
     void log_sim();  // 模拟模式下的控制信息打印
+    void dump_hex(const char * tag, const uint8_t * data, size_t size);
 };
 
 
