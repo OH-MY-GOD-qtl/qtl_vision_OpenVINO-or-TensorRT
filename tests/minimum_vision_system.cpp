@@ -130,11 +130,14 @@ int main(int argc, char * argv[])
             data["last_id"] = target.last_id;
             data["distance"] = std::sqrt(x[0] * x[0] + x[2] * x[2] + x[4] * x[4]);
 
-            // 卡方检验数据
-            data["residual_yaw"] = target.ekf().data.at("residual_yaw");
-            data["residual_pitch"] = target.ekf().data.at("residual_pitch");
-            data["residual_distance"] = target.ekf().data.at("residual_distance");
-            data["residual_angle"] = target.ekf().data.at("residual_angle");
+            // 卡方检验数据（新息残差，固定 4 维：yaw/pitch/distance/angle）
+            const auto & residual = target.residual();
+            if (residual.size() >= 4) {
+                data["residual_yaw"] = residual[0];
+                data["residual_pitch"] = residual[1];
+                data["residual_distance"] = residual[2];
+                data["residual_angle"] = residual[3];
+            }
             data["nis"] = target.ekf().data.at("nis");
             data["nees"] = target.ekf().data.at("nees");
             data["nis_fail"] = target.ekf().data.at("nis_fail");

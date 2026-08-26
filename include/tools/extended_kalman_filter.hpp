@@ -12,6 +12,8 @@ class ExtendedKalmanFilter
 public:
     Eigen::VectorXd x;
     Eigen::MatrixXd P;
+    // 最近一次 update 的观测新息 z - h(x_prior)，供调试与统计复用
+    Eigen::VectorXd last_residual;
 
     ExtendedKalmanFilter() = default;
 
@@ -41,10 +43,11 @@ public:
         std::function<Eigen::VectorXd(const Eigen::VectorXd &, const Eigen::VectorXd &)> z_subtract =
             [](const Eigen::VectorXd & a, const Eigen::VectorXd & b) { return a - b; });
 
-    std::map<std::string, double> data;  //卡方检验数据
+    // 卡方检验统计（通用，不依赖具体观测语义）
+    std::map<std::string, double> data;
     std::deque<int> recent_nis_failures{0};
     size_t window_size = 100;
-    double last_nis;
+    double last_nis = 0.0;
 
     // 卡方检验阈值（可配置，默认值：观测自由度 4 / 状态自由度 11 的 95% 置信度分位）
     double nis_threshold = 9.49;
@@ -53,10 +56,6 @@ public:
 private:
     Eigen::MatrixXd I;
     std::function<Eigen::VectorXd(const Eigen::VectorXd &, const Eigen::VectorXd &)> x_add;
-
-    int nees_count_ = 0;
-    int nis_count_ = 0;
-    int total_count_ = 0;
 };
 
 

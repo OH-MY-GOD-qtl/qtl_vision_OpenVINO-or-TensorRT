@@ -34,6 +34,8 @@ public:
 
     const Eigen::VectorXd & ekf_x() const;
     const ExtendedKalmanFilter & ekf() const;
+    // 最近一次更新的观测新息（调试用，4 维：yaw/pitch/distance/angle）
+    const Eigen::VectorXd & residual() const;
     const std::vector<Eigen::Vector4d> & armor_xyza_list() const;
 
     bool diverged() const;

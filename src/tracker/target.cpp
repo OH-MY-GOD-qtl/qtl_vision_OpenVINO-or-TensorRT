@@ -228,6 +228,8 @@ const Eigen::VectorXd & Target::ekf_x() const { return ekf_.x; }
 
 const ExtendedKalmanFilter & Target::ekf() const { return ekf_; }
 
+const Eigen::VectorXd & Target::residual() const { return ekf_.last_residual; }
+
 const std::vector<Eigen::Vector4d> & Target::armor_xyza_list() const
 {
     armor_xyza_cache_.clear();
