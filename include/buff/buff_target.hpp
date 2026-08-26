@@ -3,6 +3,7 @@
 
 #include <Eigen/Dense>
 #include <opencv2/opencv.hpp>
+#include <chrono>
 #include <optional>
 #include <string>
 #include <vector>
@@ -63,6 +64,8 @@ protected:
     Voter voter;  // 逆时针-1 顺时针1
     bool first_in_;
     bool unsolvable_;
+    int lost_cn_ = 0;  // 丢失帧计数
+    std::chrono::steady_clock::time_point start_timestamp_;  // 本次跟踪时间基准
 };
 
 /// SmallTarget子类

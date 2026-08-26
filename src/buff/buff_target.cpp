@@ -49,15 +49,15 @@ void SmallTarget::get_target(
     const std::optional<PowerRune> & p, std::chrono::steady_clock::time_point & timestamp)
 {
     // 如果没有识别，退出函数
-    static int lost_cn = 0;
     if (!p.has_value()) {
         unsolvable_ = true;
-        lost_cn++;
+        lost_cn_++;
         return;
     }
 
-    static std::chrono::steady_clock::time_point start_timestamp = timestamp;
-    auto time_gap = delta_time(timestamp, start_timestamp);
+    // 重新进入跟踪时重置时间基准
+    if (first_in_) start_timestamp_ = timestamp;
+    auto time_gap = delta_time(timestamp, start_timestamp_);
 
     // init
     if (first_in_) {
@@ -67,10 +67,10 @@ void SmallTarget::get_target(
     }
 
     // 处理识别时间间隔过大
-    if (lost_cn > 6) {
+    if (lost_cn_ > 6) {
         unsolvable_ = true;
         logger()->debug("[BuffTarget] 丢失buff");
-        lost_cn = 0;
+        lost_cn_ = 0;
         first_in_ = true;
         return;
     }
@@ -359,15 +359,15 @@ void BigTarget::get_target(
     const std::optional<PowerRune> & p, std::chrono::steady_clock::time_point & timestamp)
 {
     // 如果没有识别，退出函数
-    static int lost_cn = 0;
     if (!p.has_value()) {
         unsolvable_ = true;
-        lost_cn++;
+        lost_cn_++;
         return;
     }
 
-    static std::chrono::steady_clock::time_point start_timestamp = timestamp;
-    auto time_gap = delta_time(timestamp, start_timestamp);
+    // 重新进入跟踪时重置时间基准
+    if (first_in_) start_timestamp_ = timestamp;
+    auto time_gap = delta_time(timestamp, start_timestamp_);
 
     // init
     if (first_in_) {
@@ -377,10 +377,10 @@ void BigTarget::get_target(
     }
 
     // 处理识别时间间隔过大
-    if (lost_cn > 6) {
+    if (lost_cn_ > 6) {
         unsolvable_ = true;
         logger()->debug("[BuffTarget] 丢失buff");
-        lost_cn = 0;
+        lost_cn_ = 0;
         first_in_ = true;
         return;
     }
