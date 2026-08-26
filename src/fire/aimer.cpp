@@ -137,24 +137,28 @@ Command Aimer::smooth(const Command & command)
     if (!command.control) return command;
 
     if (!has_last_) {
-        last_yaw_ = command.yaw;
+        last_yaw_ = limit_rad(command.yaw);
         last_pitch_ = command.pitch;
         has_last_ = true;
         return command;
     }
 
-    // 一阶低通：out = out + factor * (in - out)，factor 越小越平滑
+    // 一阶低通：out = last + factor * (in - last)，factor 越小越平滑；死区内保持上次输出
     double dyaw = limit_rad(command.yaw - last_yaw_);
     double dpitch = command.pitch - last_pitch_;
 
     Command out = command;
     if (std::abs(dyaw) > deadband_) {
-        out.yaw = last_yaw_ + lowpass_factor_ * dyaw;
+        out.yaw = limit_rad(last_yaw_ + lowpass_factor_ * dyaw);
         last_yaw_ = out.yaw;
+    } else {
+        out.yaw = last_yaw_;  // 死区内保持
     }
     if (std::abs(dpitch) > deadband_) {
         out.pitch = last_pitch_ + lowpass_factor_ * dpitch;
         last_pitch_ = out.pitch;
+    } else {
+        out.pitch = last_pitch_;  // 死区内保持
     }
     return out;
 }

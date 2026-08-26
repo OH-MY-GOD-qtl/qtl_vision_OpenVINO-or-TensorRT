@@ -44,7 +44,7 @@ private:
 
     // 输出平滑：一阶低通 + 死区
     double lowpass_factor_ = 0.2;  // 0~1，越小越平滑，1 等价于不滤波
-    double deadband_ = 0.1;        // 死区（degree），变化量小于该值不更新输出
+    double deadband_ = 0.1 / 57.3;  // 死区（rad），默认 0.1°，变化量小于该值保持上次输出
     double last_yaw_ = 0.0;
     double last_pitch_ = 0.0;
     bool has_last_ = false;
