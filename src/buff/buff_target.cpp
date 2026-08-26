@@ -272,14 +272,16 @@ void SmallTarget::update(double nowtime, const PowerRune & p)
     };
     // clang-format on
 
-    // 定义非线性转换函数h: x -> z
-    auto h2 = [&](const Eigen::VectorXd & x) -> Eigen::Vector3d {
-        Eigen::VectorXd R_ypd{{x[0], x[2], x[3]}};
-        Eigen::VectorXd R_xyz = ypd2xyz(R_ypd);
-        Eigen::VectorXd R_xyz_and_yr{{R_ypd[0], R_ypd[1], R_ypd[2], x[4], x[5]}};
-        Eigen::VectorXd B_xyz = point_buff2world(Eigen::Vector3d(0.0, 0.0, 0.7));
-        Eigen::VectorXd B_ypd = xyz2ypd(B_xyz);
-        return B_ypd;
+    // 定义非线性转换函数h: x -> z（纯函数，仅依赖入参 x）
+    auto h2 = [](const Eigen::VectorXd & x) -> Eigen::Vector3d {
+        // 目标中心世界坐标
+        Eigen::Vector3d center_xyz(
+            x[3] * std::cos(x[2]) * std::cos(x[0]),
+            x[3] * std::cos(x[2]) * std::sin(x[0]),
+            x[3] * std::sin(x[2]));
+        // buff 本体到世界的旋转（yaw=x[4], pitch=0, roll=x[5]），扇叶中心偏移 0.7
+        Eigen::Matrix3d R_buff2world = rotation_matrix(Eigen::Vector3d(x[4], 0.0, x[5]));
+        return xyz2ypd(R_buff2world * Eigen::Vector3d(0.0, 0.0, 0.7) + center_xyz);
     };
 
     // 防止夹角求差出现异常值
@@ -618,14 +620,16 @@ void BigTarget::update(double nowtime, const PowerRune & p)
     };
     // clang-format on
 
-    // 定义非线性转换函数h: x -> z
-    auto h2 = [&](const Eigen::VectorXd & x) -> Eigen::Vector3d {
-        Eigen::VectorXd R_ypd{{x[0], x[2], x[3]}};
-        Eigen::VectorXd R_xyz = ypd2xyz(R_ypd);
-        Eigen::VectorXd R_xyz_and_yr{{R_ypd[0], R_ypd[1], R_ypd[2], x[4], x[5]}};
-        Eigen::VectorXd B_xyz = point_buff2world(Eigen::Vector3d(0.0, 0.0, 0.7));
-        Eigen::VectorXd B_ypd = xyz2ypd(B_xyz);
-        return B_ypd;
+    // 定义非线性转换函数h: x -> z（纯函数，仅依赖入参 x）
+    auto h2 = [](const Eigen::VectorXd & x) -> Eigen::Vector3d {
+        // 目标中心世界坐标
+        Eigen::Vector3d center_xyz(
+            x[3] * std::cos(x[2]) * std::cos(x[0]),
+            x[3] * std::cos(x[2]) * std::sin(x[0]),
+            x[3] * std::sin(x[2]));
+        // buff 本体到世界的旋转（yaw=x[4], pitch=0, roll=x[5]），扇叶中心偏移 0.7
+        Eigen::Matrix3d R_buff2world = rotation_matrix(Eigen::Vector3d(x[4], 0.0, x[5]));
+        return xyz2ypd(R_buff2world * Eigen::Vector3d(0.0, 0.0, 0.7) + center_xyz);
     };
 
     // 防止夹角求差出现异常值
