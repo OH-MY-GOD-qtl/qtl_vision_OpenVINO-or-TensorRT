@@ -46,6 +46,10 @@ public:
     size_t window_size = 100;
     double last_nis;
 
+    // 卡方检验阈值（可配置，默认值：观测自由度 4 / 状态自由度 11 的 95% 置信度分位）
+    double nis_threshold = 9.49;
+    double nees_threshold = 19.68;
+
 private:
     Eigen::MatrixXd I;
     std::function<Eigen::VectorXd(const Eigen::VectorXd &, const Eigen::VectorXd &)> x_add;

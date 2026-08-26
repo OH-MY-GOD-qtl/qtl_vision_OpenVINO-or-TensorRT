@@ -26,6 +26,11 @@ Tracker::Tracker(const std::string & config_path, Solver & solver)
     outpost_max_temp_lost_count_ = yaml_read<int>(yaml, "outpost_max_temp_lost_count");
     normal_temp_lost_count_ = max_temp_lost_count_;
 
+    // 可选配置：卡方阈值与收敛失败比例（未配置时使用默认值）
+    if (yaml["nis_threshold"].IsDefined()) nis_threshold_ = yaml["nis_threshold"].as<double>();
+    if (yaml["nees_threshold"].IsDefined()) nees_threshold_ = yaml["nees_threshold"].as<double>();
+    if (yaml["nis_fail_ratio"].IsDefined()) nis_fail_ratio_ = yaml["nis_fail_ratio"].as<double>();
+
     // 从配置文件读取相机矩阵并计算图像中心坐标
     auto camera_matrix_data = yaml_read<std::vector<double>>(yaml, "camera_matrix");
     double cx = camera_matrix_data[2]; // 相机矩阵的第3个元素为图像中心x坐标
@@ -93,7 +98,7 @@ std::vector<Target> Tracker::track(
     if (
         std::accumulate(
             target_.ekf().recent_nis_failures.begin(), target_.ekf().recent_nis_failures.end(), 0) >=
-        (0.4 * target_.ekf().window_size)) {
+        (nis_fail_ratio_ * target_.ekf().window_size)) {
         logger()->debug("[Target] Bad Converge Found!");
         state_ = "lost";
         return {};
@@ -253,22 +258,22 @@ bool Tracker::set_target(std::vector<Armor> & armors, std::chrono::steady_clock:
 
     if (is_balance) {
         Eigen::VectorXd P0_dig{{1, 64, 1, 64, 1, 64, 0.4, 100, 1, 1, 1}};
-        target_ = Target(armor, t, 0.2, 2, P0_dig);
+        target_ = Target(armor, t, 0.2, 2, P0_dig, nis_threshold_, nees_threshold_);
     }
 
     else if (armor.name == ArmorName::outpost) {
         Eigen::VectorXd P0_dig{{1, 64, 1, 64, 1, 81, 0.4, 100, 1e-4, 0, 0}};
-        target_ = Target(armor, t, 0.2765, 3, P0_dig);
+        target_ = Target(armor, t, 0.2765, 3, P0_dig, nis_threshold_, nees_threshold_);
     }
 
     else if (armor.name == ArmorName::base) {
         Eigen::VectorXd P0_dig{{1, 64, 1, 64, 1, 64, 0.4, 100, 1e-4, 0, 0}};
-        target_ = Target(armor, t, 0.3205, 3, P0_dig);
+        target_ = Target(armor, t, 0.3205, 3, P0_dig, nis_threshold_, nees_threshold_);
     }
 
     else {
         Eigen::VectorXd P0_dig{{1, 64, 1, 64, 1, 64, 0.4, 100, 1, 1, 1}};
-        target_ = Target(armor, t, 0.2, 4, P0_dig);
+        target_ = Target(armor, t, 0.2, 4, P0_dig, nis_threshold_, nees_threshold_);
     }
 
     return true;

@@ -40,6 +40,9 @@ private:
     int temp_lost_count_;
     int outpost_max_temp_lost_count_;
     int normal_temp_lost_count_;
+    double nis_threshold_ = 9.49;    // EKF 观测卡方阈值（自由度 4，95%置信度）
+    double nees_threshold_ = 19.68;  // EKF 状态卡方阈值（自由度 11，95%置信度）
+    double nis_fail_ratio_ = 0.4;    // 近期 NIS 失败比例阈值，超过则判定收敛失败
     std::string state_, pre_state_;
     Target target_;
     std::chrono::steady_clock::time_point last_timestamp_;

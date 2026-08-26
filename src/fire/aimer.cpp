@@ -22,6 +22,10 @@ Aimer::Aimer(const std::string & config_path)
     high_speed_delay_time_ = yaml_read<double>(yaml, "high_speed_delay_time");
     low_speed_delay_time_ = yaml_read<double>(yaml, "low_speed_delay_time");
     decision_speed_ = yaml_read<double>(yaml, "decision_speed");
+    if (yaml["lowpass_factor"].IsDefined()) lowpass_factor_ = yaml["lowpass_factor"].as<double>();
+    if (yaml["deadband"].IsDefined()) {
+        deadband_ = yaml["deadband"].as<double>() / 57.3;  // degree to rad
+    }
     if (yaml["left_yaw_offset"].IsDefined() && yaml["right_yaw_offset"].IsDefined()) {
         left_yaw_offset_ = yaml_read<double>(yaml, "left_yaw_offset") / 57.3;    // degree to rad
         right_yaw_offset_ = yaml_read<double>(yaml, "right_yaw_offset") / 57.3;  // degree to rad
@@ -33,7 +37,10 @@ Command Aimer::aim(
     const std::vector<Target> & targets, std::chrono::steady_clock::time_point timestamp,
     double bullet_speed, bool to_now)
 {
-    if (targets.empty()) return {false, false, 0, 0};
+    if (targets.empty()) {
+        has_last_ = false;  // 目标丢失，重置平滑状态
+        return {false, false, 0, 0};
+    }
     auto target = targets.front();
 
     double delay_time =
@@ -122,7 +129,34 @@ Command Aimer::aim(
     Eigen::Vector3d final_xyz = debug_aim_point.xyza.head(3);
     double yaw = std::atan2(final_xyz.y(), final_xyz.x()) + yaw_offset_;
     double pitch = -(current_traj.pitch + pitch_offset_);  //世界坐标系下pitch向上为负
-    return {true, false, yaw, pitch};
+    return smooth({true, false, yaw, pitch});
+}
+
+Command Aimer::smooth(const Command & command)
+{
+    if (!command.control) return command;
+
+    if (!has_last_) {
+        last_yaw_ = command.yaw;
+        last_pitch_ = command.pitch;
+        has_last_ = true;
+        return command;
+    }
+
+    // 一阶低通：out = out + factor * (in - out)，factor 越小越平滑
+    double dyaw = limit_rad(command.yaw - last_yaw_);
+    double dpitch = command.pitch - last_pitch_;
+
+    Command out = command;
+    if (std::abs(dyaw) > deadband_) {
+        out.yaw = last_yaw_ + lowpass_factor_ * dyaw;
+        last_yaw_ = out.yaw;
+    }
+    if (std::abs(dpitch) > deadband_) {
+        out.pitch = last_pitch_ + lowpass_factor_ * dpitch;
+        last_pitch_ = out.pitch;
+    }
+    return out;
 }
 
 Command Aimer::aim(

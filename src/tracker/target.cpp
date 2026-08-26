@@ -9,7 +9,7 @@
 
 Target::Target(
     const Armor & armor, std::chrono::steady_clock::time_point t, double radius, int armor_num,
-    Eigen::VectorXd P0_dig)
+    Eigen::VectorXd P0_dig, double nis_threshold, double nees_threshold)
 : name(armor.name),
     armor_type(armor.type),
     jumped(false),
@@ -47,6 +47,8 @@ Target::Target(
     };
 
     ekf_ = ExtendedKalmanFilter(x0, P0, x_add);  //初始化滤波器（预测量、预测量协方差）
+    ekf_.nis_threshold = nis_threshold;
+    ekf_.nees_threshold = nees_threshold;
 }
 
 Target::Target(double x, double vyaw, double radius, double h) : armor_num_(4)

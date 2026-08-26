@@ -41,6 +41,10 @@ min_confidence: 0.8
 min_detect_count: 5
 max_temp_lost_count: 15
 outpost_max_temp_lost_count: 75
+# EKF 卡方检验阈值：观测自由度4/状态自由度11 的 95% 置信度分位，默认值可直接沿用
+nis_threshold: 9.49
+nees_threshold: 19.68
+nis_fail_ratio: 0.4   # 近期 NIS 失败比例阈值，超过则判定收敛失败（调大可减少误判丢目标）
 
 #####-----aimer参数-----#####
 yaw_offset: -1 # degree -2.5
@@ -62,6 +66,8 @@ leaving_angle: 20 # degree
 decision_speed: 8 # rad/s
 high_speed_delay_time: 0.015 # s
 low_speed_delay_time: 0.015 # s
+lowpass_factor: 0.2   # 输出角度一阶低通系数(0~1，越小越平滑，1=不滤波)
+deadband: 0.1        # 输出角度死区(degree)，变化量小于此值不更新
 
 #####-----shooter参数-----#####
 first_tolerance: 3 # 近距离射击容差，degree
