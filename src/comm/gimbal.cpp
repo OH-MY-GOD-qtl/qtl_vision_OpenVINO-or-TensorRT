@@ -86,12 +86,13 @@ Eigen::Quaterniond Gimbal::q(std::chrono::steady_clock::time_point t)
 void Gimbal::send(VisionToGimbal VisionToGimbal)
 {
     tx_data_.mode = VisionToGimbal.mode;
+    // 云台约定：yaw 俯视逆时针为正（与内部一致）、pitch 向上为正（内部向上为负，故 pitch 取反）
     tx_data_.yaw = VisionToGimbal.yaw;
     tx_data_.yaw_vel = VisionToGimbal.yaw_vel;
     tx_data_.yaw_acc = VisionToGimbal.yaw_acc;
-    tx_data_.pitch = VisionToGimbal.pitch;
-    tx_data_.pitch_vel = VisionToGimbal.pitch_vel;
-    tx_data_.pitch_acc = VisionToGimbal.pitch_acc;
+    tx_data_.pitch = -VisionToGimbal.pitch;
+    tx_data_.pitch_vel = -VisionToGimbal.pitch_vel;
+    tx_data_.pitch_acc = -VisionToGimbal.pitch_acc;
     tx_data_.is_empty = VisionToGimbal.is_empty;
     tx_data_.shoot = VisionToGimbal.shoot;
     tx_data_.crc16 = get_crc16(
@@ -115,12 +116,13 @@ void Gimbal::send(
     float pitch_acc, bool is_empty)
 {
     tx_data_.mode = control ? (fire ? 2 : 1) : 0;
+    // 云台约定：yaw 俯视逆时针为正（与内部一致）、pitch 向上为正（内部向上为负，故 pitch 取反）
     tx_data_.yaw = yaw;
     tx_data_.yaw_vel = yaw_vel;
     tx_data_.yaw_acc = yaw_acc;
-    tx_data_.pitch = pitch;
-    tx_data_.pitch_vel = pitch_vel;
-    tx_data_.pitch_acc = pitch_acc;
+    tx_data_.pitch = -pitch;
+    tx_data_.pitch_vel = -pitch_vel;
+    tx_data_.pitch_acc = -pitch_acc;
     tx_data_.is_empty = is_empty;
     tx_data_.shoot = fire;
     tx_data_.crc16 = get_crc16(
@@ -221,11 +223,11 @@ void Gimbal::read_thread()
 
         std::lock_guard<std::mutex> lock(mutex_);
 
-        // 使用临时变量赋值
+        // 使用临时变量赋值（云台约定 yaw 俯视逆时针为正（与内部一致）、pitch 向上为正，pitch 转为内部约定向上为负）
         state_.yaw = temp_yaw;
         state_.yaw_vel = temp_yaw_vel;
-        state_.pitch = temp_pitch;
-        state_.pitch_vel = temp_pitch_vel;
+        state_.pitch = -temp_pitch;
+        state_.pitch_vel = -temp_pitch_vel;
         state_.bullet_speed = temp_bullet_speed;
         state_.id = temp_id;// 添加id字段
         // 删除弹丸剩余量
