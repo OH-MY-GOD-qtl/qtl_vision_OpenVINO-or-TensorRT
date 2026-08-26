@@ -134,8 +134,6 @@ void SmallTarget::init(double nowtime, const PowerRune & p)
     P0_.resize(7, 7);
     A_.resize(7, 7);
     Q_.resize(7, 7);
-    H_.resize(7, 7);//z x
-    R_.resize(7, 7);//z z
     // [R_yaw]
     // [v_R_yaw]
     // [R_pitch]
@@ -179,6 +177,8 @@ void SmallTarget::init(double nowtime, const PowerRune & p)
     };
     // 创建扩展卡尔曼滤波器对象
     ekf_ = ExtendedKalmanFilter(x0_, P0_, x_add);
+    // 7 维状态 NEES 阈值 χ²(7,0.95)；卡方数据仅用于调试，不参与门控
+    ekf_.nees_threshold = 14.07;
 }
 
 void SmallTarget::update(double nowtime, const PowerRune & p)
@@ -470,8 +470,6 @@ void BigTarget::init(double nowtime, const PowerRune & p)
     P0_.resize(10, 10);
     A_.resize(10, 10);
     Q_.resize(10, 10);
-    H_.resize(7, 10);
-    R_.resize(7, 7);
 
     // [R_yaw]
     // [v_R_yaw]
@@ -523,6 +521,8 @@ void BigTarget::init(double nowtime, const PowerRune & p)
     };
     // 创建扩展卡尔曼滤波器对象
     ekf_ = ExtendedKalmanFilter(x0_, P0_, x_add);
+    // 10 维状态 NEES 阈值 χ²(10,0.95)；卡方数据仅用于调试，不参与门控
+    ekf_.nees_threshold = 18.31;
 }
 
 void BigTarget::update(double nowtime, const PowerRune & p)

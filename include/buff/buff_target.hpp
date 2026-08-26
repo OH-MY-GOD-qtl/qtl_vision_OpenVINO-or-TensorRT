@@ -57,8 +57,6 @@ protected:
     Eigen::MatrixXd P0_;
     Eigen::MatrixXd A_;
     Eigen::MatrixXd Q_;
-    Eigen::MatrixXd H_;
-    Eigen::MatrixXd R_;
     ExtendedKalmanFilter ekf_;
     double lasttime_ = 0;
     Voter voter;  // 逆时针-1 顺时针1
