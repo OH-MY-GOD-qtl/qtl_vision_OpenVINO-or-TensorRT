@@ -187,6 +187,16 @@ std::tuple<DetectionResult, std::vector<Target>> Tracker::track(
         return {switch_target, {}};  // 返回switch_target和空的targets
     }
 
+    // 收敛效果检测：近期 NIS 失败比例超过阈值，判定收敛失败（与单相机路径保持一致）
+    if (
+        std::accumulate(
+            target_.ekf().recent_nis_failures.begin(), target_.ekf().recent_nis_failures.end(), 0) >=
+        (nis_fail_ratio_ * target_.ekf().window_size)) {
+        logger()->debug("[Target] Bad Converge Found!");
+        state_ = "lost";
+        return {switch_target, {}};
+    }
+
     if (state_ == "lost") return {switch_target, {}};  // 返回switch_target和空的targets
 
     std::vector<Target> targets = {target_};
