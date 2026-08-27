@@ -38,8 +38,8 @@ Command Aimer::aim(
     double bullet_speed, bool to_now)
 {
     if (targets.empty()) {
-        has_last_ = false;  // 目标丢失，重置平滑状态
-        return {false, false, 0, 0};
+        // 目标丢失：保持上次角度，不归零、不重置平滑状态（重锁定时从上次角度平滑过渡）
+        return {false, false, last_yaw_, last_pitch_};
     }
     auto target = targets.front();
 
@@ -177,6 +177,7 @@ Command Aimer::aim(
     }
 
     auto command = aim(targets, timestamp, bullet_speed, to_now);
+    if (!command.control) return command;  // 目标丢失：保持上次角度，不做偏移调整
     command.yaw = command.yaw - yaw_offset_ + yaw_offset;
 
     return command;

@@ -103,12 +103,28 @@ Plan Planner::plan(Target & target, double bullet_speed)
             traj(0, HALF_HORIZON + shoot_offset_) - yaw_solver_->work->x(0, HALF_HORIZON + shoot_offset_),
             traj(2, HALF_HORIZON + shoot_offset_) -
                 pitch_solver_->work->x(0, HALF_HORIZON + shoot_offset_)) < fire_thresh_;
+
+    last_plan_ = plan;      // 缓存成功规划结果
+    has_last_plan_ = true;
     return plan;
 }
 
 Plan Planner::plan(std::optional<Target> & target, double bullet_speed)
 {
-    if (!target.has_value()) return {false}; //c++聚合初始化,plan的数据字段均为false或0
+    if (!target.has_value()) {
+        // 目标丢失：保持上次规划角度，清零速度/加速度，不控制、不开火
+        if (has_last_plan_) {
+            Plan plan = last_plan_;
+            plan.control = false;
+            plan.fire = false;
+            plan.yaw_vel = 0;
+            plan.yaw_acc = 0;
+            plan.pitch_vel = 0;
+            plan.pitch_acc = 0;
+            return plan;
+        }
+        return {false};
+    }
 
     double delay_time =
         std::abs(target->ekf_x()[7]) > decision_speed_ ? high_speed_delay_time_ : low_speed_delay_time_;

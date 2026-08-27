@@ -52,6 +52,9 @@ private:
     TinySolver * yaw_solver_;
     TinySolver * pitch_solver_;
 
+    Plan last_plan_;             // 上次成功规划结果，目标丢失时保持角度
+    bool has_last_plan_ = false;  // 是否已有成功规划
+
     void setup_yaw_solver(const std::string & config_path);
     void setup_pitch_solver(const std::string & config_path);
 
