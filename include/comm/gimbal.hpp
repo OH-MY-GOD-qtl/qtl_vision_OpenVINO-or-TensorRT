@@ -4,13 +4,13 @@
 #include <Eigen/Geometry>
 #include <atomic>
 #include <chrono>
+#include <deque>
 #include <mutex>
 #include <string>
 #include <thread>
 
 #include "common/common.hpp"
 #include "serial/serial.h"
-#include "tools/thread_safe_queue.hpp"
 
 
 
@@ -97,10 +97,9 @@ private:
 
     GimbalMode mode_ = GimbalMode::IDLE;
     GimbalState state_;
-    ThreadSafeQueue<std::tuple<Eigen::Quaterniond, std::chrono::steady_clock::time_point>>
-        queue_{1000};
-    std::tuple<Eigen::Quaterniond, std::chrono::steady_clock::time_point> data_ahead_;
-    std::tuple<Eigen::Quaterniond, std::chrono::steady_clock::time_point> data_behind_;
+    // 姿态-时间戳历史缓冲：按相机捕获时刻插值云台姿态（时间戳对齐）
+    std::deque<std::tuple<Eigen::Quaterniond, std::chrono::steady_clock::time_point>> q_history_;
+    static constexpr size_t kQHistoryMax = 500;  // 约0.5s @1kHz（按实际串口频率自适应）
     bool read(uint8_t * buffer, size_t size);
     void read_thread();
     void reconnect();

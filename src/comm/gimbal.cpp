@@ -5,6 +5,7 @@
 #include "tools/math_tools.hpp"
 #include "tools/yaml.hpp"
 
+#include <algorithm>
 #include <fmt/format.h>
 
 
@@ -77,10 +78,41 @@ std::string Gimbal::str(GimbalMode mode) const
 Eigen::Quaterniond Gimbal::q(std::chrono::steady_clock::time_point t)
 {
     std::lock_guard<std::mutex> lock(mutex_);
-    // 从yaw和pitch创建四元数（Z-Y-X旋转顺序）
-    Eigen::Quaterniond q = Eigen::AngleAxisd(state_.yaw, Eigen::Vector3d::UnitZ()) *
-                                                Eigen::AngleAxisd(state_.pitch, Eigen::Vector3d::UnitY());
-    return q.normalized();
+
+    auto make_q = [](double yaw, double pitch) {
+        return (Eigen::AngleAxisd(yaw, Eigen::Vector3d::UnitZ()) *
+                Eigen::AngleAxisd(pitch, Eigen::Vector3d::UnitY())).normalized();
+    };
+
+    // 无历史数据（模拟模式/刚启动）时回退到当前姿态
+    if (q_history_.empty()) return make_q(state_.yaw, state_.pitch);
+
+    // 请求时刻不晚于最早样本：返回最早样本姿态
+    if (t <= std::get<1>(q_history_.front())) return std::get<0>(q_history_.front());
+
+    // 请求时刻不早于最新样本：返回最新姿态
+    if (t >= std::get<1>(q_history_.back())) return std::get<0>(q_history_.back());
+
+    // 二分查找第一个 timestamp >= t 的样本
+    auto it = std::lower_bound(
+        q_history_.begin(), q_history_.end(), t,
+        [](const auto & item, const std::chrono::steady_clock::time_point & value) {
+            return std::get<1>(item) < value;
+        });
+
+    if (it == q_history_.begin()) return std::get<0>(*it);
+    if (it == q_history_.end()) return std::get<0>(*(it - 1));
+
+    const auto & ahead = *it;
+    const auto & behind = *(it - 1);
+
+    double dt_total = delta_time(std::get<1>(ahead), std::get<1>(behind));
+    if (dt_total <= 1e-6) return std::get<0>(behind);
+
+    double alpha = delta_time(t, std::get<1>(behind)) / dt_total;
+    alpha = std::max(0.0, std::min(1.0, alpha));
+
+    return std::get<0>(behind).slerp(alpha, std::get<0>(ahead)).normalized();
 }
 
 void Gimbal::send(VisionToGimbal VisionToGimbal)
@@ -231,6 +263,12 @@ void Gimbal::read_thread()
         state_.bullet_speed = temp_bullet_speed;
         state_.id = temp_id;// 添加id字段
         // 删除弹丸剩余量
+
+        // 记录姿态-时间戳历史，供 q(t) 按相机捕获时刻插值云台姿态（时间戳对齐）
+        Eigen::Quaterniond q_now = (Eigen::AngleAxisd(state_.yaw, Eigen::Vector3d::UnitZ()) *
+                                    Eigen::AngleAxisd(state_.pitch, Eigen::Vector3d::UnitY())).normalized();
+        q_history_.emplace_back(q_now, t);
+        while (q_history_.size() > kQHistoryMax) q_history_.pop_front();
 
         switch (temp_mode) {
             case 0:
