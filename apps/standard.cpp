@@ -8,7 +8,6 @@
 #include "camera/camera.hpp"
 #include "comm/cboard.hpp"
 #include "fire/aimer.hpp"
-#include "detector/multithread/commandgener.hpp"
 #include "fire/shooter.hpp"
 #include "solve/solver.hpp"
 #include "tracker/tracker.hpp"

@@ -6,8 +6,6 @@
 
 #include "camera/camera.hpp"
 #include "fire/aimer.hpp"
-#include "detector/multithread/commandgener.hpp"
-#include "detector/multithread/mt_detector.hpp"
 #include "planner/planner.hpp"
 #include "fire/shooter.hpp"
 #include "solve/solver.hpp"

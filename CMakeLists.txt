@@ -130,8 +130,6 @@ add_library(auto_aim OBJECT
     src/detector/yolos/yolov5.cpp
     src/detector/yolos/yolov8.cpp
     src/detector/yolos/yolo11.cpp
-    src/detector/multithread/commandgener.cpp
-    src/detector/multithread/mt_detector.cpp
     # 解算模块
     src/solve/solver.cpp
     # 跟踪模块（EKF 目标模型）
@@ -216,7 +214,6 @@ add_executable(usbcamera_detect_test tests/usbcamera_detect_test.cpp)
 add_executable(usbcamera_test tests/usbcamera_test.cpp)
 add_executable(handeye_test tests/handeye_test.cpp)
 add_executable(dm_test tests/dm_test.cpp)
-add_executable(minimum_vision_system tests/minimum_vision_system.cpp)
 add_executable(camera_auto_aim_test tests/camera_auto_aim_test.cpp)
 add_executable(gimbal_test tests/gimbal_test.cpp)
 add_executable(planner_test tests/planner_test.cpp)
@@ -228,7 +225,6 @@ foreach(t   auto_aim_test
             detector_video_test
             usbcamera_detect_test
             handeye_test
-            minimum_vision_system
             camera_auto_aim_test
             gimbal_test
             planner_test

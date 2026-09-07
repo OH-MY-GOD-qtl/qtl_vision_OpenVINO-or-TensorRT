@@ -10,7 +10,6 @@
 #include "camera/camera.hpp"
 #include "fire/aimer.hpp"
 #include "detector/detector.hpp"  // 使用传统检测器
-#include "detector/multithread/commandgener.hpp"
 #include "planner/planner.hpp"
 #include "fire/shooter.hpp"
 #include "solve/solver.hpp"

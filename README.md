@@ -63,7 +63,7 @@ qtl_vision_OpenVINO-or-TensorRT/
 | `comm` | 串口云台、裁判系统 cboard（CAN）、达妙 IMU、socketcan（ros2 预留） |
 | `armor` | 装甲板数据模型（大小板类型、名称、优先级） |
 | `classifier` | ONNX 数字分类器 |
-| `detector` | 检测器：传统视觉 + YOLO v5/v8/v11 + 多线程检测 |
+| `detector` | 检测器：传统视觉 + YOLO v5/v8/v11 |
 | `solve` | PnP 位姿解算 + 坐标变换 + yaw 重投影优化 |
 | `tracker` | 11 维 EKF 目标模型 + 跟踪状态机 |
 | `planner` | MPC 规划器（tinympc） |
