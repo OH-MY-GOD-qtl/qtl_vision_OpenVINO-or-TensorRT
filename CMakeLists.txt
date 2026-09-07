@@ -169,13 +169,11 @@ target_link_libraries(auto_buff PUBLIC io auto_aim image)
 
 #################### 主程序入口 ####################
 add_executable(standard apps/standard.cpp)
-add_executable(mt_standard apps/mt_standard.cpp)
 add_executable(standard_mpc apps/standard_mpc.cpp)
 add_executable(auto_aim_debug_mpc apps/auto_aim_debug_mpc.cpp)
-add_executable(mt_auto_aim_debug apps/mt_auto_aim_debug.cpp)
 add_executable(traditional_debug apps/traditional_debug.cpp)
 
-foreach(app standard mt_standard standard_mpc auto_aim_debug_mpc mt_auto_aim_debug traditional_debug)
+foreach(app standard standard_mpc auto_aim_debug_mpc traditional_debug)
     target_link_libraries(${app} ${OpenCV_LIBS} fmt::fmt yaml-cpp auto_aim auto_buff tools io)
 endforeach()
 

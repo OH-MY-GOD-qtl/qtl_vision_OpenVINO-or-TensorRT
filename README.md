@@ -166,8 +166,6 @@ cd qtl_vision_OpenVINO-or-TensorRT  # 进入项目根目录
 | `auto_aim_debug_mpc` | `apps/auto_aim_debug_mpc.cpp` | YOLO+EKF+MPC 自瞄（重投影窗口） | YOLO | MPC Planner | 串口 Gimbal | `standard1(_sim).yaml` |
 | `standard` | `apps/standard.cpp` | YOLO 自瞄（无窗口） | YOLO | 弹道 Aimer+Shooter | 裁判系统 CBoard（CAN） | `standard3.yaml` |
 | `standard_mpc` | `apps/standard_mpc.cpp` | YOLO+MPC 自瞄（无窗口） | YOLO | MPC Planner | 串口 Gimbal | `standard3.yaml` |
-| `mt_standard` | `apps/mt_standard.cpp` | 多线程检测版自瞄（无窗口） | YOLO（多线程） | 弹道 Aimer+Shooter | 串口 Gimbal | 显式指定配置 |
-| `mt_auto_aim_debug` | `apps/mt_auto_aim_debug.cpp` | 多线程检测版自瞄（重投影窗口） | YOLO（多线程） | 弹道 Aimer+Shooter | 串口 Gimbal | 显式指定配置 |
 | `camera_auto_aim_test` | `tests/camera_auto_aim_test.cpp` | 相机+自瞄离线测试（无通讯） | YOLO | 弹道 Aimer | — | `camera_auto_aim.yaml` |
 | `capture` | `calibration/capture.cpp` | 采集标定图片（s 保存 / q 退出） | — | — | 串口 Gimbal | `calibration(_sim).yaml` |
 | `calibrate_camera` | `calibration/calibrate_camera.cpp` | 计算内参（结果**只打印不写文件**） | — | — | — | `calibration(_sim).yaml` |
