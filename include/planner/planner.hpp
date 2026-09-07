@@ -38,6 +38,11 @@ public:
     Plan plan(Target & target, double bullet_speed);
     Plan plan(std::optional<Target> & target, double bullet_speed);
 
+    // 预测目标在“子弹命中时刻”的装甲板位姿（世界坐标 xyz + yaw），用于调试重投影。
+    // 与 plan() 使用相同的延迟/弹道假设，但按传入帧时间戳 t 计算，保证与检测帧时间对齐。
+    Eigen::Vector4d predict_xyza(
+        const Target & target, double bullet_speed, std::chrono::steady_clock::time_point t) const;
+
 // 在Planner类的private部分添加基础偏移量成员变量
 private:
     // 距离相关的偏移量配置，格式：distance -> (yaw_offset, pitch_offset)

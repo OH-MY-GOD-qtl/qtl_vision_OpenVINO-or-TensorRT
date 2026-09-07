@@ -257,3 +257,48 @@ std::pair<double, double> Planner::get_offset_by_distance(double distance)
     return {0.0, 0.0}; // 兜底返回
 }
 
+Eigen::Vector4d Planner::predict_xyza(
+    const Target & target, double bullet_speed, std::chrono::steady_clock::time_point t) const
+{
+    // 与 plan() 的延迟/弹道假设保持一致，但按传入的帧时间戳 t 预测，避免与显示线程不同步
+    if (bullet_speed < 10 || bullet_speed > 25) bullet_speed = 22;
+
+    Target tgt = target;  // 拷贝快照，避免修改跟踪状态
+
+    double delay_time =
+        std::abs(tgt.ekf_x()[7]) > decision_speed_ ? high_speed_delay_time_ : low_speed_delay_time_;
+    auto future = t + std::chrono::microseconds(int(delay_time * 1e6));
+    tgt.predict(future);
+
+    Eigen::Vector3d xyz;
+    double yaw = 0;
+    auto min_dist = 1e10;
+    for (const auto & xyza : tgt.armor_xyza_list()) {
+        auto dist = xyza.head<2>().norm();
+        if (dist < min_dist) {
+            min_dist = dist;
+            xyz = xyza.head<3>();
+            yaw = xyza[3];
+        }
+    }
+
+    auto bullet_traj = BallisticTrajectory(bullet_speed, min_dist, xyz.z());
+    if (bullet_traj.unsolvable)
+        return Eigen::Vector4d(xyz.x(), xyz.y(), xyz.z(), yaw);
+
+    tgt.predict(bullet_traj.fly_time);
+
+    // 命中时刻重新选择距离最近的装甲板（与 plan() 中 aim() 的行为一致）
+    min_dist = 1e10;
+    for (const auto & xyza : tgt.armor_xyza_list()) {
+        auto dist = xyza.head<2>().norm();
+        if (dist < min_dist) {
+            min_dist = dist;
+            xyz = xyza.head<3>();
+            yaw = xyza[3];
+        }
+    }
+
+    return Eigen::Vector4d(xyz.x(), xyz.y(), xyz.z(), yaw);
+}
+

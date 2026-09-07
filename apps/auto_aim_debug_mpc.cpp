@@ -148,7 +148,9 @@ int main(int argc, char * argv[])
                 draw_points(img, image_points, {0, 255, 0});
             }
 
-            Eigen::Vector4d aim_xyza = planner.debug_xyza;
+            // 红框：按当前帧时间戳重新计算预测点，与绿框同帧对齐（原 planner.debug_xyza
+            // 由计划线程异步写入，存在数据竞争且与显示帧率不同步，导致运动顿挫）
+            auto aim_xyza = planner.predict_xyza(target, gimbal.state().bullet_speed, t);
             auto image_points =
                 solver.reproject_armor(aim_xyza.head(3), aim_xyza[3], target.armor_type, target.name);
             draw_points(img, image_points, {0, 0, 255});
