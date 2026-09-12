@@ -7,6 +7,9 @@ cd "$SCRIPT_DIR" || { echo "无法进入脚本目录: $SCRIPT_DIR"; exit 1; }
 # 等待系统完全启动
 sleep 5
 
+# 确保日志目录存在
+mkdir -p logs
+
 # 使用screen启动watchdog脚本
 screen -S qtl_vision \
        -L \

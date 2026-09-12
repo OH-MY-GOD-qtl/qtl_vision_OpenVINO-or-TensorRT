@@ -352,10 +352,111 @@ trtexec --onnx=assets/0526.onnx --saveEngine=assets/yolov5.engine
 
 ## 部署自启动（可选）
 
-`autostart.sh` 启动 `watchdog.sh`（screen 会话名 `qtl_vision`）；watchdog 守护
-`APP_NAME`（默认 `auto_aim_debug_mpc`）与 `CONFIG_FILE`（默认
-`configs/standard1.yaml`），崩溃自动重启（上限 100 次）。部署时按需修改
-`watchdog.sh` 内两个变量与路径，再按桌面自启动流程注册。
+开机自动拉起视觉程序，由两层脚本组成：
+
+1. `autostart.sh`：开机后延迟 5 秒，在名为 `qtl_vision` 的 screen 会话中启动
+   `watchdog.sh`（会话日志写入 `logs/screen_<时间>.log`）。
+2. `watchdog.sh`：守护目标程序，发现进程不存在就自动重启（默认上限 100 次），
+   进程正常时重置崩溃计数。
+
+### 1. 修改启动参数
+
+按实际需要改 `watchdog.sh` 顶部的变量：
+
+```bash
+APP_NAME="auto_aim_debug_mpc"            # 要守护的可执行文件名（build/ 下）
+APP_PATH="./build/$APP_NAME"             # 程序路径
+CONFIG_FILE="./configs/standard1.yaml"   # 运行配置
+MAX_RETRY=100                            # 崩溃重启上限
+CHECK_INTERVAL=5                         # 检查间隔（秒）
+RESTART_DELAY=1                          # 重启延迟（秒）
+```
+
+例如实机自瞄改 `standard`（CAN 裁判系统）或 `standard_mpc`（串口云台）：
+
+```bash
+APP_NAME="standard_mpc"
+CONFIG_FILE="./configs/standard3.yaml"
+```
+
+改完**先手动跑一次**验证能正常启动，再注册自启动：
+
+```bash
+./autostart.sh            # 启动 watchdog
+screen -r qtl_vision      # 查看运行画面（分离按 Ctrl+A D，退出不要按 Ctrl+C）
+screen -ls                # 查看会话列表
+```
+
+### 2. 注册开机自启（三选一）
+
+**方式 A：systemd（推荐，Jetson / 无桌面机器人）**
+
+新建 `/etc/systemd/system/qtl-vision.service`（把 `User`、`WorkingDirectory`、
+`ExecStart` 改成你的用户名与仓库绝对路径）：
+
+```bash
+sudo tee /etc/systemd/system/qtl-vision.service > /dev/null <<'EOF'
+[Unit]
+Description=QTL Vision autostart (screen watchdog)
+After=multi-user.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=qtl
+WorkingDirectory=/home/qtl/qtl_vision_OpenVINO-or-TensorRT
+ExecStart=/home/qtl/qtl_vision_OpenVINO-or-TensorRT/autostart.sh
+
+[Install]
+WantedBy=multi-user.target
+EOF
+```
+
+注册并启用：
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable qtl-vision.service   # 开机自启
+sudo systemctl start qtl-vision.service    # 立即启动（可选）
+```
+
+查看状态与程序画面：
+
+```bash
+systemctl status qtl-vision
+screen -r qtl_vision
+```
+
+**方式 B：桌面自启动（带图形桌面的主机）**
+
+```bash
+mkdir -p ~/.config/autostart
+cat > ~/.config/autostart/qtl-vision.desktop <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=QTL Vision
+Exec=/home/qtl/qtl_vision_OpenVINO-or-TensorRT/autostart.sh
+X-GNOME-Autostart-enabled=true
+EOF
+```
+
+**方式 C：crontab @reboot**
+
+```bash
+crontab -e
+# 末尾加一行（换成你的仓库绝对路径）：
+@reboot /home/qtl/qtl_vision_OpenVINO-or-TensorRT/autostart.sh
+```
+
+### 3. 检查与排错
+
+| 现象 | 处理 |
+|---|---|
+| 开机没起来 | `systemctl status qtl-vision` 或 `screen -ls`；`autostart.sh` 有 `sleep 5`，开机后等几秒再看 |
+| `screen: command not found` | `sudo apt install screen` |
+| screen 日志没生成 | `autostart.sh` 已自动 `mkdir -p logs`，检查 `logs/` 权限 |
+| watchdog 反复重启到上限 | `screen -r qtl_vision` 看程序报错，多为串口/相机/引擎问题（见 FAQ） |
+| 停用自启动 | `sudo systemctl disable --now qtl-vision`；或 `screen -S qtl_vision -X quit` |
 
 ---
 

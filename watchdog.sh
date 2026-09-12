@@ -13,6 +13,7 @@ CONFIG_FILE="./configs/standard1.yaml"  # 配置文件路径
 MAX_RETRY=100                          # 最大重试次数
 CHECK_INTERVAL=5                        # 检查间隔（秒）
 RESTART_DELAY=1                         # 重启延迟（秒）
+RETRY_COUNT=0                           # 崩溃计数（初始为 0）
 
 # 定义退出函数和信号捕获
 cleanup() {
@@ -43,5 +44,5 @@ while true; do
     RETRY_COUNT=0
   fi
 
-  sleep 5
+  sleep $CHECK_INTERVAL
 done
