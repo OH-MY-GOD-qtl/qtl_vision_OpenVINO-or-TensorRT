@@ -521,4 +521,4 @@ crontab -e
 
 ## License
 
-本项目基于 [MIT License](LICENSE)，Copyright (c) 2025 TongjiSuperPower。
+本项目基于 [Apache License 2.0](LICENSE)，Copyright 2025 TongjiSuperPower。
