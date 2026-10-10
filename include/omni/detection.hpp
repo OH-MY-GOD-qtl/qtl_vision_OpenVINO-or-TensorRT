@@ -2,10 +2,18 @@
 #define OMNIPERCEPTION__DETECTION_HPP
 
 #include <chrono>
+#include <string>
 #include <vector>
 
 #include "armor/armor.hpp"
 
+
+// 检测结果来源：USB(传统检测，仅报“有无目标 + 方位”) / HIK(海康模型，主瞄准)
+enum class DetectionSource
+{
+    USB,
+    HIK
+};
 
 //一个识别结果可能包含多个armor,需要排序和过滤。armors, timestamp, delta_yaw, delta_pitch
 struct DetectionResult
@@ -15,6 +23,11 @@ struct DetectionResult
     double delta_yaw;    //rad
     double delta_pitch;  //rad
 
+    // 以下字段带默认值，追加在末尾，保持“{armors, timestamp, delta_yaw, delta_pitch}”
+    // 形式的聚合初始化仍然可用
+    DetectionSource source = DetectionSource::USB;  // 结果来源
+    std::string camera;                             // 相机标识: usb0/usb1/usb2/hik
+
     // Assignment operator
     DetectionResult & operator=(const DetectionResult & other)
     {
@@ -23,6 +36,8 @@ struct DetectionResult
             timestamp = other.timestamp;
             delta_yaw = other.delta_yaw;
             delta_pitch = other.delta_pitch;
+            source = other.source;
+            camera = other.camera;
         }
         return *this;
     }
