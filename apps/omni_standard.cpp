@@ -65,7 +65,8 @@ int main(int argc, char * argv[])
     std::array<std::unique_ptr<USBCamera>, 3> usb_cams;
     for (size_t i = 0; i < usb_cams.size() && i < usb_devices.size(); ++i)
         usb_cams[i] = std::make_unique<USBCamera>(usb_devices[i], config_path);
-    Perceptron perceptron(usb_cams[0].get(), usb_cams[1].get(), usb_cams[2].get(), config_path);
+    Perceptron perceptron(
+        usb_cams[0].get(), usb_cams[1].get(), usb_cams[2].get(), decider, config_path);
 
     logger()->info("[omni_standard] started, config: {}", config_path);
 

@@ -8,8 +8,9 @@
 
 
 Perceptron::Perceptron(
-    USBCamera * usbcam1, USBCamera * usbcam2, USBCamera * usbcam3, const std::string & config_path)
-: detection_queue_(30), decider_(config_path), stop_flag_(false)
+    USBCamera * usbcam1, USBCamera * usbcam2, USBCamera * usbcam3, const Decider & decider,
+    const std::string & config_path)
+: detection_queue_(30), decider_(decider), stop_flag_(false)
 {
     // 三路 USB 走传统检测、不加载分类器（只报“有无目标 + 方位”）
     detector1_ = std::make_shared<Detector>(config_path, false, false);

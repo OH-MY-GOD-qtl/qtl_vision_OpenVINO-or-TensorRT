@@ -24,7 +24,7 @@ class Perceptron
 public:
     Perceptron(
         USBCamera * usbcam1, USBCamera * usbcam2, USBCamera * usbcam3,
-        const std::string & config_path);
+        const Decider & decider, const std::string & config_path);
 
     ~Perceptron();
 
@@ -44,7 +44,7 @@ private:
     std::shared_ptr<Detector> detector2_;
     std::shared_ptr<Detector> detector3_;
 
-    Decider decider_;  // 仅复用其 delta_angle()
+    const Decider & decider_;  // 复用外部 Decider（安装角/FOV 单一来源；delta_angle 为 const，可并发调用）
     bool stop_flag_;
     mutable std::mutex mutex_;
     std::condition_variable condition_;
