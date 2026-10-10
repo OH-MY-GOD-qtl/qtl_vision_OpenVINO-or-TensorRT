@@ -9,7 +9,7 @@
 #include "armor/armor.hpp"
 #include "solve/solver.hpp"
 #include "tracker/target.hpp"
-#include "omni/perceptron.hpp"
+#include "omni/detection.hpp"
 #include "tools/thread_safe_queue.hpp"
 
 

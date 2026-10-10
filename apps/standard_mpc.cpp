@@ -5,6 +5,7 @@
 #include <thread>
 
 #include "camera/camera.hpp"
+#include "detector/yolo.hpp"
 #include "fire/aimer.hpp"
 #include "planner/planner.hpp"
 #include "fire/shooter.hpp"

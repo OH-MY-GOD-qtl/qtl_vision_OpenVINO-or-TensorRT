@@ -3,134 +3,140 @@
 #include <yaml-cpp/yaml.h>
 
 #include <algorithm>
-#include <filesystem>
-#include <opencv2/opencv.hpp>
+#include <cmath>
 
-#include "tools/yaml.hpp"
-#include "tools/logger.hpp"
 #include "tools/math_tools.hpp"
+#include "tools/logger.hpp"
+#include "tools/yaml.hpp"
 
 
-Decider::Decider(const std::string & config_path) : detector_(config_path), count_(0)
+Decider::Decider(const std::string & config_path)
 {
     auto yaml = yaml_load(config_path);
-    img_width_ = yaml_read<double>(yaml, "image_width");
-    img_height_ = yaml_read<double>(yaml, "image_height");
-    fov_h_ = yaml_read<double>(yaml, "fov_h");
-    fov_v_ = yaml_read<double>(yaml, "fov_v");
-    new_fov_h_ = yaml_read<double>(yaml, "new_fov_h");
-    new_fov_v_ = yaml_read<double>(yaml, "new_fov_v");
+
     enemy_color_ =
         (yaml_read<std::string>(yaml, "enemy_color") == "red") ? Color::red : Color::blue;
-    mode_ = yaml_read<double>(yaml, "mode");
-}
+    mode_ = yaml["mode"] ? yaml["mode"].as<int>() : MODE_ONE;
 
-Command Decider::decide(
-    YOLO & yolo, const Eigen::Vector3d & gimbal_pos, USBCamera & usbcam1,
-    USBCamera & usbcam2, Camera & back_camera)
-{
-    Eigen::Vector2d delta_angle;
-    USBCamera * cams[] = {&usbcam1, &usbcam2};
+    auto opt = [&yaml](const char * key, double fallback) {
+        return yaml[key] ? yaml[key].as<double>() : fallback;
+    };
 
-    cv::Mat usb_img;
-    std::chrono::steady_clock::time_point timestamp;
-    if (count_ < 0 || count_ > 2) {
-        throw std::runtime_error("count_ out of valid range [0,2]");
+    // 全向感知相机安装参数（缺失时使用默认值，兼容旧配置）
+    usb_yaw_offsets_ = {60, -60, -180};
+    if (yaml["omni_usb_yaw_offsets"]) {
+        usb_yaw_offsets_.clear();
+        for (const auto & v : yaml["omni_usb_yaw_offsets"]) usb_yaw_offsets_.push_back(v.as<double>());
     }
-    if (count_ == 2) {
-        back_camera.read(usb_img, timestamp);
-    } else {
-        cams[count_]->read(usb_img, timestamp);
-    }
-    auto armors = yolo.detect(usb_img);
-    auto empty = armor_filter(armors);
+    usb_fov_h_ = yaml["omni_usb_fov_h"] ? yaml["omni_usb_fov_h"].as<double>() : opt("new_fov_h", 37.0);
+    usb_fov_v_ = yaml["omni_usb_fov_v"] ? yaml["omni_usb_fov_v"].as<double>() : opt("new_fov_v", 40.9);
+    hik_yaw_offset_ = opt("omni_hik_yaw_offset", 0.0);
+    hik_fov_h_ = opt("omni_hik_fov_h", 54.2);
+    hik_fov_v_ = opt("omni_hik_fov_v", 44.5);
+    pitch_preset_ = opt("omni_pitch_preset", 0.0) / 57.3;
+    usb_max_age_s_ = opt("omni_usb_max_age_s", 0.15);
+    usb_yaw_rate_limit_ = opt("omni_usb_yaw_rate_limit", 3.0);
+    usb_lpf_alpha_ = opt("omni_usb_lpf_alpha", 0.4);
+    usb_lpf_alpha_ = std::max(0.0, std::min(1.0, usb_lpf_alpha_));
 
-    if (!empty) {
-        if (count_ == 2) {
-            delta_angle = this->delta_angle(armors, "back");
-        } else {
-            delta_angle = this->delta_angle(armors, cams[count_]->device_name);
-        }
-
-        logger()->debug(
-            "[{} camera] delta yaw:{:.2f},target pitch:{:.2f},armor number:{},armor name:{}",
-            (count_ == 2 ? "back" : cams[count_]->device_name), delta_angle[0], delta_angle[1],
-            armors.size(), ARMOR_NAMES[armors.front().name]);
-
-        count_ = (count_ + 1) % 3;
-
-        return Command{
-            true, false, limit_rad(gimbal_pos[0] + delta_angle[0] / 57.3),
-            limit_rad(delta_angle[1] / 57.3)};
-    }
-
-    count_ = (count_ + 1) % 3;
-    // 如果没有找到目标，返回默认命令
-    return Command{false, false, 0, 0};
-}
-
-Command Decider::decide(
-    YOLO & yolo, const Eigen::Vector3d & gimbal_pos, Camera & back_cammera)
-{
-    cv::Mat img;
-    std::chrono::steady_clock::time_point timestamp;
-    back_cammera.read(img, timestamp);
-    auto armors = yolo.detect(img);
-    auto empty = armor_filter(armors);
-
-    if (!empty) {
-        auto delta_angle = this->delta_angle(armors, "back");
-        logger()->debug(
-            "[back camera] delta yaw:{:.2f},target pitch:{:.2f},armor number:{},armor name:{}",
-            delta_angle[0], delta_angle[1], armors.size(), ARMOR_NAMES[armors.front().name]);
-
-        return Command{
-            true, false, limit_rad(gimbal_pos[0] + delta_angle[0] / 57.3),
-            limit_rad(delta_angle[1] / 57.3)};
-    }
-
-    return Command{false, false, 0, 0};
-}
-
-Command Decider::decide(const std::vector<DetectionResult> & detection_queue)
-{
-    if (detection_queue.empty()) {
-        return Command{false, false, 0, 0};
-    }
-
-    DetectionResult dr = detection_queue.front();
-    if (dr.armors.empty()) return Command{false, false, 0, 0};
     logger()->info(
-        "omniperceptron find {},delta yaw is {:.4f}", ARMOR_NAMES[dr.armors.front().name],
-        dr.delta_yaw * 57.3);
+        "[Decider] omni: usb_yaw_offsets={} usb_fov={:.1f}x{:.1f} hik_fov={:.1f}x{:.1f} "
+        "pitch_preset={:.1f}deg max_age={:.3f}s rate_limit={:.1f}rad/s",
+        usb_yaw_offsets_.size(), usb_fov_h_, usb_fov_v_, hik_fov_h_, hik_fov_v_,
+        pitch_preset_ * 57.3, usb_max_age_s_, usb_yaw_rate_limit_);
+}
 
-    return Command{true, false, dr.delta_yaw, dr.delta_pitch};
-};
+Decider::Guide Decider::arbitrate_usb(
+    const std::vector<DetectionResult> & results, Gimbal & gimbal,
+    std::chrono::steady_clock::time_point now)
+{
+    const DetectionResult * best = nullptr;
+    double best_age = 0;
+
+    for (const auto & dr : results) {
+        if (dr.source != DetectionSource::USB) continue;
+        if (dr.armors.empty()) continue;
+
+        double age = delta_time(now, dr.timestamp);
+        if (age < 0) age = 0;
+        if (age > usb_max_age_s_) continue;  // 老化结果丢弃
+
+        // 选“最新”的；年龄接近时选更居中的（USB 无编号，无法按优先级排）
+        bool better = !best || age < best_age - 1e-3 ||
+                      (std::abs(age - best_age) <= 1e-3 &&
+                       std::abs(dr.delta_yaw) < std::abs(best->delta_yaw));
+        if (better) {
+            best = &dr;
+            best_age = age;
+        }
+    }
+
+    Guide guide;
+    if (!best) {
+        has_last_yaw_ = false;  // 丢失目标后重新捕获时不做限速/低通，快速指向
+        return guide;
+    }
+
+    // 时间对齐：用“采集时刻”的云台姿态，而非当前姿态
+    double yaw_at_capture = eulers(gimbal.q(best->timestamp), 2, 1, 0)[0];
+
+    // 延迟补偿：按云台当前 yaw 角速度外推 age
+    double yaw_cmd = limit_rad(yaw_at_capture + best->delta_yaw + gimbal.state().yaw_vel * best_age);
+
+    if (has_last_yaw_) {
+        // 一阶低通
+        yaw_cmd = limit_rad(last_yaw_ + usb_lpf_alpha_ * limit_rad(yaw_cmd - last_yaw_));
+
+        // 限速（防切换相机时跳变）
+        double dt = delta_time(now, last_yaw_t_);
+        if (dt > 1e-4) {
+            double max_step = usb_yaw_rate_limit_ * dt;
+            double step = limit_rad(yaw_cmd - last_yaw_);
+            if (step > max_step) yaw_cmd = limit_rad(last_yaw_ + max_step);
+            else if (step < -max_step) yaw_cmd = limit_rad(last_yaw_ - max_step);
+        }
+    }
+
+    has_last_yaw_ = true;
+    last_yaw_ = yaw_cmd;
+    last_yaw_t_ = now;
+
+    guide.valid = true;
+    guide.yaw = yaw_cmd;
+    guide.pitch = pitch_preset_;
+    guide.camera = best->camera;
+    guide.age = best_age;
+    return guide;
+}
 
 Eigen::Vector2d Decider::delta_angle(
-    const std::vector<Armor> & armors, const std::string & camera)
+    const std::vector<Armor> & armors, const std::string & camera) const
 {
-    Eigen::Vector2d delta_angle;
-    if (camera == "left") {
-        delta_angle[0] = 62 + (new_fov_h_ / 2) - armors.front().center_norm.x * new_fov_h_;
-        delta_angle[1] = armors.front().center_norm.y * new_fov_v_ - new_fov_v_ / 2;
-        return delta_angle;
+    Eigen::Vector2d delta_angle = Eigen::Vector2d::Zero();
+    if (armors.empty()) return delta_angle;
+
+    // 相机安装 yaw 偏移 + 各自 FOV（degree）
+    double yaw_offset = 0.0;
+    double fov_h = usb_fov_h_;
+    double fov_v = usb_fov_v_;
+
+    if (camera == "hik") {
+        yaw_offset = hik_yaw_offset_;
+        fov_h = hik_fov_h_;
+        fov_v = hik_fov_v_;
+    } else if (camera.rfind("usb", 0) == 0 && camera.size() > 3) {
+        int idx = std::stoi(camera.substr(3));
+        if (idx >= 0 && idx < static_cast<int>(usb_yaw_offsets_.size()))
+            yaw_offset = usb_yaw_offsets_[idx];
     }
 
-    else if (camera == "right") {
-        delta_angle[0] = -62 + (new_fov_h_ / 2) - armors.front().center_norm.x * new_fov_h_;
-        delta_angle[1] = armors.front().center_norm.y * new_fov_v_ - new_fov_v_ / 2;
-        return delta_angle;
-    }
-
-    else {
-        delta_angle[0] = 170 + (54.2 / 2) - armors.front().center_norm.x * 54.2;
-        delta_angle[1] = armors.front().center_norm.y * 44.5 - 44.5 / 2;
-        return delta_angle;
-    }
+    const auto & center = armors.front().center_norm;
+    delta_angle[0] = yaw_offset + (fov_h / 2.0) - center.x * fov_h;
+    delta_angle[1] = center.y * fov_v - fov_v / 2.0;
+    return delta_angle;
 }
 
-bool Decider::armor_filter(std::vector<Armor> & armors)
+bool Decider::armor_filter(std::vector<Armor> & armors) const
 {
     if (armors.empty()) return true;
     // 过滤非敌方装甲板
@@ -166,7 +172,7 @@ bool Decider::armor_filter(std::vector<Armor> & armors)
     return armors.empty();
 }
 
-void Decider::set_priority(std::vector<Armor> & armors)
+void Decider::set_priority(std::vector<Armor> & armors) const
 {
     if (armors.empty()) return;
 
@@ -179,7 +185,7 @@ void Decider::set_priority(std::vector<Armor> & armors)
     }
 }
 
-void Decider::sort(std::vector<DetectionResult> & detection_queue)
+void Decider::sort(std::vector<DetectionResult> & detection_queue) const
 {
     if (detection_queue.empty()) return;
 
@@ -194,6 +200,13 @@ void Decider::sort(std::vector<DetectionResult> & detection_queue)
             [](const Armor & a, const Armor & b) { return a.priority < b.priority; });
     }
 
+    // 过滤掉过滤后无目标的项，避免下面 front() 越界
+    detection_queue.erase(
+        std::remove_if(
+            detection_queue.begin(), detection_queue.end(),
+            [](const DetectionResult & dr) { return dr.armors.empty(); }),
+        detection_queue.end());
+
     // 根据优先级对 DetectionResult 进行排序
     std::sort(
         detection_queue.begin(), detection_queue.end(),
@@ -203,7 +216,7 @@ void Decider::sort(std::vector<DetectionResult> & detection_queue)
 }
 
 Eigen::Vector4d Decider::get_target_info(
-    const std::vector<Armor> & armors, const std::vector<Target> & targets)
+    const std::vector<Armor> & armors, const std::vector<Target> & targets) const
 {
     if (armors.empty() || targets.empty()) return Eigen::Vector4d::Zero();
 
@@ -233,7 +246,7 @@ void Decider::get_invincible_armor(const std::vector<int8_t> & invincible_enemy_
 }
 
 void Decider::get_auto_aim_target(
-    std::vector<Armor> & armors, const std::vector<int8_t> & auto_aim_target)
+    std::vector<Armor> & armors, const std::vector<int8_t> & auto_aim_target) const
 {
     if (auto_aim_target.empty()) return;
 
