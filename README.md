@@ -8,7 +8,7 @@ RoboMaster 视觉系统（C++17）：源自 dx_vision（同济 SuperPower 25 赛
 - **自瞄**：传统视觉 / YOLO v5·v8·v11 检测 + EKF 跟踪 + PnP 位姿解算，弹道 Aimer 或 MPC 规划
 - **推理双后端**：YOLOv5 支持 OpenVINO（CPU，机器人端）与 TensorRT（GPU，本机），改 `use_tensorrt` 一键切换
 - **能量机关**：yolo11_buff 检测 + 解算 + 预测 + 瞄准
-- **全向感知**：多装甲板感知 + 目标决策
+- **全向感知**：3 路 USB 传统检测做方位搜索 + 1 路海康 YOLO 主瞄准，海康优先决策、安装角/FOV 可配置、按采集时间戳对齐
 - **工具链**：相机标定（内参 / 手眼 / 机器人基座系）、视频切帧、YOLO 冒烟、19+ 项测试
 
 ---
@@ -21,6 +21,7 @@ RoboMaster 视觉系统（C++17）：源自 dx_vision（同济 SuperPower 25 赛
 - [快速上手（海康相机 + 自瞄）](#快速上手海康相机--自瞄)
 - [程序入口速查](#程序入口速查)
 - [配置说明](#配置说明)
+- [全向感知](#全向感知)
 - [推理引擎：OpenVINO / TensorRT 双后端](#推理引擎openvino--tensorrt-双后端)
 - [标定流程](#标定流程)
 - [通讯与串口协议](#通讯与串口协议)
@@ -69,7 +70,7 @@ qtl_vision_OpenVINO-or-TensorRT/
 | `planner` | MPC 规划器（tinympc） |
 | `fire` | 弹道迭代瞄准 + 开火判定 |
 | `buff` | 能量机关：检测/解算/预测/瞄准（yolo11_buff） |
-| `omni` | 全向感知 + 目标决策 |
+| `omni` | 全向感知：3 路 USB 传统检测（方位搜索）+ 海康优先仲裁（可配置安装角/FOV、时间对齐） |
 
 ---
 
@@ -122,7 +123,7 @@ mkdir build && cd build
 cmake .. && make -j
 ```
 
-生成 32 个可执行文件：主程序入口 7 个、标定工具 5 个、测试 19 个、冒烟工具 1 个。
+生成 33 个可执行文件：主程序入口 8 个、标定工具 5 个、测试 19 个、冒烟工具 1 个。
 
 > 构建同时依赖 OpenVINO 与 TensorRT/CUDA（见[环境准备](#环境准备)）；三者任一缺失
 > 都会在 `cmake` 配置阶段报错。TensorRT 仅 YOLOv5 链路用到，其余模型走 OpenVINO。
@@ -166,6 +167,7 @@ cd qtl_vision_OpenVINO-or-TensorRT  # 进入项目根目录
 | `auto_aim_debug_mpc` | `apps/auto_aim_debug_mpc.cpp` | YOLO+EKF+MPC 自瞄（重投影窗口） | YOLO | MPC Planner | 串口 Gimbal | `standard1(_sim).yaml` |
 | `standard` | `apps/standard.cpp` | YOLO 自瞄（无窗口） | YOLO | 弹道 Aimer+Shooter | 裁判系统 CBoard（CAN） | `standard3.yaml` |
 | `standard_mpc` | `apps/standard_mpc.cpp` | YOLO+MPC 自瞄（无窗口） | YOLO | MPC Planner | 串口 Gimbal | `standard3.yaml` |
+| `omni_standard` | `apps/omni_standard.cpp` | 全向感知自瞄（3×USB 搜索 + 海康主瞄准，无窗口） | YOLO + 传统 | MPC Planner | 串口 Gimbal | `omni.yaml` |
 | `camera_auto_aim_test` | `tests/camera_auto_aim_test.cpp` | 相机+自瞄离线测试（无通讯） | YOLO | 弹道 Aimer | — | `camera_auto_aim.yaml` |
 | `capture` | `calibration/capture.cpp` | 采集标定图片（s 保存 / q 退出） | — | — | 串口 Gimbal | `calibration(_sim).yaml` |
 | `calibrate_camera` | `calibration/calibrate_camera.cpp` | 计算内参（结果**只打印不写文件**） | — | — | — | `calibration(_sim).yaml` |
@@ -223,6 +225,50 @@ simulate: true                 # 模拟模式（见上）
 | `example.yaml` | 迈德威视 | 示例 |
 | `demo.yaml` | hikrobot | YOLO 回放测试 |
 | `video_demo.yaml` | 视频文件 | 无硬件调试（自带 `simulate: true`） |
+| `omni.yaml` | hikrobot + USB ×3 | 全向感知（3 USB 传统 + 1 海康 YOLO） |
+
+---
+
+## 全向感知
+
+入口 `omni_standard configs/omni.yaml`。方案：**3 路 USB 相机 + 1 路海康相机**。
+
+| 相机 | 检测路线 | 作用 |
+|---|---|---|
+| USB × 3 | 传统视觉（灯条几何，`use_classifier=false` 不识别编号） | 全向搜索：只报「有无目标 + 方位」，引导 yaw 转向 |
+| 海康 × 1 | YOLO（TensorRT） | 主瞄准：走完整精确链路（PnP + EKF + MPC） |
+
+**决策（海康优先）**：
+
+- 海康锁定 → 主链路 `planner` 输出 yaw/pitch（精确）；
+- 海康无目标 → 用最新且未老化的 USB 结果驱动 yaw，pitch 固定为预设值；
+- 都没有 → `control=false`。
+
+**时间戳对齐（与异步多线程方案的关键区别）**：
+
+- 云台只有一个写入者（主循环），不存在异步命令线程复用旧时间戳导致的抖动；
+- 每个 USB 结果带采集时刻 `t`，`Decider` 用 `gimbal.q(t)` 还原采集时刻的云台姿态，
+  再做延迟补偿（`yaw_vel × age`）+ 老化过滤 + 低通 + 限速。
+
+配置键见 `configs/omni.yaml` 的 `omni_*` 段：
+
+```yaml
+omni_usb_devices: ["video0", "video2", "video4"]  # /dev/ 名，顺序对应 usb0/usb1/usb2
+omni_usb_yaw_offsets: [60, -60, -180]             # 三路USB相对yaw零位的安装角(deg)
+omni_usb_fov_h: 37.0                              # USB水平/垂直FOV(deg)
+omni_usb_fov_v: 40.9
+omni_hik_yaw_offset: 0                            # 海康相对yaw零位安装角(deg)
+omni_hik_fov_h: 54.2
+omni_hik_fov_v: 44.5
+omni_pitch_preset: 0                              # 无海康目标时pitch预设(deg)
+omni_usb_max_age_s: 0.15                          # USB结果老化阈值(s)
+omni_usb_yaw_rate_limit: 3.0                      # USB引导yaw限速(rad/s)
+omni_usb_lpf_alpha: 0.4                           # USB引导yaw一阶低通系数(0~1)
+```
+
+> 注意：`use_classifier=false` 时 USB 装甲板 `name=not_armor`，无法按编号排优先级，
+> USB 选目标按「新鲜度 + 居中程度」。需要按编号选目标时把 `Detector` 的
+> `use_classifier` 置 `true`（代价：3 份分类器模型与推理）。
 
 ---
 
