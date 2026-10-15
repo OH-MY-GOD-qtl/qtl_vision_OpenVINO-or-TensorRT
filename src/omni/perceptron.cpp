@@ -64,6 +64,13 @@ void Perceptron::search_thread(
         logger()->error("USB camera pointer is null ({})!", camera_key);
         return;
     }
+
+    // 超时读取（而非阻塞 read）：相机缺失 / 运行中拔线 / usbipd 掉线时，
+    // 采集线程不会 push 数据，这里必须靠超时返回，否则析构 join() 会永久死锁。
+    constexpr int read_timeout_ms = 100;
+    int timeout_count = 0;
+    bool unavailable = false;
+
     try {
         while (true) {
             {
@@ -73,7 +80,22 @@ void Perceptron::search_thread(
 
             cv::Mat img;
             std::chrono::steady_clock::time_point ts;
-            cam->read(img, ts);
+            if (!cam->try_read(img, ts, read_timeout_ms)) {
+                // 连续 ~1s 无帧才报一次"暂不可用"，恢复时再报一次，避免刷屏
+                if (++timeout_count >= 10 && !unavailable) {
+                    unavailable = true;
+                    logger()->warn(
+                        "[omni] {} temporarily unavailable (no frame for ~{}ms)", camera_key,
+                        timeout_count * read_timeout_ms);
+                }
+                continue;
+            }
+            if (unavailable) {
+                unavailable = false;
+                logger()->info("[omni] {} recovered", camera_key);
+            }
+            timeout_count = 0;
+
             if (img.empty()) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
                 continue;

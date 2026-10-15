@@ -17,6 +17,10 @@ public:
     ~USBCamera();
     cv::Mat read();
     void read(cv::Mat & img, std::chrono::steady_clock::time_point & timestamp) override;
+    // 带超时的读取：timeout_ms 内无新帧返回 false（不阻塞），供搜索线程避免永久阻塞
+    bool try_read(
+        cv::Mat & img, std::chrono::steady_clock::time_point & timestamp,
+        int timeout_ms = 100) override;
     std::string device_name;
 
 private:

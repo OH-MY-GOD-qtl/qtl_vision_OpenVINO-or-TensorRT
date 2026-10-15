@@ -89,6 +89,18 @@ void USBCamera::read(cv::Mat & img, std::chrono::steady_clock::time_point & time
     timestamp = data.timestamp;
 }
 
+bool USBCamera::try_read(
+    cv::Mat & img, std::chrono::steady_clock::time_point & timestamp, int timeout_ms)
+{
+    CameraData data;
+    // 队列由采集线程 push；相机缺失/掉线时无人 push，这里超时返回 false 而不是永久阻塞
+    if (!queue_.try_pop(data, timeout_ms)) return false;
+
+    img = data.img;
+    timestamp = data.timestamp;
+    return true;
+}
+
 void USBCamera::open()
 {
     std::lock_guard<std::mutex> lock(cap_mutex_);
