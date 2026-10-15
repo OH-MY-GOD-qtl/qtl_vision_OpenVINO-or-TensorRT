@@ -47,3 +47,9 @@ void Camera::read(cv::Mat & img, std::chrono::steady_clock::time_point & timesta
     camera_->read(img, timestamp);
 }
 
+bool Camera::try_read(
+    cv::Mat & img, std::chrono::steady_clock::time_point & timestamp, int timeout_ms)
+{
+    return camera_->try_read(img, timestamp, timeout_ms);
+}
+
