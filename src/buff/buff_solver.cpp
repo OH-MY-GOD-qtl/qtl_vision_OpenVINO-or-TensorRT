@@ -3,8 +3,7 @@
 
 cv::Matx33f BuffSolver::rotation_matrix(double angle) const
 {
-    return cv::Matx33f(
-        1, 0, 0, 0, std::cos(angle), -std::sin(angle), 0, std::sin(angle), std::cos(angle));
+    return cv::Matx33f(1, 0, 0, 0, std::cos(angle), -std::sin(angle), 0, std::sin(angle), std::cos(angle));
 }
 
 void BuffSolver::compute_rotated_points(std::vector<std::vector<cv::Point3f>> & object_points)

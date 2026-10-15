@@ -33,7 +33,8 @@ public:
 
 private:
     double yaw_offset_;
-    std::optional<double> left_yaw_offset_, right_yaw_offset_;
+    std::optional<double> left_yaw_offset_;
+    std::optional<double> right_yaw_offset_;
     double pitch_offset_;
     double comming_angle_;
     double leaving_angle_;

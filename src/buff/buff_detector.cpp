@@ -49,8 +49,7 @@ cv::Point2f Buff_Detector::get_r_center(std::vector<FanBlade> & fanblades, cv::M
 
     std::vector<std::vector<cv::Point>> contours;
     auto r_center = r_center_t;
-    cv::findContours(
-        dilated_img, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE);  // external找外部区域
+    cv::findContours(dilated_img, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE);  // external找外部区域
     double ratio_1 = INF;
     for (auto & it : contours) {
         auto rotated_rect = cv::minAreaRect(it);

@@ -34,7 +34,7 @@ void dilate_binary(
 cv::Rect letterbox(const cv::Mat & img, cv::Mat & dst, double & scale);
 
 
-// 分离颜色通道双阈值预处理（与桌面 qtl_vision 的 PreProcess::process 算法一致）：
+// 分离颜色通道双阈值预处理:
 //   1. 通道分离后取颜色差（红敌 R-B / 蓝敌 B-R，饱和差），过 color_threshold 得颜色掩码；
 //   2. 灰度图过 brightness_threshold 得亮度掩码；
 //   3. 两掩码按位与，再用 3x3 矩形核膨胀两次，得到二值图。
