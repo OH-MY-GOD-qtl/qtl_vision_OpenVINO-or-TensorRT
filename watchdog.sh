@@ -6,14 +6,14 @@ cd "$SCRIPT_DIR" || { echo "无法进入脚本目录: $SCRIPT_DIR"; exit 1; }
 
 
 # 配置参数 
-# APP_NAME="standard_mpc"                # standard_mpc
-APP_NAME="auto_aim_debug_mpc"          # auto_aim_debug_mpc
-APP_PATH="./build/$APP_NAME"           # 应用程序路径
-CONFIG_FILE="./configs/standard1.yaml"  # 配置文件路径
-MAX_RETRY=100                          # 最大重试次数
-CHECK_INTERVAL=5                        # 检查间隔（秒）
-RESTART_DELAY=1                         # 重启延迟（秒）
-RETRY_COUNT=0                           # 崩溃计数（初始为 0）
+# APP_NAME="standard_mpc"                 # standard_mpc
+APP_NAME="auto_aim_debug_mpc"             # auto_aim_debug_mpc
+APP_PATH="./build/$APP_NAME"              # 应用程序路径
+CONFIG_FILE="./configs/standard1.yaml"    # 配置文件路径
+MAX_RETRY=100                             # 最大重试次数
+CHECK_INTERVAL=5                          # 检查间隔（秒）
+RESTART_DELAY=1                           # 重启延迟（秒）
+RETRY_COUNT=0                             # 崩溃计数（初始为 0）
 
 # 定义退出函数和信号捕获
 cleanup() {
