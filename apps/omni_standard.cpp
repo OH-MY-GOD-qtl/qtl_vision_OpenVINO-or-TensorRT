@@ -83,14 +83,16 @@ int main(int argc, char * argv[])
         }
 
         // 1) 海康精确链路：同步读取 + 帧时间戳对齐（q(t) 为该帧采集时刻的姿态）
-        hik.read(img, t);
-        if (img.empty()) continue;
-
-        auto gs = gimbal.state();
-        solver.set_R_gimbal2world(gimbal.q(t));
+        //    用带超时的读取：海康掉线/未出图时不再永久阻塞，Ctrl+C 仍可退出
+        bool hik_ok = hik.try_read(img, t, 100);
 
         // 2) USB 搜索层：每轮必 drain，防止队列堆积
         auto usb_results = perceptron.get_detection_queue();
+
+        if (!hik_ok || img.empty()) continue;
+
+        auto gs = gimbal.state();
+        solver.set_R_gimbal2world(gimbal.q(t));
 
         if (mode != GimbalMode::AUTO_AIM) {
             gimbal.send(false, false, 0, 0, 0, 0, 0, 0, true);

@@ -52,6 +52,18 @@ void HikRobot::read(cv::Mat & img, std::chrono::steady_clock::time_point & times
     timestamp = data.timestamp;
 }
 
+bool HikRobot::try_read(
+    cv::Mat & img, std::chrono::steady_clock::time_point & timestamp, int timeout_ms)
+{
+    CameraData data;
+    // 相机掉线时守护线程会反复重连、无人 push；超时返回 false 而不是永久阻塞
+    if (!queue_.try_pop(data, timeout_ms)) return false;
+
+    img = data.img;
+    timestamp = data.timestamp;
+    return true;
+}
+
 void HikRobot::capture_start()
 {
     capturing_ = false;

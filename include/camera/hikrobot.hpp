@@ -18,6 +18,10 @@ public:
     HikRobot(double exposure_ms, double gain, const std::string & vid_pid);
     ~HikRobot() override;
     void read(cv::Mat & img, std::chrono::steady_clock::time_point & timestamp) override;
+    // 带超时的读取：timeout_ms 内无新帧返回 false（不阻塞），供主循环避免掉线时卡死
+    bool try_read(
+        cv::Mat & img, std::chrono::steady_clock::time_point & timestamp,
+        int timeout_ms = 100) override;
 
 private:
     struct CameraData
