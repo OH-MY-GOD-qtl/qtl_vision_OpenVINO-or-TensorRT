@@ -1,5 +1,5 @@
 #include "buff/yolo11_buff.hpp"
-#include "image/image.hpp"
+#include "image.hpp"
 #include "tools/yaml.hpp"
 
 const double ConfidenceThreshold = 0.7f;

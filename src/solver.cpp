@@ -1,4 +1,4 @@
-#include "solve/solver.hpp"
+#include "solver.hpp"
 
 #include <yaml-cpp/yaml.h>
 

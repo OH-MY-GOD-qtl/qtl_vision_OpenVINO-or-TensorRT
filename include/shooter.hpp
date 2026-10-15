@@ -4,7 +4,7 @@
 #include <string>
 
 #include "comm/command.hpp"
-#include "fire/aimer.hpp"
+#include "aimer.hpp"
 
 
 class Shooter

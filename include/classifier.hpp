@@ -5,7 +5,7 @@
 #include <openvino/openvino.hpp>
 #include <string>
 
-#include "armor/armor.hpp"
+#include "armor.hpp"
 
 
 class Classifier

@@ -11,7 +11,7 @@
 #include "omni/detection.hpp"
 #include "comm/command.hpp"
 #include "comm/gimbal.hpp"
-#include "armor/armor.hpp"
+#include "armor.hpp"
 #include "tracker/target.hpp"
 
 

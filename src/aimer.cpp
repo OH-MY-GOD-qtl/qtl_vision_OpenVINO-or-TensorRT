@@ -1,4 +1,4 @@
-#include "fire/aimer.hpp"
+#include "aimer.hpp"
 
 #include <yaml-cpp/yaml.h>
 

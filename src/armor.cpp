@@ -1,4 +1,4 @@
-#include "armor/armor.hpp"
+#include "armor.hpp"
 
 #include <algorithm>
 #include <cmath>

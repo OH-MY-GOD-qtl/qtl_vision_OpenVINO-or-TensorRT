@@ -1,6 +1,6 @@
 #include "buff/buff_detector.hpp"
 
-#include "image/image.hpp"
+#include "image.hpp"
 #include "tools/logger.hpp"
 
 

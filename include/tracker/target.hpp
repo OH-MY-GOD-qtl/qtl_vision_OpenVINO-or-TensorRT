@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 
-#include "armor/armor.hpp"
+#include "armor.hpp"
 #include "tools/extended_kalman_filter.hpp"
 
 

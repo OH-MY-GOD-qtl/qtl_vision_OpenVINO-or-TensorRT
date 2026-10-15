@@ -62,7 +62,7 @@ include_directories(third_party/camera_sdk/mindvision/include)
 # STATIC：作为基础工具模块被 auto_aim/auto_buff 等 OBJECT 库复用，
 # 需要 .a 以便依赖沿 target_link_libraries 的 PUBLIC 链自动传递
 add_library(image STATIC
-    src/image/image.cpp
+    src/image.cpp
 )
 
 target_link_libraries(image PUBLIC ${OpenCV_LIBS})
@@ -70,7 +70,7 @@ target_link_libraries(image PUBLIC ${OpenCV_LIBS})
 #################### 灯条处理库 ####################
 # STATIC：同上，被 auto_aim 的 detector/classifier 复用
 add_library(lightbar STATIC
-    src/lightbar/lightbar.cpp
+    src/lightbar.cpp
 )
 
 target_link_libraries(lightbar PUBLIC ${OpenCV_LIBS} image)
@@ -120,9 +120,9 @@ target_link_libraries(io PUBLIC MvCameraControl MVSDK usb-1.0 yaml-cpp serial)
 #################### 自瞄任务库 ####################
 add_library(auto_aim OBJECT
     # 装甲板数据模型
-    src/armor/armor.cpp
+    src/armor.cpp
     # 数字分类器
-    src/classifier/classifier.cpp
+    src/classifier.cpp
     # 检测器（传统 + YOLO）
     src/detector/detector.cpp
     src/detector/yolo.cpp
@@ -131,15 +131,15 @@ add_library(auto_aim OBJECT
     src/detector/yolos/yolov8.cpp
     src/detector/yolos/yolo11.cpp
     # 解算模块
-    src/solve/solver.cpp
+    src/solver.cpp
     # 跟踪模块（EKF 目标模型）
     src/tracker/target.cpp
     src/tracker/tracker.cpp
     # 开火模块（瞄准 + 开火判定）
-    src/fire/aimer.cpp
-    src/fire/shooter.cpp
+    src/aimer.cpp
+    src/shooter.cpp
     # MPC 规划器
-    src/planner/planner.cpp
+    src/planner.cpp
 )
 
 target_link_libraries(auto_aim PUBLIC io openvino::runtime tinympcstatic lightbar image

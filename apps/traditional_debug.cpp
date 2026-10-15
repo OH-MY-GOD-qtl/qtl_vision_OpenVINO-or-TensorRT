@@ -8,11 +8,11 @@
 #include <thread>
 
 #include "camera/camera.hpp"
-#include "fire/aimer.hpp"
+#include "aimer.hpp"
 #include "detector/detector.hpp"  // 使用传统检测器
-#include "planner/planner.hpp"
-#include "fire/shooter.hpp"
-#include "solve/solver.hpp"
+#include "planner.hpp"
+#include "shooter.hpp"
+#include "solver.hpp"
 #include "tracker/tracker.hpp"
 #include "tools/exiter.hpp"
 #include "tools/img_tools.hpp"

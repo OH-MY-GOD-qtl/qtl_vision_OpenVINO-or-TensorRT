@@ -3,7 +3,7 @@
 
 #include <opencv2/opencv.hpp>
 
-#include "armor/armor.hpp"
+#include "armor.hpp"
 
 
 class YOLOBase

@@ -1,4 +1,4 @@
-#include "lightbar/lightbar.hpp"
+#include "lightbar.hpp"
 
 #include <algorithm>
 #include <cmath>

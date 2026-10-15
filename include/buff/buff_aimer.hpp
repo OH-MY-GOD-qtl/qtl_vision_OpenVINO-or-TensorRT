@@ -8,7 +8,7 @@
 #include <cmath>
 #include <vector>
 
-#include "planner/planner.hpp"
+#include "planner.hpp"
 #include "buff/buff_target.hpp"
 #include "buff/buff_type.hpp"
 #include "comm/command.hpp"

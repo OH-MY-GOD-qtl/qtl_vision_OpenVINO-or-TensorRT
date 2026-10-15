@@ -5,7 +5,7 @@
 
 #include <algorithm>
 
-#include "image/image.hpp"
+#include "image.hpp"
 #include "tools/yaml.hpp"
 #include "tools/img_tools.hpp"
 #include "tools/logger.hpp"

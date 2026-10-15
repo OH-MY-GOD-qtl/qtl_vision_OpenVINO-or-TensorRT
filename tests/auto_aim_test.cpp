@@ -5,8 +5,8 @@
 #include <nlohmann/json.hpp>
 #include <opencv2/opencv.hpp>
 
-#include "fire/aimer.hpp"
-#include "solve/solver.hpp"
+#include "aimer.hpp"
+#include "solver.hpp"
 #include "tracker/tracker.hpp"
 #include "detector/yolo.hpp"
 #include "tools/exiter.hpp"

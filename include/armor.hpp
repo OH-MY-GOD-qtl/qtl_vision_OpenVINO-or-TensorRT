@@ -7,7 +7,7 @@
 #include <vector>
 
 #include "common/color.hpp"
-#include "lightbar/lightbar.hpp"
+#include "lightbar.hpp"
 
 
 enum ArmorType

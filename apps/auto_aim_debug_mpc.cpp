@@ -9,8 +9,8 @@
 
 #include "camera/camera.hpp"
 #include "comm/gimbal.hpp"
-#include "planner/planner.hpp"
-#include "solve/solver.hpp"
+#include "planner.hpp"
+#include "solver.hpp"
 #include "tracker/tracker.hpp"
 #include "detector/yolo.hpp"
 #include "tools/exiter.hpp"

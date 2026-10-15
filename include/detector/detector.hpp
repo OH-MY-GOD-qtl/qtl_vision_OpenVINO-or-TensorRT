@@ -7,10 +7,10 @@
 #include <string>
 #include <vector>
 
-#include "armor/armor.hpp"
-#include "classifier/classifier.hpp"
-#include "image/image.hpp"
-#include "lightbar/lightbar.hpp"
+#include "armor.hpp"
+#include "classifier.hpp"
+#include "image.hpp"
+#include "lightbar.hpp"
 
 
 

@@ -2,7 +2,7 @@
 #include <thread>
 
 #include "comm/ros2/ros2.hpp"
-#include "armor/armor.hpp"
+#include "armor.hpp"
 #include "tools/exiter.hpp"
 #include "tools/logger.hpp"
 

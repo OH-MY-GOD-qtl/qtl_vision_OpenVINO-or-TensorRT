@@ -1,4 +1,4 @@
-#include "image/image.hpp"
+#include "image.hpp"
 
 
 cv::Mat to_gray(const cv::Mat & bgr)

@@ -10,7 +10,7 @@
 #include "tools/yaml.hpp"
 #include "tools/img_tools.hpp"
 #include "tools/logger.hpp"
-#include "image/image.hpp"
+#include "image.hpp"
 
 
 Detector::Detector(const std::string & config_path, bool debug, bool use_classifier)

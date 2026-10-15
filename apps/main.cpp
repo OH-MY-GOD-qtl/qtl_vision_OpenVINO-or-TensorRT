@@ -7,9 +7,9 @@
 #include "camera/camera.hpp"
 #include "comm/gimbal.hpp"
 #include "detector/detector.hpp"
-#include "fire/aimer.hpp"
-#include "fire/shooter.hpp"
-#include "solve/solver.hpp"
+#include "aimer.hpp"
+#include "shooter.hpp"
+#include "solver.hpp"
 #include "tools/logger.hpp"
 #include "tracker/tracker.hpp"
 

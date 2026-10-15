@@ -12,7 +12,7 @@
 #include "omni/detection.hpp"
 #include "camera/usbcamera.hpp"
 #include "detector/detector.hpp"
-#include "armor/armor.hpp"
+#include "armor.hpp"
 #include "tools/thread_safe_queue.hpp"
 
 

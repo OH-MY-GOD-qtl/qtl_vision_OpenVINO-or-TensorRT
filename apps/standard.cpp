@@ -7,9 +7,9 @@
 
 #include "camera/camera.hpp"
 #include "comm/cboard.hpp"
-#include "fire/aimer.hpp"
-#include "fire/shooter.hpp"
-#include "solve/solver.hpp"
+#include "aimer.hpp"
+#include "shooter.hpp"
+#include "solver.hpp"
 #include "tracker/tracker.hpp"
 #include "detector/yolo.hpp"
 #include "tools/exiter.hpp"

@@ -5,7 +5,7 @@
 #include <Eigen/Geometry>
 #include <opencv2/core/eigen.hpp>
 
-#include "armor/armor.hpp"
+#include "armor.hpp"
 
 
 class Solver

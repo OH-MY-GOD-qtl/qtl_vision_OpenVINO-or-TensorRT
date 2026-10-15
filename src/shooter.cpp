@@ -1,4 +1,4 @@
-#include "fire/shooter.hpp"
+#include "shooter.hpp"
 
 #include <yaml-cpp/yaml.h>
 

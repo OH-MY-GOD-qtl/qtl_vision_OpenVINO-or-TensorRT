@@ -10,7 +10,7 @@
 
 #include "camera/camera.hpp"
 #include "comm/cboard.hpp"
-#include "solve/solver.hpp"
+#include "solver.hpp"
 #include "tools/yaml.hpp"
 #include "tools/exiter.hpp"
 #include "tools/img_tools.hpp"

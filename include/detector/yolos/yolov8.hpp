@@ -7,7 +7,7 @@
 #include <string>
 #include <vector>
 
-#include "armor/armor.hpp"
+#include "armor.hpp"
 #include "detector/detector.hpp"
 #include "detector/yolo.hpp"
 

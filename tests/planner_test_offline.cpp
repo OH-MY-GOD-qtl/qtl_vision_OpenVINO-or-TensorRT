@@ -3,7 +3,7 @@
 #include <opencv2/opencv.hpp>
 #include <thread>
 
-#include "planner/planner.hpp"
+#include "planner.hpp"
 #include "tools/exiter.hpp"
 #include "tools/logger.hpp"
 #include "tools/math_tools.hpp"

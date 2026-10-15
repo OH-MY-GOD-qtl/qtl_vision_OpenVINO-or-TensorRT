@@ -7,8 +7,8 @@
 #include <algorithm>
 #include <random>
 
-#include "classifier/classifier.hpp"
-#include "image/image.hpp"
+#include "classifier.hpp"
+#include "image.hpp"
 #include "tools/yaml.hpp"
 #include "tools/img_tools.hpp"
 #include "tools/logger.hpp"

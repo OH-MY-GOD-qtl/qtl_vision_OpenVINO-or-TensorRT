@@ -1,10 +1,10 @@
-#include "classifier/classifier.hpp"
+#include "classifier.hpp"
 
 #include <yaml-cpp/yaml.h>
 
 #include <algorithm>
 #include <cmath>
-#include "image/image.hpp"
+#include "image.hpp"
 #include "tools/yaml.hpp"
 
 

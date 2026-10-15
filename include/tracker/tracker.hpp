@@ -6,8 +6,8 @@
 #include <vector>
 #include <string>
 
-#include "armor/armor.hpp"
-#include "solve/solver.hpp"
+#include "armor.hpp"
+#include "solver.hpp"
 #include "tracker/target.hpp"
 #include "omni/detection.hpp"
 #include "tools/thread_safe_queue.hpp"
