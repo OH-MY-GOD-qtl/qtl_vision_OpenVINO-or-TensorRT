@@ -38,8 +38,8 @@ RoboMaster 视觉系统（C++17）：源自 dx_vision（同济 SuperPower 25 赛
 ```
 qtl_vision_OpenVINO-or-TensorRT/
 ├── CMakeLists.txt              # 扁平构建：每模块一个 OBJECT 库，按注释分组
-├── include/<模块>/xxx.hpp      # 头文件，按模块分目录
-├── src/<模块>/xxx.cpp          # 源文件，与 include/ 镜像
+├── include/                    # 头文件；单文件模块平铺，多文件模块按 <模块>/ 分目录
+├── src/                        # 源文件，与 include/ 对应（单文件模块同样平铺）
 ├── apps/                       # 主程序入口（7 个）
 ├── calibration/                # 标定工具（5 个）
 ├── tests/                      # 测试（22 个，其中 3 个 ROS2 默认不编译）
@@ -549,9 +549,9 @@ crontab -e
 **标准：功能等价。** 算法逻辑与 dx 同源（检测→PnP→EKF→弹道/MPC→
 下发全链路大体一致），工程层面重构：
 
-1. **结构**：去除命名空间；`io/tools/tasks` 重组为 `include/<模块>/` +
-   `src/<模块>/` 镜像；主程序收进 `apps/`；单文件扁平 CMake；从 detector/armor/buff
-   拆出 `image`、`lightbar` 独立模块。
+1. **结构**：去除命名空间；`io/tools/tasks` 重组为按模块拆分的 `include/` +
+   `src/`（多文件模块用 `<模块>/` 子目录镜像，单文件模块平铺根目录）；主程序收进
+   `apps/`；单文件扁平 CMake；从 detector/armor/buff 拆出 `image`、`lightbar` 独立模块。
 2. **链路优化**：预处理缓冲复用（消除每帧约 3MB 重复分配）、letterbox 去逐帧
    memset、修正 YOLO 二次矫正取色坐标系。
 3. **预处理升级**：传统检测从灰度单阈值改为**分离颜色通道双阈值**
