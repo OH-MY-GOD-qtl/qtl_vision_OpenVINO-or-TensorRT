@@ -44,7 +44,7 @@ min_confidence: 0.8
 #####-----USB相机参数（3 路全向搜索）-----#####
 image_width: 640
 image_height: 360
-usb_frame_rate: 60
+usb_frame_rate: 30
 usb_exposure: 320
 usb_gamma: 160
 usb_gain: 10
