@@ -113,20 +113,13 @@ void USBCamera::open()
     sharpness_ = cap_.get(cv::CAP_PROP_SHARPNESS);
     cap_.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
     cap_.set(cv::CAP_PROP_FPS, usb_frame_rate_);
-    cap_.set(cv::CAP_PROP_AUTO_EXPOSURE, 1);
-    cap_.set(cv::CAP_PROP_GAMMA, usb_gamma_);
-    cap_.set(cv::CAP_PROP_GAIN, usb_gain_);
+    cap_.set(cv::CAP_PROP_FRAME_WIDTH, image_width_);
+    cap_.set(cv::CAP_PROP_FRAME_HEIGHT, image_height_);
 
     if (sharpness_ == 2) {
         device_name = "left";
-        cap_.set(cv::CAP_PROP_FRAME_WIDTH, image_width_);
-        cap_.set(cv::CAP_PROP_FRAME_HEIGHT, image_height_);
-        cap_.set(cv::CAP_PROP_EXPOSURE, usb_exposure_);
     } else if (sharpness_ == 3) {
         device_name = "right";
-        cap_.set(cv::CAP_PROP_FRAME_WIDTH, image_width_);
-        cap_.set(cv::CAP_PROP_FRAME_HEIGHT, image_height_);
-        cap_.set(cv::CAP_PROP_EXPOSURE, usb_exposure_);
     }
 
     logger()->info("{} USBCamera opened", device_name);

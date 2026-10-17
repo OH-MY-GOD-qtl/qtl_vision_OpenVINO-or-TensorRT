@@ -1,49 +1,37 @@
-#include "camera/usbcamera.hpp"
-
 #include <opencv2/opencv.hpp>
-#include <thread>
 
-#include "tools/exiter.hpp"
-#include "tools/logger.hpp"
-#include "tools/math_tools.hpp"
+#include <iostream>
+#include <string>
 
-using namespace std::chrono_literals;
-
-const std::string keys =
-    "{help h usage ? |                        | 输出命令行参数说明}"
-    "{@config-path   | configs/sentry.yaml    | 位置参数，yaml配置文件路径 }"
-    "{@name          | video0                 | 端口名称 }"
-    "{d display      |                        | 显示视频流       }";
-
-int main(int argc, char * argv[])
+int main()
 {
-    cv::CommandLineParser cli(argc, argv, keys);
-    if (cli.has("help")) {
-        cli.printMessage();
-        return 0;
+    // 曝光/增益/白平衡等相机控制全部删除，交给相机自动决定。
+    // 但流格式/分辨率/帧率不能删：OpenCV 默认会协商 YUYV 原始格式，
+    cv::VideoCapture camera(0);
+    if (!camera.isOpened()) {
+        std::cerr << "Failed to open USB camera: /dev/video0\n";
+        return 1;
     }
-    Exiter exiter;
 
-    auto config_path = cli.get<std::string>(0);
-    auto device_name = cli.get<std::string>(1);
-    auto display = cli.has("display");
+    camera.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
+    camera.set(cv::CAP_PROP_FRAME_WIDTH, 320);
+    camera.set(cv::CAP_PROP_FRAME_HEIGHT, 240);
+    camera.set(cv::CAP_PROP_FPS, 10);
 
-    USBCamera usbcam(device_name, config_path);
+    std::cout << "Opened /dev/video0: " << camera.get(cv::CAP_PROP_FRAME_WIDTH) << 'x'
+              << camera.get(cv::CAP_PROP_FRAME_HEIGHT) << " @ "
+              << camera.get(cv::CAP_PROP_FPS) << " fps\n";
 
     cv::Mat img;
-    std::chrono::steady_clock::time_point timestamp;
-    auto last_stamp = std::chrono::steady_clock::now();
-    while (!exiter.exit()) {
-        usbcam.read(img, timestamp);
+    while (true) {
+        if (!camera.read(img) || img.empty()) {
+            std::cerr << "Failed to read frame from USB camera\n";
+            return 1;
+        }
 
-        auto dt = delta_time(timestamp, last_stamp);
-        last_stamp = timestamp;
-
-        logger()->info("{:.2f} fps", 1 / dt);
-        std::this_thread::sleep_for(10ms);
-
-        if (!display) continue;
         cv::imshow("img", img);
         if (cv::waitKey(1) == 'q') break;
     }
+
+    return 0;
 }
