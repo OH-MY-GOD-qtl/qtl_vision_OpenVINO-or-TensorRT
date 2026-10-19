@@ -34,15 +34,15 @@ int main(int argc, char * argv[])
         cli.get<std::string>(1), cli.get<std::string>(2), cli.get<std::string>(3)};
     const auto display = cli.has("display");
 
-    std::array<std::unique_ptr<USBCamera>, 2> cameras;
+    std::array<std::unique_ptr<USBCamera>, 3> cameras;
     for (std::size_t i = 0; i < cameras.size(); ++i) {
         cameras[i] = std::make_unique<USBCamera>(device_names[i], config_path);
         if (display) cv::namedWindow(device_names[i], cv::WINDOW_NORMAL);
     }
 
     YOLO yolo(config_path, false);
-    std::array<std::chrono::steady_clock::time_point, 2> previous_timestamps{};
-    std::array<bool, 2> has_previous_timestamp{};
+    std::array<std::chrono::steady_clock::time_point, 3> previous_timestamps{};
+    std::array<bool, 3> has_previous_timestamp{};
 
     while (!exiter.exit()) {
         for (std::size_t i = 0; i < cameras.size(); ++i) {

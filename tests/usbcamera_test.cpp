@@ -21,7 +21,7 @@ struct CameraStream
 
 int main()
 {
-    constexpr std::array<const char *, 2> devices = {"video4", "video2"};
+    constexpr std::array<const char *, 3> devices = {"video0", "video2", "video4"};
     std::array<CameraStream, devices.size()> streams;
 
     for (std::size_t i = 0; i < streams.size(); ++i) {
