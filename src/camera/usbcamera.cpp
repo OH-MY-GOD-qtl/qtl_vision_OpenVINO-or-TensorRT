@@ -14,10 +14,7 @@ USBCamera::USBCamera(const std::string & open_name, const std::string & config_p
     auto yaml = yaml_load(config_path);
     image_width_ = yaml_read<double>(yaml, "image_width");
     image_height_ = yaml_read<double>(yaml, "image_height");
-    usb_exposure_ = yaml_read<double>(yaml, "usb_exposure");
     usb_frame_rate_ = yaml_read<double>(yaml, "usb_frame_rate");
-    usb_gamma_ = yaml_read<double>(yaml, "usb_gamma");
-    usb_gain_ = yaml_read<double>(yaml, "usb_gain");
     try_open();
 
     // 守护线程
@@ -110,22 +107,14 @@ void USBCamera::open()
         logger()->warn("Failed to open USB camera");
         return;
     }
-    sharpness_ = cap_.get(cv::CAP_PROP_SHARPNESS);
+    device_name = open_name_;
     cap_.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
-    cap_.set(cv::CAP_PROP_FPS, usb_frame_rate_);
     cap_.set(cv::CAP_PROP_FRAME_WIDTH, image_width_);
     cap_.set(cv::CAP_PROP_FRAME_HEIGHT, image_height_);
-
-    if (sharpness_ == 2) {
-        device_name = "left";
-    } else if (sharpness_ == 3) {
-        device_name = "right";
-    }
+    cap_.set(cv::CAP_PROP_FPS, usb_frame_rate_);
 
     logger()->info("{} USBCamera opened", device_name);
-    // logger()->info("USBCamera exposure time:{}", cap_.get(cv::CAP_PROP_EXPOSURE));
     logger()->info("USBCamera fps:{}", cap_.get(cv::CAP_PROP_FPS));
-    // logger()->info("USBCamera gamma:{}", cap_.get(cv::CAP_PROP_GAMMA));
 
     // 取图线程
     capture_thread_ = std::thread{[this] {
@@ -174,4 +163,3 @@ void USBCamera::close()
         logger()->info("USB camera released.");
     }
 }
-
