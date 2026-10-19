@@ -1,37 +1,86 @@
 #include <opencv2/opencv.hpp>
 
+#include <algorithm>
+#include <array>
+#include <atomic>
 #include <iostream>
+#include <mutex>
 #include <string>
+#include <thread>
+#include <utility>
+
+struct CameraStream
+{
+    std::string device;
+    cv::VideoCapture camera;
+    cv::Mat frame;
+    std::mutex frame_mutex;
+    std::thread capture_thread;
+    std::atomic<bool> running{false};
+};
 
 int main()
 {
-    // 曝光/增益/白平衡等相机控制全部删除，交给相机自动决定。
-    // 但流格式/分辨率/帧率不能删：OpenCV 默认会协商 YUYV 原始格式，
-    cv::VideoCapture camera(0);
-    if (!camera.isOpened()) {
-        std::cerr << "Failed to open USB camera: /dev/video0\n";
-        return 1;
-    }
+    constexpr std::array<const char *, 2> devices = {"video4", "video2"};
+    std::array<CameraStream, devices.size()> streams;
 
-    camera.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
-    camera.set(cv::CAP_PROP_FRAME_WIDTH, 320);
-    camera.set(cv::CAP_PROP_FRAME_HEIGHT, 240);
-    camera.set(cv::CAP_PROP_FPS, 10);
-
-    std::cout << "Opened /dev/video0: " << camera.get(cv::CAP_PROP_FRAME_WIDTH) << 'x'
-              << camera.get(cv::CAP_PROP_FRAME_HEIGHT) << " @ "
-              << camera.get(cv::CAP_PROP_FPS) << " fps\n";
-
-    cv::Mat img;
-    while (true) {
-        if (!camera.read(img) || img.empty()) {
-            std::cerr << "Failed to read frame from USB camera\n";
+    for (std::size_t i = 0; i < streams.size(); ++i) {
+        auto & stream = streams[i];
+        stream.device = std::string("/dev/") + devices[i];
+        if (!stream.camera.open(stream.device, cv::CAP_V4L)) {
+            std::cerr << "Failed to open USB camera: " << stream.device << '\n';
             return 1;
         }
 
-        cv::imshow("img", img);
+        stream.camera.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
+        stream.camera.set(cv::CAP_PROP_FRAME_WIDTH, 320);
+        stream.camera.set(cv::CAP_PROP_FRAME_HEIGHT, 240);
+        stream.camera.set(cv::CAP_PROP_FPS, 10);
+
+        std::cout << "Opened " << stream.device << ": "
+                  << stream.camera.get(cv::CAP_PROP_FRAME_WIDTH) << 'x'
+                  << stream.camera.get(cv::CAP_PROP_FRAME_HEIGHT) << " @ "
+                  << stream.camera.get(cv::CAP_PROP_FPS) << " fps\n";
+    }
+
+    std::atomic<bool> capture_failed{false};
+    for (auto & stream : streams) {
+        stream.running = true;
+        auto * stream_ptr = &stream;
+        stream.capture_thread = std::thread([stream_ptr, &capture_failed] {
+            while (stream_ptr->running) {
+                cv::Mat frame;
+                if (!stream_ptr->camera.read(frame) || frame.empty()) {
+                    std::cerr << "Failed to read frame from " << stream_ptr->device << '\n';
+                    capture_failed = true;
+                    stream_ptr->running = false;
+                    break;
+                }
+
+                std::lock_guard<std::mutex> lock(stream_ptr->frame_mutex);
+                stream_ptr->frame = std::move(frame);
+            }
+        });
+    }
+
+    while (!capture_failed) {
+        for (auto & stream : streams) {
+            cv::Mat frame;
+            {
+                std::lock_guard<std::mutex> lock(stream.frame_mutex);
+                if (!stream.frame.empty()) frame = stream.frame.clone();
+            }
+            if (!frame.empty()) cv::imshow(stream.device, frame);
+        }
+
         if (cv::waitKey(1) == 'q') break;
     }
 
-    return 0;
+    for (auto & stream : streams) stream.running = false;
+    for (auto & stream : streams) {
+        if (stream.capture_thread.joinable()) stream.capture_thread.join();
+    }
+    cv::destroyAllWindows();
+
+    return capture_failed ? 1 : 0;
 }
