@@ -209,7 +209,6 @@ add_executable(cboard_test tests/cboard_test.cpp)
 add_executable(fire_test tests/fire_test.cpp)
 add_executable(detector_video_test tests/detector_video_test.cpp)
 add_executable(gimbal_response_test tests/gimbal_response_test.cpp)
-add_executable(multi_usbcamera_test tests/multi_usbcamera_test.cpp)
 add_executable(usbcamera_detect_test tests/usbcamera_detect_test.cpp)
 add_executable(usbcamera_test tests/usbcamera_test.cpp)
 add_executable(handeye_test tests/handeye_test.cpp)
@@ -240,7 +239,6 @@ foreach(t   camera_test
             cboard_test
             fire_test
             gimbal_response_test
-            multi_usbcamera_test
             usbcamera_test dm_test)
     target_link_libraries(${t} ${TEST_BASE_LIBS})
 

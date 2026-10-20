@@ -35,12 +35,12 @@ int main()
         stream.camera.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
         stream.camera.set(cv::CAP_PROP_FRAME_WIDTH, 320);
         stream.camera.set(cv::CAP_PROP_FRAME_HEIGHT, 240);
-        stream.camera.set(cv::CAP_PROP_FPS, 10);
+        stream.camera.set(cv::CAP_PROP_FPS, 30);
 
-        std::cout << "Opened " << stream.device << ": "
-                  << stream.camera.get(cv::CAP_PROP_FRAME_WIDTH) << 'x'
-                  << stream.camera.get(cv::CAP_PROP_FRAME_HEIGHT) << " @ "
-                  << stream.camera.get(cv::CAP_PROP_FPS) << " fps\n";
+        // std::cout << "Opened " << stream.device << ": "
+        //           << stream.camera.get(cv::CAP_PROP_FRAME_WIDTH) << 'x'
+        //           << stream.camera.get(cv::CAP_PROP_FRAME_HEIGHT) << " @ "
+        //           << stream.camera.get(cv::CAP_PROP_FPS) << " fps\n";
     }
 
     std::atomic<bool> capture_failed{false};
