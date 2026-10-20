@@ -250,11 +250,17 @@ simulate: true                 # 模拟模式（见上）
 - 每个 USB 结果带采集时刻 `t`，`Decider` 用 `gimbal.q(t)` 还原采集时刻的云台姿态，
   再做延迟补偿（`yaw_vel × age`）+ 老化过滤 + 低通 + 限速。
 
-配置键见 `configs/omni.yaml` 的 `omni_*` 段：
+配置键见 `configs/omni.yaml` 的 `omni_*` 段。USB 设备与安装角可以绑定在同一项中；
+`yaw_offset_from_hik` 表示相对海康视线的水平安装角。下面只是格式示例，实际设备节点与角度对应关系需安装后核实并填写：
 
 ```yaml
-omni_usb_devices: ["video0", "video2", "video4"]  # /dev/ 名，顺序对应 usb0/usb1/usb2
-omni_usb_yaw_offsets: [60, -60, -180]             # 三路USB相对yaw零位的安装角(deg)
+omni_usb_cameras:
+  - device: "video0"
+    yaw_offset_from_hik: 30   # 示例值
+  - device: "video2"
+    yaw_offset_from_hik: -30  # 示例值
+  - device: "video4"
+    yaw_offset_from_hik: 180  # 示例值
 omni_usb_fov_h: 37.0                              # USB水平/垂直FOV(deg)
 omni_usb_fov_v: 40.9
 omni_hik_yaw_offset: 0                            # 海康相对yaw零位安装角(deg)
@@ -265,6 +271,11 @@ omni_usb_max_age_s: 0.15                          # USB结果老化阈值(s)
 omni_usb_yaw_rate_limit: 3.0                      # USB引导yaw限速(rad/s)
 omni_usb_lpf_alpha: 0.4                           # USB引导yaw一阶低通系数(0~1)
 ```
+
+旧版 `omni_usb_devices` / `omni_usb_yaw_offsets` 配置仍兼容；其中旧 yaw offset 按云台零位解释。
+当前 `configs/omni.yaml` 暂时保留旧格式，待相机安装并确认设备节点后再迁移。
+云台串口未连接时，可运行 `omni_standard configs/omni.yaml --simulate` 观察模拟控制日志；
+该选项不连接串口，也不会驱动实机。
 
 > 注意：`use_classifier=false` 时 USB 装甲板 `name=not_armor`，无法按编号排优先级，
 > USB 选目标按「新鲜度 + 居中程度」。需要按编号选目标时把 `Detector` 的

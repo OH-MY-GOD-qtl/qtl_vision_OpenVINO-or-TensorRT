@@ -9,12 +9,12 @@
 #include <fmt/format.h>
 
 
-Gimbal::Gimbal(const std::string & config_path)
+Gimbal::Gimbal(const std::string & config_path, bool simulate_override)
 {
     auto yaml = yaml_load(config_path);
 
     // 无硬件模拟模式：不打开串口，固定自瞄模式
-    simulate_ = yaml["simulate"] ? yaml["simulate"].as<bool>() : false;
+    simulate_ = simulate_override || (yaml["simulate"] && yaml["simulate"].as<bool>());
     debug_serial_ = yaml["debug_serial"] ? yaml["debug_serial"].as<bool>() : false;
     if (simulate_) {
         mode_ = GimbalMode::AUTO_AIM;
@@ -319,4 +319,3 @@ void Gimbal::reconnect()
         }
     }
 }
-

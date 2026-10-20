@@ -97,7 +97,7 @@ mode: 1
 
 #####-----全向感知(omni)参数-----#####
 omni_usb_devices: ["video0", "video2", "video4"]  # /dev/ 名，顺序对应 usb0/usb1/usb2
-omni_usb_yaw_offsets: [60, -60, -180]             # 三路USB相对yaw零位的安装角(degree)
+omni_usb_yaw_offsets: [30, -30, -180]             # 三路USB相对yaw零位的安装角(degree)
 omni_usb_fov_h: 37.0                              # USB水平FOV(degree)
 omni_usb_fov_v: 40.9                              # USB垂直FOV(degree)
 omni_hik_yaw_offset: 0                            # 海康相对yaw零位安装角(degree)

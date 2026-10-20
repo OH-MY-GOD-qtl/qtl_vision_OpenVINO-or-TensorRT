@@ -19,6 +19,7 @@
 #include "detector/yolo.hpp"
 #include "omni/decider.hpp"
 #include "omni/perceptron.hpp"
+#include "omni/usb_camera_config.hpp"
 #include "planner.hpp"
 #include "solver.hpp"
 #include "tools/exiter.hpp"
@@ -29,7 +30,8 @@
 
 const std::string keys =
     "{help h usage ? | | 输出命令行参数说明}"
-    "{@config-path   | | yaml配置文件路径 }";
+    "{@config-path   | | yaml配置文件路径 }"
+    "{simulate       | | 只输出模拟控制，不连接云台串口}";
 
 using namespace std::chrono_literals;
 
@@ -44,16 +46,12 @@ int main(int argc, char * argv[])
 
     Exiter exiter;
 
-    // ---- USB 设备名（顺序对应 usb0/usb1/usb2，与 omni_usb_yaw_offsets 索引一致）----
+    // ---- USB 设备和安装角从同一配置项读取，确保顺序一致 ----
     auto yaml = yaml_load(config_path);
-    std::vector<std::string> usb_devices = {"video0", "video2", "video4"};
-    if (yaml["omni_usb_devices"]) {
-        usb_devices.clear();
-        for (const auto & v : yaml["omni_usb_devices"]) usb_devices.push_back(v.as<std::string>());
-    }
+    const auto usb_cameras = load_usb_camera_configs(yaml);
 
     // ---- 海康精确链路 ----
-    Gimbal gimbal(config_path);
+    Gimbal gimbal(config_path, cli.has("simulate"));
     Camera hik(config_path);
     YOLO yolo(config_path, true);
     Solver solver(config_path);
@@ -63,8 +61,8 @@ int main(int argc, char * argv[])
 
     // ---- 3 路 USB 方位搜索（传统检测，不加载分类器）----
     std::array<std::unique_ptr<USBCamera>, 3> usb_cams;
-    for (size_t i = 0; i < usb_cams.size() && i < usb_devices.size(); ++i)
-        usb_cams[i] = std::make_unique<USBCamera>(usb_devices[i], config_path);
+    for (size_t i = 0; i < usb_cams.size() && i < usb_cameras.size(); ++i)
+        usb_cams[i] = std::make_unique<USBCamera>(usb_cameras[i].device, config_path);
     Perceptron perceptron(
         usb_cams[0].get(), usb_cams[1].get(), usb_cams[2].get(), decider, config_path);
 

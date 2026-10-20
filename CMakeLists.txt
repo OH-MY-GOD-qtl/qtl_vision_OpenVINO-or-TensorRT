@@ -220,6 +220,7 @@ add_executable(handeye_test tests/handeye_test.cpp)
 add_executable(dm_test tests/dm_test.cpp)
 add_executable(camera_auto_aim_test tests/camera_auto_aim_test.cpp)
 add_executable(gimbal_test tests/gimbal_test.cpp)
+add_executable(omni_config_test tests/omni_config_test.cpp)
 add_executable(planner_test tests/planner_test.cpp)
 add_executable(planner_test_offline tests/planner_test_offline.cpp)
 
@@ -237,6 +238,7 @@ foreach(t   auto_aim_test
 
 endforeach()
 target_link_libraries(auto_buff_test ${TEST_BASE_LIBS} auto_aim auto_buff)
+target_link_libraries(omni_config_test ${TEST_BASE_LIBS} auto_aim omni)
 
 foreach(t   camera_test
             cboard_test

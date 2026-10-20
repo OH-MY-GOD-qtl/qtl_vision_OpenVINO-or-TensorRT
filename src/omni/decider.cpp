@@ -8,6 +8,7 @@
 #include "tools/math_tools.hpp"
 #include "tools/logger.hpp"
 #include "tools/yaml.hpp"
+#include "omni/usb_camera_config.hpp"
 
 
 Decider::Decider(const std::string & config_path)
@@ -22,15 +23,16 @@ Decider::Decider(const std::string & config_path)
         return yaml[key] ? yaml[key].as<double>() : fallback;
     };
 
-    // 全向感知相机安装参数（缺失时使用默认值，兼容旧配置）
-    usb_yaw_offsets_ = {60, -60, -180};
-    if (yaml["omni_usb_yaw_offsets"]) {
-        usb_yaw_offsets_.clear();
-        for (const auto & v : yaml["omni_usb_yaw_offsets"]) usb_yaw_offsets_.push_back(v.as<double>());
-    }
-    usb_fov_h_ = yaml["omni_usb_fov_h"] ? yaml["omni_usb_fov_h"].as<double>() : opt("new_fov_h", 37.0);
-    usb_fov_v_ = yaml["omni_usb_fov_v"] ? yaml["omni_usb_fov_v"].as<double>() : opt("new_fov_v", 40.9);
     hik_yaw_offset_ = opt("omni_hik_yaw_offset", 0.0);
+
+    // 新配置角度相对海康；旧配置仍按云台零位解释，保持兼容。
+    for (const auto & camera : load_usb_camera_configs(yaml)) {
+        usb_yaw_offsets_.push_back(
+            camera.yaw_offset_deg + (camera.yaw_offset_relative_to_hik ? hik_yaw_offset_ : 0.0));
+    }
+    usb_fov_h_ =
+        yaml["omni_usb_fov_h"] ? yaml["omni_usb_fov_h"].as<double>() : opt("new_fov_h", 37.0);
+    usb_fov_v_ = yaml["omni_usb_fov_v"] ? yaml["omni_usb_fov_v"].as<double>() : opt("new_fov_v", 40.9);
     hik_fov_h_ = opt("omni_hik_fov_h", 54.2);
     hik_fov_v_ = opt("omni_hik_fov_v", 44.5);
     pitch_preset_ = opt("omni_pitch_preset", 0.0) / 57.3;
@@ -272,4 +274,3 @@ void Decider::get_auto_aim_target(
             }),
         armors.end());
 }
-

@@ -59,7 +59,7 @@ public:
 
 private:
     // ---- 全向感知相机安装参数 ----
-    std::vector<double> usb_yaw_offsets_;  // 三路USB相对yaw零位的安装角(deg)
+    std::vector<double> usb_yaw_offsets_;  // 三路USB相对云台零位的安装角(deg)
     double usb_fov_h_, usb_fov_v_;         // USB水平/垂直FOV(deg)
     double hik_yaw_offset_;                // 海康相对yaw零位安装角(deg)
     double hik_fov_h_, hik_fov_v_;         // 海康水平/垂直FOV(deg)
