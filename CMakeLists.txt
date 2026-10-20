@@ -184,10 +184,6 @@ add_executable(MAIN apps/main.cpp)
 target_link_libraries(MAIN ${OpenCV_LIBS} yaml-cpp serial fmt::fmt spdlog::spdlog
     tools io auto_aim omni)
 
-#################### 冒烟测试（临时，验证用） ####################
-add_executable(yolo_smoke smoke/yolo_smoke.cpp)
-target_link_libraries(yolo_smoke ${OpenCV_LIBS} fmt::fmt yaml-cpp tools io auto_aim)
-
 #################### 标定工具 ####################
 add_executable(capture calibration/capture.cpp)
 add_executable(calibrate_camera calibration/calibrate_camera.cpp)

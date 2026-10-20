@@ -26,7 +26,7 @@ RoboMaster 视觉系统（C++17）：源自 dx_vision（同济 SuperPower 25 赛
 - [标定流程](#标定流程)
 - [通讯与串口协议](#通讯与串口协议)
 - [部署自启动（可选）](#部署自启动可选)
-- [测试与冒烟](#测试与冒烟)
+- [测试](#测试)
 - [常见问题 FAQ](#常见问题-faq)
 - [与 dx_vision 的关系](#与-dx_vision-的关系)
 - [License](#license)
@@ -43,7 +43,6 @@ qtl_vision_OpenVINO-or-TensorRT/
 ├── apps/                       # 主程序入口（7 个）
 ├── calibration/                # 标定工具（5 个）
 ├── tests/                      # 测试（22 个，其中 3 个 ROS2 默认不编译）
-├── smoke/                      # 冒烟工具（yolo_smoke）
 ├── configs/                    # yaml 配置
 ├── assets/                     # 模型文件（onnx/xml/bin/engine）+ demo 视频
 ├── third_party/
@@ -123,7 +122,7 @@ mkdir build && cd build
 cmake .. && make -j
 ```
 
-生成 33 个可执行文件：主程序入口 8 个、标定工具 5 个、测试 19 个、冒烟工具 1 个。
+生成 32 个可执行文件：主程序入口 8 个、标定工具 5 个、测试 19 个。
 
 > 构建同时依赖 OpenVINO 与 TensorRT/CUDA（见[环境准备](#环境准备)）；三者任一缺失
 > 都会在 `cmake` 配置阶段报错。TensorRT 仅 YOLOv5 链路用到，其余模型走 OpenVINO。
@@ -174,8 +173,6 @@ cd qtl_vision_OpenVINO-or-TensorRT  # 进入项目根目录
 | `calibrate_handeye` | `calibration/calibrate_handeye.cpp` | 手眼标定（需真实云台姿态） | — | — | — | `calibration.yaml` |
 | `calibrate_robotworld_handeye` | `calibration/calibrate_robotworld_handeye.cpp` | 手眼标定（机器人基座系） | — | — | — | `calibration.yaml` |
 | `split_video` | `calibration/split_video.cpp` | 视频切帧 | — | — | — | — |
-| `yolo_smoke` | `smoke/yolo_smoke.cpp` | YOLO 模型加载+推理冒烟 | YOLO | — | — | `video_demo.yaml` |
-
 除 `MAIN` 与 `split_video` 外，所有程序均以 yaml 配置路径作为第一个命令行参数
 （`MAIN` 不传参数时默认 `configs/standard1.yaml`）；`split_video` 的参数为
 `输入路径 起始帧 结束帧 输出路径`，其余标定类工具的额外参数见[标定流程](#标定流程)。
@@ -517,12 +514,9 @@ crontab -e
 
 ---
 
-## 测试与冒烟
+## 测试
 
 ```bash
-# YOLO 模型冒烟（加载+推理 300 帧，可用 video_demo 配置换模型验证 v8/v11）
-./build/yolo_smoke configs/video_demo.yaml
-
 # YOLO+EKF 视频回放（重投影画面；4 个参数：配置 起始帧 结束帧 输入前缀）
 ./build/auto_aim_test configs/demo.yaml 0 0 assets/demo
 ```
