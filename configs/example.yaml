@@ -24,7 +24,7 @@ image_width: 1920
 image_height: 1080
 fov_h: 87.7
 fov_v: 56.7 
-usb_frame_rate: 10
+usb_frame_rate: 30
 
 #####-----工业相机参数-----#####
 camera_name: "mindvision"
