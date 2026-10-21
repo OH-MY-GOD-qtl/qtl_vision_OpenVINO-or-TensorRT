@@ -2,7 +2,6 @@
 #define AUTO_AIM__DETECTOR_HPP
 
 #include <memory>
-#include <vector>
 #include <opencv2/opencv.hpp>
 #include <string>
 #include <vector>
@@ -11,8 +10,6 @@
 #include "classifier.hpp"
 #include "image.hpp"
 #include "lightbar.hpp"
-
-
 
 class Detector
 {
@@ -63,9 +60,9 @@ private:
 
     void save(const Armor & armor) const;
     void show_result(
-        const cv::Mat & binary_img, const cv::Mat & bgr_img, const std::vector<Lightbar> & lightbars,
-        const std::vector<Armor> & armors, int frame_count) const;
+        const cv::Mat & binary_img, const cv::Mat & bgr_img,
+        const std::vector<Lightbar> & lightbars, const std::vector<Armor> & armors,
+        int frame_count) const;
 };
-
 
 #endif  // AUTO_AIM__DETECTOR_HPP

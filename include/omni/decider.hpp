@@ -8,12 +8,11 @@
 #include <unordered_map>
 #include <vector>
 
-#include "omni/detection.hpp"
+#include "armor.hpp"
 #include "comm/command.hpp"
 #include "comm/gimbal.hpp"
-#include "armor.hpp"
+#include "omni/detection.hpp"
 #include "tracker/target.hpp"
-
 
 class Decider
 {
@@ -82,25 +81,17 @@ private:
     using PriorityMap = std::unordered_map<ArmorName, ArmorPriority>;
 
     const PriorityMap mode1 = {
-        {ArmorName::one, ArmorPriority::second},
-        {ArmorName::two, ArmorPriority::forth},
-        {ArmorName::three, ArmorPriority::first},
-        {ArmorName::four, ArmorPriority::first},
-        {ArmorName::five, ArmorPriority::third},
-        {ArmorName::sentry, ArmorPriority::third},
-        {ArmorName::outpost, ArmorPriority::fifth},
-        {ArmorName::base, ArmorPriority::fifth},
+        {ArmorName::one, ArmorPriority::second},     {ArmorName::two, ArmorPriority::forth},
+        {ArmorName::three, ArmorPriority::first},    {ArmorName::four, ArmorPriority::first},
+        {ArmorName::five, ArmorPriority::third},     {ArmorName::sentry, ArmorPriority::third},
+        {ArmorName::outpost, ArmorPriority::fifth},  {ArmorName::base, ArmorPriority::fifth},
         {ArmorName::not_armor, ArmorPriority::fifth}};
 
     const PriorityMap mode2 = {
-        {ArmorName::two, ArmorPriority::first},
-        {ArmorName::one, ArmorPriority::second},
-        {ArmorName::three, ArmorPriority::second},
-        {ArmorName::four, ArmorPriority::second},
-        {ArmorName::five, ArmorPriority::second},
-        {ArmorName::sentry, ArmorPriority::third},
-        {ArmorName::outpost, ArmorPriority::third},
-        {ArmorName::base, ArmorPriority::third},
+        {ArmorName::two, ArmorPriority::first},      {ArmorName::one, ArmorPriority::second},
+        {ArmorName::three, ArmorPriority::second},   {ArmorName::four, ArmorPriority::second},
+        {ArmorName::five, ArmorPriority::second},    {ArmorName::sentry, ArmorPriority::third},
+        {ArmorName::outpost, ArmorPriority::third},  {ArmorName::base, ArmorPriority::third},
         {ArmorName::not_armor, ArmorPriority::third}};
 };
 
@@ -109,6 +100,5 @@ enum PriorityMode
     MODE_ONE = 1,
     MODE_TWO
 };
-
 
 #endif

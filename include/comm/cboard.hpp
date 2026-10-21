@@ -13,7 +13,6 @@
 #include "tools/logger.hpp"
 #include "tools/thread_safe_queue.hpp"
 
-
 enum Mode
 {
     idle,
@@ -65,6 +64,5 @@ private:
 
     std::string read_yaml(const std::string & config_path);
 };
-
 
 #endif  // IO__CBOARD_HPP

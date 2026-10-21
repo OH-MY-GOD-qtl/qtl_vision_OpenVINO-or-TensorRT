@@ -5,9 +5,8 @@
 #include <filesystem>
 #include <string>
 
-#include "tools/math_tools.hpp"
 #include "tools/logger.hpp"
-
+#include "tools/math_tools.hpp"
 
 Recorder::Recorder(double fps) : init_(false), fps_(fps), queue_(1), stop_thread_(false)
 {
@@ -76,4 +75,3 @@ void Recorder::init(const cv::Mat & img)
     saving_thread_ = std::thread(&Recorder::save_to_file, this);  // 启动保存线程
     init_ = true;
 }
-

@@ -5,15 +5,13 @@
 #include <cmath>
 #include <random>
 
-
-
 RansacSineFitter::RansacSineFitter(
     int max_iterations, double threshold, double min_omega, double max_omega)
 : max_iterations_(max_iterations),
-    threshold_(threshold),
-    min_omega_(min_omega),
-    max_omega_(max_omega),
-    gen_(std::random_device{}())
+  threshold_(threshold),
+  min_omega_(min_omega),
+  max_omega_(max_omega),
+  gen_(std::random_device{}())
 {
 }
 
@@ -100,4 +98,3 @@ int RansacSineFitter::evaluate_inliers(double A, double omega, double phi, doubl
     }
     return count;
 }
-

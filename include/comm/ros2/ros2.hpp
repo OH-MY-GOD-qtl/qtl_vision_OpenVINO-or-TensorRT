@@ -4,7 +4,6 @@
 #include "comm/ros2/publish2nav.hpp"
 #include "comm/ros2/subscribe2nav.hpp"
 
-
 class ROS2
 {
 public:

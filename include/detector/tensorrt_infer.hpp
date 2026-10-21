@@ -8,7 +8,6 @@
 #include <string>
 #include <vector>
 
-
 // 主机侧张量描述：输出数据统一为 float32
 struct TrtTensor
 {
@@ -16,7 +15,6 @@ struct TrtTensor
     std::vector<int64_t> dims;  // 完整维度（含 batch 维）
     std::vector<float> data;    // 主机侧数据（kHALF 输出会被转成 float）
 };
-
 
 // TensorRT 引擎 RAII 封装：加载 .engine、复用 context 与显存/主机缓冲。
 // 当前约束：静态形状、单输入、FP32 输入；输出支持 FP32 / FP16。
@@ -47,7 +45,7 @@ private:
     cudaStream_t stream_ = nullptr;
 
     TrtTensor input_info_;
-    std::vector<TrtTensor> outputs_;                        // 输出主机缓冲（复用）
+    std::vector<TrtTensor> outputs_;  // 输出主机缓冲（复用）
     std::vector<nvinfer1::DataType> output_dtypes_;
     std::vector<void *> input_dev_;                         // 输入显存
     std::vector<void *> output_dev_;                        // 输出显存
@@ -59,6 +57,5 @@ private:
     std::size_t input_bytes_ = 0;
     std::vector<unsigned char> input_half_;  // kHALF 输入的中转缓冲
 };
-
 
 #endif  // AUTO_AIM__TENSORRT_INFER_HPP

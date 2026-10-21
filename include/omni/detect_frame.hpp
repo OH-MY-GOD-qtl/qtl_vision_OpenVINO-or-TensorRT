@@ -1,20 +1,18 @@
 #ifndef OMNIPERCEPTION__DETECT_FRAME_HPP
 #define OMNIPERCEPTION__DETECT_FRAME_HPP
 
+#include <Eigen/Geometry>
 #include <chrono>
 #include <condition_variable>
 #include <mutex>
+#include <opencv2/opencv.hpp>
 #include <queue>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
-#include <Eigen/Geometry>
-#include <opencv2/opencv.hpp>
-
 #include "detector/yolo.hpp"
 #include "tools/logger.hpp"
-
 
 // 多相机检测帧：与业务(检测结果)强耦合，故从 tools 下移至此
 struct Frame
@@ -26,8 +24,7 @@ struct Frame
     std::vector<Armor> armors;
 };
 
-inline std::vector<YOLO> create_yolo11s(
-    const std::string & config_path, int numebr, bool debug)
+inline std::vector<YOLO> create_yolo11s(const std::string & config_path, int numebr, bool debug)
 {
     std::vector<YOLO> yolo11s;
     for (int i = 0; i < numebr; i++) {
@@ -36,8 +33,7 @@ inline std::vector<YOLO> create_yolo11s(
     return yolo11s;
 }
 
-inline std::vector<YOLO> create_yolov8s(
-    const std::string & config_path, int numebr, bool debug)
+inline std::vector<YOLO> create_yolov8s(const std::string & config_path, int numebr, bool debug)
 {
     std::vector<YOLO> yolov8s;
     for (int i = 0; i < numebr; i++) {
@@ -124,6 +120,5 @@ private:
     std::mutex mutex_;
     std::condition_variable cond_var_;
 };
-
 
 #endif  // OMNIPERCEPTION__DETECT_FRAME_HPP

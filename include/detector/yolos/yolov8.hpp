@@ -1,7 +1,6 @@
 #ifndef AUTO_AIM__YOLOV8_HPP
 #define AUTO_AIM__YOLOV8_HPP
 
-#include <vector>
 #include <opencv2/opencv.hpp>
 #include <openvino/openvino.hpp>
 #include <string>
@@ -10,8 +9,6 @@
 #include "armor.hpp"
 #include "detector/detector.hpp"
 #include "detector/yolo.hpp"
-
-
 
 class YOLOV8 : public YOLOBase
 {
@@ -42,11 +39,12 @@ private:
     cv::Rect roi_;
     cv::Point2f offset_;
 
-    std::vector<Armor> parse(double scale, cv::Mat & output, const cv::Mat & bgr_img, int frame_count);
+    std::vector<Armor> parse(
+        double scale, cv::Mat & output, const cv::Mat & bgr_img, int frame_count);
 
-    void draw_detections(const cv::Mat & img, const std::vector<Armor> & armors, int frame_count) const;
+    void draw_detections(
+        const cv::Mat & img, const std::vector<Armor> & armors, int frame_count) const;
     void sort_keypoints(std::vector<cv::Point2f> & keypoints);
 };
-
 
 #endif  // TOOLS__YOLOV8_HPP

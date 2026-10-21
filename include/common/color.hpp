@@ -4,7 +4,6 @@
 #include <string>
 #include <vector>
 
-
 // 装甲板颜色（被 armor/lightbar/tracker 等模块共用，独立成头避免循环依赖）
 enum Color
 {
@@ -14,6 +13,5 @@ enum Color
     purple
 };
 const std::vector<std::string> COLORS = {"red", "blue", "extinguish", "purple"};
-
 
 #endif  // COMMON__COLOR_HPP

@@ -6,7 +6,6 @@
 
 #include "tools/logger.hpp"
 
-
 Perceptron::Perceptron(
     USBCamera * usbcam1, USBCamera * usbcam2, USBCamera * usbcam3, const Decider & decider,
     const std::string & config_path)
@@ -57,8 +56,7 @@ std::vector<DetectionResult> Perceptron::get_detection_queue()
 }
 
 // USB 传统检测线程
-void Perceptron::search_thread(
-    USBCamera * cam, Detector & detector, const std::string & camera_key)
+void Perceptron::search_thread(USBCamera * cam, Detector & detector, const std::string & camera_key)
 {
     if (!cam) {
         logger()->error("USB camera pointer is null ({})!", camera_key);
@@ -119,4 +117,3 @@ void Perceptron::search_thread(
         logger()->error("Exception in search_thread({}): {}", camera_key, e.what());
     }
 }
-

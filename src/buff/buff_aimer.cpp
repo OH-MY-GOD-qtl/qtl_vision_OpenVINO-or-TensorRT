@@ -1,10 +1,9 @@
 #include "buff/buff_aimer.hpp"
 
-#include "tools/yaml.hpp"
 #include "tools/logger.hpp"
 #include "tools/math_tools.hpp"
 #include "tools/trajectory.hpp"
-
+#include "tools/yaml.hpp"
 
 BuffAimer::BuffAimer(const std::string & config_path)
 {
@@ -18,8 +17,8 @@ BuffAimer::BuffAimer(const std::string & config_path)
 }
 
 Command BuffAimer::aim(
-    BuffTarget & target, std::chrono::steady_clock::time_point & timestamp,
-    double bullet_speed, bool to_now)
+    BuffTarget & target, std::chrono::steady_clock::time_point & timestamp, double bullet_speed,
+    bool to_now)
 {
     Command command = {false, false, 0, 0};
     if (target.is_unsolve()) return command;
@@ -42,7 +41,8 @@ Command BuffAimer::aim(
             switch_fanblade_ = true;
             mistake_count_ = 0;
             command.control = true;
-        } else if (std::abs(last_yaw_ - yaw) > 5 / 57.3 || std::abs(last_pitch_ - pitch) > 5 / 57.3) {
+        } else if (
+            std::abs(last_yaw_ - yaw) > 5 / 57.3 || std::abs(last_pitch_ - pitch) > 5 / 57.3) {
             switch_fanblade_ = true;
             mistake_count_++;
             command.control = false;
@@ -96,7 +96,8 @@ Plan BuffAimer::mpc_aim(
             mistake_count_ = 0;
             plan.control = true;
             first_in_aimer_ = true;
-        } else if (std::abs(last_yaw_ - yaw) > 5 / 57.3 || std::abs(last_pitch_ - pitch) > 5 / 57.3) {
+        } else if (
+            std::abs(last_yaw_ - yaw) > 5 / 57.3 || std::abs(last_pitch_ - pitch) > 5 / 57.3) {
             switch_fanblade_ = true;
             mistake_count_++;
             plan.control = false;
@@ -124,13 +125,14 @@ Plan BuffAimer::mpc_aim(
                     target, predict_time_ * -1, bullet_speed, to_now, last_yaw_mpc, last_pitch_mpc);
                 plan.yaw_vel = limit_rad(yaw - last_yaw_mpc) / (2 * dt);
                 // plan.yaw_vel = limit_min_max(plan.yaw_vel, -6.28, 6.28);
-                plan.yaw_acc = (limit_rad(yaw - gs.yaw) - limit_rad(gs.yaw - last_yaw_mpc)) /
-                                                std::pow(dt, 2);
+                plan.yaw_acc =
+                    (limit_rad(yaw - gs.yaw) - limit_rad(gs.yaw - last_yaw_mpc)) / std::pow(dt, 2);
                 // plan.yaw_acc = limit_min_max(plan.yaw_acc, -50, 50);
 
                 plan.pitch_vel = limit_rad(-pitch + last_pitch_mpc) / (2 * dt);
                 // plan.pitch_vel = limit_min_max(plan.pitch_vel, -6.28, 6.28);
-                plan.pitch_acc = (-pitch - gs.pitch - (gs.pitch + last_pitch_mpc)) / std::pow(dt, 2);
+                plan.pitch_acc =
+                    (-pitch - gs.pitch - (gs.pitch + last_pitch_mpc)) / std::pow(dt, 2);
                 // plan.pitch_acc = limit_min_max(plan.pitch_acc, -100, 100);
             }
         }
@@ -148,8 +150,8 @@ Plan BuffAimer::mpc_aim(
 }
 
 bool BuffAimer::get_send_angle(
-    BuffTarget & target, const double predict_time, const double bullet_speed,
-    const bool to_now, double & yaw, double & pitch)
+    BuffTarget & target, const double predict_time, const double bullet_speed, const bool to_now,
+    double & yaw, double & pitch)
 {
     // 考虑detecor所消耗的时间，此外假设aimer的用时可忽略不计
     // 如果 to_now 为 true，则根据当前时间和时间戳预测目标位置,deltatime = 现在时间减去当时照片时间，加上0.1
@@ -197,4 +199,3 @@ bool BuffAimer::get_send_angle(
     pitch = trajectory1.pitch + pitch_offset_;
     return true;
 };
-

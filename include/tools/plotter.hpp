@@ -7,7 +7,6 @@
 #include <nlohmann/json.hpp>
 #include <string>
 
-
 class Plotter
 {
 public:
@@ -22,6 +21,5 @@ private:
     sockaddr_in destination_;
     std::mutex mutex_;
 };
-
 
 #endif  // TOOLS__PLOTTER_HPP

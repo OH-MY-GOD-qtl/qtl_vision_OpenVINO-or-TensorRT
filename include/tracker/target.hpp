@@ -11,8 +11,6 @@
 #include "armor.hpp"
 #include "tools/extended_kalman_filter.hpp"
 
-
-
 class Target
 {
 public:
@@ -62,6 +60,5 @@ private:
     Eigen::Vector3d h_armor_xyz(const Eigen::VectorXd & x, int id) const;
     Eigen::Matrix<double, 4, 11> h_jacobian(const Eigen::VectorXd & x, int id) const;
 };
-
 
 #endif  // AUTO_AIM__TARGET_HPP

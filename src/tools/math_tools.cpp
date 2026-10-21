@@ -3,7 +3,6 @@
 #include <cmath>
 #include <opencv2/core.hpp>  // CV_PI
 
-
 double limit_rad(double angle)
 {
     while (angle > CV_PI) angle -= 2 * CV_PI;
@@ -176,7 +175,8 @@ Eigen::Matrix3d ypd2xyz_jacobian(const Eigen::Vector3d & ypd)
 }
 
 double delta_time(
-    const std::chrono::steady_clock::time_point & a, const std::chrono::steady_clock::time_point & b)
+    const std::chrono::steady_clock::time_point & a,
+    const std::chrono::steady_clock::time_point & b)
 {
     std::chrono::duration<double> c = a - b;
     return c.count();

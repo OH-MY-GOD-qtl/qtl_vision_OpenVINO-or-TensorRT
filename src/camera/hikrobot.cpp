@@ -6,10 +6,15 @@
 
 using namespace std::chrono_literals;
 
-
 HikRobot::HikRobot(double exposure_ms, double gain, const std::string & vid_pid)
-: exposure_us_(exposure_ms * 1e3), gain_(gain), queue_(1), daemon_quit_(false),
-    handle_(nullptr), libusb_ok_(false), vid_(-1), pid_(-1)
+: exposure_us_(exposure_ms * 1e3),
+  gain_(gain),
+  queue_(1),
+  daemon_quit_(false),
+  handle_(nullptr),
+  libusb_ok_(false),
+  vid_(-1),
+  pid_(-1)
 {
     set_vid_pid(vid_pid);
     libusb_ok_ = (libusb_init(NULL) == 0);
@@ -129,7 +134,8 @@ void HikRobot::capture_start()
             }
 
             auto timestamp = std::chrono::steady_clock::now();
-            cv::Mat img(cv::Size(raw.stFrameInfo.nWidth, raw.stFrameInfo.nHeight), CV_8U, raw.pBufAddr);
+            cv::Mat img(
+                cv::Size(raw.stFrameInfo.nWidth, raw.stFrameInfo.nHeight), CV_8U, raw.pBufAddr);
 
             cvt_param.nWidth = raw.stFrameInfo.nWidth;
             cvt_param.nHeight = raw.stFrameInfo.nHeight;
@@ -257,4 +263,3 @@ void HikRobot::reset_usb() const
 
     libusb_close(handle);
 }
-

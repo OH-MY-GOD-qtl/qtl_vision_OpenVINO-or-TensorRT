@@ -6,14 +6,14 @@
 #include <opencv2/opencv.hpp>
 
 #include "aimer.hpp"
-#include "solver.hpp"
-#include "tracker/tracker.hpp"
 #include "detector/yolo.hpp"
+#include "solver.hpp"
 #include "tools/exiter.hpp"
 #include "tools/img_tools.hpp"
 #include "tools/logger.hpp"
 #include "tools/math_tools.hpp"
 #include "tools/plotter.hpp"
+#include "tracker/tracker.hpp"
 
 const std::string keys =
     "{help h usage ? |                   | 输出命令行参数说明 }"
@@ -84,8 +84,7 @@ int main(int argc, char * argv[])
         auto aimer_start = std::chrono::steady_clock::now();
         auto command = aimer.aim(targets, timestamp, 27, false);
 
-        if (
-            !targets.empty() && aimer.debug_aim_point.valid &&
+        if (!targets.empty() && aimer.debug_aim_point.valid &&
             std::abs(command.yaw - last_command.yaw) * 57.3 < 2)
             command.shoot = true;
 
@@ -96,8 +95,7 @@ int main(int argc, char * argv[])
         logger()->info(
             "[{}] yolo: {:.1f}ms, tracker: {:.1f}ms, aimer: {:.1f}ms", frame_count,
             delta_time(tracker_start, yolo_start) * 1e3,
-            delta_time(aimer_start, tracker_start) * 1e3,
-            delta_time(finish, aimer_start) * 1e3);
+            delta_time(aimer_start, tracker_start) * 1e3, delta_time(finish, aimer_start) * 1e3);
 
         draw_text(
             img,
@@ -155,8 +153,8 @@ int main(int argc, char * argv[])
             // aimer瞄准位置
             auto aim_point = aimer.debug_aim_point;
             Eigen::Vector4d aim_xyza = aim_point.xyza;
-            auto image_points =
-                solver.reproject_armor(aim_xyza.head(3), aim_xyza[3], target.armor_type, target.name);
+            auto image_points = solver.reproject_armor(
+                aim_xyza.head(3), aim_xyza[3], target.armor_type, target.name);
             if (aim_point.valid) draw_points(img, image_points, {0, 0, 255});
 
             // 观测器内部数据

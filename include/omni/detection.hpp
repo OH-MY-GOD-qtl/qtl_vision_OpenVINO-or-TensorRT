@@ -7,7 +7,6 @@
 
 #include "armor.hpp"
 
-
 // 检测结果来源：USB(传统检测，仅报“有无目标 + 方位”) / HIK(海康模型，主瞄准)
 enum class DetectionSource
 {

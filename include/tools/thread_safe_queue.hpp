@@ -7,7 +7,6 @@
 #include <mutex>
 #include <queue>
 
-
 template <typename T, bool PopWhenFull = false>
 class ThreadSafeQueue
 {
@@ -65,8 +64,8 @@ public:
     {
         std::unique_lock<std::mutex> lock(mutex_);
 
-        if (not_empty_condition_.wait_for(lock, std::chrono::milliseconds(timeout_ms), 
-                                                                            [this] { return !queue_.empty(); })) {
+        if (not_empty_condition_.wait_for(
+                lock, std::chrono::milliseconds(timeout_ms), [this] { return !queue_.empty(); })) {
             if (!queue_.empty()) {
                 value = queue_.front();
                 queue_.pop();
@@ -118,6 +117,5 @@ private:
     std::condition_variable not_empty_condition_;
     std::function<void(void)> full_handler_;
 };
-
 
 #endif  // TOOLS__THREAD_SAFE_QUEUE_HPP

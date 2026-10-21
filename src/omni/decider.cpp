@@ -5,11 +5,10 @@
 #include <algorithm>
 #include <cmath>
 
-#include "tools/math_tools.hpp"
-#include "tools/logger.hpp"
-#include "tools/yaml.hpp"
 #include "omni/usb_camera_config.hpp"
-
+#include "tools/logger.hpp"
+#include "tools/math_tools.hpp"
+#include "tools/yaml.hpp"
 
 Decider::Decider(const std::string & config_path)
 {
@@ -32,7 +31,8 @@ Decider::Decider(const std::string & config_path)
     }
     usb_fov_h_ =
         yaml["omni_usb_fov_h"] ? yaml["omni_usb_fov_h"].as<double>() : opt("new_fov_h", 37.0);
-    usb_fov_v_ = yaml["omni_usb_fov_v"] ? yaml["omni_usb_fov_v"].as<double>() : opt("new_fov_v", 40.9);
+    usb_fov_v_ =
+        yaml["omni_usb_fov_v"] ? yaml["omni_usb_fov_v"].as<double>() : opt("new_fov_v", 40.9);
     hik_fov_h_ = opt("omni_hik_fov_h", 54.2);
     hik_fov_v_ = opt("omni_hik_fov_v", 44.5);
     pitch_preset_ = opt("omni_pitch_preset", 0.0) / 57.3;
@@ -83,7 +83,8 @@ Decider::Guide Decider::arbitrate_usb(
     double yaw_at_capture = eulers(gimbal.q(best->timestamp), 2, 1, 0)[0];
 
     // 延迟补偿：按云台当前 yaw 角速度外推 age
-    double yaw_cmd = limit_rad(yaw_at_capture + best->delta_yaw + gimbal.state().yaw_vel * best_age);
+    double yaw_cmd =
+        limit_rad(yaw_at_capture + best->delta_yaw + gimbal.state().yaw_vel * best_age);
 
     if (has_last_yaw_) {
         // 一阶低通
@@ -94,8 +95,10 @@ Decider::Guide Decider::arbitrate_usb(
         if (dt > 1e-4) {
             double max_step = usb_yaw_rate_limit_ * dt;
             double step = limit_rad(yaw_cmd - last_yaw_);
-            if (step > max_step) yaw_cmd = limit_rad(last_yaw_ + max_step);
-            else if (step < -max_step) yaw_cmd = limit_rad(last_yaw_ - max_step);
+            if (step > max_step)
+                yaw_cmd = limit_rad(last_yaw_ + max_step);
+            else if (step < -max_step)
+                yaw_cmd = limit_rad(last_yaw_ - max_step);
         }
     }
 
@@ -150,7 +153,8 @@ bool Decider::armor_filter(std::vector<Armor> & armors) const
     // 25赛季没有5号装甲板
     armors.erase(
         std::remove_if(
-            armors.begin(), armors.end(), [&](const Armor & a) { return a.name == ArmorName::five; }),
+            armors.begin(), armors.end(),
+            [&](const Armor & a) { return a.name == ArmorName::five; }),
         armors.end());
     // 不打工程
     // armors.erase(std::remove_if(armors.begin(), armors.end(),
@@ -158,7 +162,8 @@ bool Decider::armor_filter(std::vector<Armor> & armors) const
     // 不打前哨站
     armors.erase(
         std::remove_if(
-            armors.begin(), armors.end(), [&](const Armor & a) { return a.name == ArmorName::outpost; }),
+            armors.begin(), armors.end(),
+            [&](const Armor & a) { return a.name == ArmorName::outpost; }),
         armors.end());
 
     // 过滤掉刚复活无敌的装甲板
@@ -167,7 +172,7 @@ bool Decider::armor_filter(std::vector<Armor> & armors) const
             armors.begin(), armors.end(),
             [&](const Armor & a) {
                 return std::find(invincible_armor_.begin(), invincible_armor_.end(), a.name) !=
-                                invincible_armor_.end();
+                       invincible_armor_.end();
             }),
         armors.end());
 
@@ -197,9 +202,9 @@ void Decider::sort(std::vector<DetectionResult> & detection_queue) const
         set_priority(dr.armors);
 
         // 对每个 DetectionResult 中的 armors 进行排序
-        std::sort(
-            dr.armors.begin(), dr.armors.end(),
-            [](const Armor & a, const Armor & b) { return a.priority < b.priority; });
+        std::sort(dr.armors.begin(), dr.armors.end(), [](const Armor & a, const Armor & b) {
+            return a.priority < b.priority;
+        });
     }
 
     // 过滤掉过滤后无目标的项，避免下面 front() 越界
@@ -270,7 +275,7 @@ void Decider::get_auto_aim_target(
             armors.begin(), armors.end(),
             [&](const Armor & a) {
                 return std::find(auto_aim_targets.begin(), auto_aim_targets.end(), a.name) ==
-                                auto_aim_targets.end();
+                       auto_aim_targets.end();
             }),
         armors.end());
 }

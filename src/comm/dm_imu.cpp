@@ -12,7 +12,6 @@
 #include "tools/logger.hpp"
 #include "tools/math_tools.hpp"
 
-
 DM_IMU::DM_IMU() : queue_(5000)
 {
     init_serial();
@@ -65,8 +64,7 @@ void DM_IMU::get_imu_data_thread()
 
         serial_.read((uint8_t *)(&receive_data.FrameHeader1), 4);
 
-        if (
-            receive_data.FrameHeader1 == 0x55 && receive_data.flag1 == 0xAA &&
+        if (receive_data.FrameHeader1 == 0x55 && receive_data.flag1 == 0xAA &&
             receive_data.slave_id1 == 0x01 && receive_data.reg_acc == 0x01)
 
         {
@@ -91,9 +89,10 @@ void DM_IMU::get_imu_data_thread()
                 //   static_cast<double>(data.pitch), static_cast<double>(data.roll));
             }
             auto timestamp = std::chrono::steady_clock::now();
-            Eigen::Quaterniond q = Eigen::AngleAxisd(data.yaw * M_PI / 180, Eigen::Vector3d::UnitZ()) *
-                                                            Eigen::AngleAxisd(data.pitch * M_PI / 180, Eigen::Vector3d::UnitY()) *
-                                                            Eigen::AngleAxisd(data.roll * M_PI / 180, Eigen::Vector3d::UnitX());
+            Eigen::Quaterniond q =
+                Eigen::AngleAxisd(data.yaw * M_PI / 180, Eigen::Vector3d::UnitZ()) *
+                Eigen::AngleAxisd(data.pitch * M_PI / 180, Eigen::Vector3d::UnitY()) *
+                Eigen::AngleAxisd(data.roll * M_PI / 180, Eigen::Vector3d::UnitX());
             q.normalize();
             queue_.push({q, timestamp});
         } else {
@@ -126,4 +125,3 @@ Eigen::Quaterniond DM_IMU::imu_at(std::chrono::steady_clock::time_point timestam
 
     return q_c;
 }
-

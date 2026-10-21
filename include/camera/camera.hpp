@@ -6,7 +6,6 @@
 #include <opencv2/opencv.hpp>
 #include <string>
 
-
 class CameraBase
 {
 public:
@@ -36,6 +35,5 @@ public:
 private:
     std::unique_ptr<CameraBase> camera_;
 };
-
 
 #endif  // IO__CAMERA_HPP

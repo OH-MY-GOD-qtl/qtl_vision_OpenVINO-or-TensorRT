@@ -3,14 +3,12 @@
 #include <sstream>
 #include <vector>
 
-
-
 Subscribe2Nav::Subscribe2Nav()
 : Node("nav_subscriber"),
-    enemy_statue_queue_(1),
-    autoaim_target_queue_(1),
-    enemy_status_counter_(0),
-    autoaim_target_counter_(0)
+  enemy_statue_queue_(1),
+  autoaim_target_queue_(1),
+  enemy_status_counter_(0),
+  autoaim_target_counter_(0)
 {
     enemy_status_subscription_ = this->create_subscription<sp_msgs::msg::EnemyStatusMsg>(
         "enemy_status", 10,
@@ -43,7 +41,8 @@ void Subscribe2Nav::enemy_status_callback(const sp_msgs::msg::EnemyStatusMsg::Sh
             enemy_statue_queue_.clear();
             enemy_status_counter_ = 0;
             RCLCPP_INFO(
-                this->get_logger(), "Enemy status queue cleared due to inactivity after two messages.");
+                this->get_logger(),
+                "Enemy status queue cleared due to inactivity after two messages.");
         });
     }
 }
@@ -63,7 +62,8 @@ void Subscribe2Nav::autoaim_target_callback(const sp_msgs::msg::AutoaimTargetMsg
             autoaim_target_queue_.clear();
             autoaim_target_counter_ = 0;
             RCLCPP_INFO(
-                this->get_logger(), "Autoaim target queue cleared due to inactivity after two messages.");
+                this->get_logger(),
+                "Autoaim target queue cleared due to inactivity after two messages.");
         });
     }
 }
@@ -103,4 +103,3 @@ std::vector<int8_t> Subscribe2Nav::subscribe_autoaim_target()
 
     return msg.target_ids;
 }
-

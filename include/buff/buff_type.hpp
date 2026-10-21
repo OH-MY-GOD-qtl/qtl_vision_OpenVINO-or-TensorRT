@@ -13,9 +13,23 @@
 #include "tools/math_tools.hpp"
 
 const int INF = 1000000;
-enum PowerRune_type { SMALL, BIG };
-enum FanBlade_type { _target, _unlight, _light };
-enum Track_status { TRACK, TEM_LOSE, LOSE };
+enum PowerRune_type
+{
+    SMALL,
+    BIG
+};
+enum FanBlade_type
+{
+    _target,
+    _unlight,
+    _light
+};
+enum Track_status
+{
+    TRACK,
+    TEM_LOSE,
+    LOSE
+};
 
 class FanBlade
 {

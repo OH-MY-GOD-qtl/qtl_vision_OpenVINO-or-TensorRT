@@ -4,9 +4,9 @@
 
 #include <algorithm>
 #include <cmath>
+
 #include "image.hpp"
 #include "tools/yaml.hpp"
-
 
 Classifier::Classifier(const std::string & config_path)
 {
@@ -68,4 +68,3 @@ void Classifier::classify(Armor & armor)
     armor.confidence = static_cast<float>(1.0 / sum);
     armor.name = static_cast<ArmorName>(label_id);
 }
-

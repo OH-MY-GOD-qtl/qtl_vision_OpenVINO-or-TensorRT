@@ -15,7 +15,6 @@
 #include "tools/plotter.hpp"
 #include "tools/ransac_sine_fitter.hpp"
 
-
 class Voter
 {
 public:
@@ -73,7 +72,8 @@ public:
     SmallTarget();
 
     void get_target(
-        const std::optional<PowerRune> & p, std::chrono::steady_clock::time_point & timestamp) override;
+        const std::optional<PowerRune> & p,
+        std::chrono::steady_clock::time_point & timestamp) override;
 
     void predict(double dt) override;
 
@@ -96,7 +96,8 @@ public:
     BigTarget();
 
     void get_target(
-        const std::optional<PowerRune> & p, std::chrono::steady_clock::time_point & timestamp) override;
+        const std::optional<PowerRune> & p,
+        std::chrono::steady_clock::time_point & timestamp) override;
 
     void predict(double dt) override;
 

@@ -9,7 +9,6 @@
 #include "common/color.hpp"
 #include "lightbar.hpp"
 
-
 enum ArmorType
 {
     big,
@@ -30,7 +29,7 @@ enum ArmorName
     not_armor
 };
 const std::vector<std::string> ARMOR_NAMES = {"one",    "two",     "three", "four",     "five",
-                                                                                            "sentry", "outpost", "base",  "not_armor"};
+                                              "sentry", "outpost", "base",  "not_armor"};
 
 enum ArmorPriority
 {
@@ -88,10 +87,11 @@ struct Armor
 
     Armor(const Lightbar & left, const Lightbar & right);
     Armor(
-        int class_id, float confidence, const cv::Rect & box, std::vector<cv::Point2f> armor_keypoints);
+        int class_id, float confidence, const cv::Rect & box,
+        std::vector<cv::Point2f> armor_keypoints);
     Armor(
-        int class_id, float confidence, const cv::Rect & box, std::vector<cv::Point2f> armor_keypoints,
-        cv::Point2f offset);
+        int class_id, float confidence, const cv::Rect & box,
+        std::vector<cv::Point2f> armor_keypoints, cv::Point2f offset);
     Armor(
         int color_id, int num_id, float confidence, const cv::Rect & box,
         std::vector<cv::Point2f> armor_keypoints);
@@ -99,6 +99,5 @@ struct Armor
         int color_id, int num_id, float confidence, const cv::Rect & box,
         std::vector<cv::Point2f> armor_keypoints, cv::Point2f offset);
 };
-
 
 #endif  // AUTO_AIM__ARMOR_HPP

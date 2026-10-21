@@ -1,7 +1,6 @@
 #ifndef IO__COMMAND_HPP
 #define IO__COMMAND_HPP
 
-
 struct Command
 {
     bool control;
@@ -10,6 +9,5 @@ struct Command
     double pitch;
     double horizon_distance = 0;  //无人机专有
 };
-
 
 #endif  // IO__COMMAND_HPP

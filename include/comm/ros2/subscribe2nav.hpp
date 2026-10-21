@@ -10,7 +10,6 @@
 #include "sp_msgs/msg/enemy_status_msg.hpp"
 #include "tools/thread_safe_queue.hpp"
 
-
 class Subscribe2Nav : public rclcpp::Node
 {
 public:

@@ -1,9 +1,11 @@
 #include "buff/buff_solver.hpp"
+
 #include "tools/yaml.hpp"
 
 cv::Matx33f BuffSolver::rotation_matrix(double angle) const
 {
-    return cv::Matx33f(1, 0, 0, 0, std::cos(angle), -std::sin(angle), 0, std::sin(angle), std::cos(angle));
+    return cv::Matx33f(
+        1, 0, 0, 0, std::cos(angle), -std::sin(angle), 0, std::sin(angle), std::cos(angle));
 }
 
 void BuffSolver::compute_rotated_points(std::vector<std::vector<cv::Point3f>> & object_points)
@@ -22,7 +24,8 @@ void BuffSolver::compute_rotated_points(std::vector<std::vector<cv::Point3f>> & 
     }
 }
 
-BuffSolver::BuffSolver(const std::string & config_path) : R_gimbal2world_(Eigen::Matrix3d::Identity())
+BuffSolver::BuffSolver(const std::string & config_path)
+: R_gimbal2world_(Eigen::Matrix3d::Identity())
 {
     auto yaml = yaml_load(config_path);
 
@@ -75,8 +78,8 @@ void BuffSolver::solve(std::optional<PowerRune> & ps) const
     std::vector<cv::Point2f> image_points_fourth(image_points.begin(), image_points.begin() + 4);
     std::vector<cv::Point3f> OBJECT_POINTS_FOURTH(OBJECT_POINTS.begin(), OBJECT_POINTS.begin() + 4);
     cv::solvePnP(
-        OBJECT_POINTS_FOURTH, image_points_fourth, camera_matrix_, distort_coeffs_, rvec_, tvec_, false,
-        cv::SOLVEPNP_IPPE);
+        OBJECT_POINTS_FOURTH, image_points_fourth, camera_matrix_, distort_coeffs_, rvec_, tvec_,
+        false, cv::SOLVEPNP_IPPE);
 
     Eigen::Vector3d t_buff2camera;
     cv::cv2eigen(tvec_, t_buff2camera);
@@ -130,8 +133,8 @@ std::vector<cv::Point2f> BuffSolver::reproject_buff(
     const Eigen::Vector3d & t_buff2world = xyz_in_world;
     Eigen::Matrix3d R_buff2camera =
         R_camera2gimbal_.transpose() * R_gimbal2world_.transpose() * R_buff2world;
-    Eigen::Vector3d t_buff2camera =
-        R_camera2gimbal_.transpose() * (R_gimbal2world_.transpose() * t_buff2world - t_camera2gimbal_);
+    Eigen::Vector3d t_buff2camera = R_camera2gimbal_.transpose() *
+                                    (R_gimbal2world_.transpose() * t_buff2world - t_camera2gimbal_);
 
     // get rvec tvec
     cv::Vec3d rvec;

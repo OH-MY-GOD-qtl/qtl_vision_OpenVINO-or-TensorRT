@@ -4,8 +4,8 @@
 #include <fstream>
 #include <opencv2/opencv.hpp>
 
-#include "tools/yaml.hpp"
 #include "tools/img_tools.hpp"
+#include "tools/yaml.hpp"
 
 const std::string keys =
     "{help h usage ? |                          | 输出命令行参数说明}"
@@ -46,7 +46,8 @@ void yaml_load(
 
         // 识别标定板
         std::vector<cv::Point2f> centers_2d;
-        auto success = cv::findChessboardCorners(img, pattern_size, centers_2d, cv::CALIB_CB_SYMMETRIC_GRID);// 默认是方形网格图案
+        auto success = cv::findChessboardCorners(
+            img, pattern_size, centers_2d, cv::CALIB_CB_SYMMETRIC_GRID);  // 默认是方形网格图案
 
         // 显示识别结果
         auto drawing = img.clone();
@@ -109,7 +110,8 @@ int main(int argc, char * argv[])
         cv::TermCriteria::COUNT + cv::TermCriteria::EPS, 100,
         DBL_EPSILON);  // 默认迭代次数(30)有时会导致结果发散，故设为100
     cv::calibrateCamera(
-        obj_points, img_points, img_size, camera_matrix, distort_coeffs, rvecs, tvecs, cv::CALIB_FIX_K3,
+        obj_points, img_points, img_size, camera_matrix, distort_coeffs, rvecs, tvecs,
+        cv::CALIB_FIX_K3,
         criteria);  // 由于视场角较小，不需要考虑k3
 
     // 重投影误差

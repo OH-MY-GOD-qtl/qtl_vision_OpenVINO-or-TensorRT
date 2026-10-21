@@ -57,10 +57,12 @@ int main(int argc, char * argv[])
 
         // 在图像上显示帧数
         std::string frame_text = fmt::format("Frame: {}", frame_count);
-        cv::putText(img, frame_text, cv::Point(20, 40), cv::FONT_HERSHEY_SIMPLEX, 1.0, cv::Scalar(0, 255, 0), 2);
+        cv::putText(
+            img, frame_text, cv::Point(20, 40), cv::FONT_HERSHEY_SIMPLEX, 1.0,
+            cv::Scalar(0, 255, 0), 2);
 
         // 显示检测结果
-        for (const auto& armor : armors) {
+        for (const auto & armor : armors) {
             for (int i = 0; i < 4; i++) {
                 cv::line(img, armor.points[i], armor.points[(i + 1) % 4], cv::Scalar(0, 0, 255), 2);
             }

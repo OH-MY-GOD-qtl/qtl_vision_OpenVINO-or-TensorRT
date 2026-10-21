@@ -5,12 +5,10 @@
 #include <chrono>
 #include <vector>
 
-#include "comm/gimbal.hpp"
 #include "comm/cboard.hpp"
 #include "comm/command.hpp"
+#include "comm/gimbal.hpp"
 #include "tracker/target.hpp"
-
-
 
 struct AimPoint
 {
@@ -45,6 +43,5 @@ private:
 
     AimPoint choose_aim_point(const Target & target);
 };
-
 
 #endif  // AUTO_AIM__AIMER_HPP

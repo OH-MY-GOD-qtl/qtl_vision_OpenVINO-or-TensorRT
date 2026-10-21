@@ -7,7 +7,6 @@
 
 #include "armor.hpp"
 
-
 class Solver
 {
 public:
@@ -41,6 +40,5 @@ private:
         const std::vector<cv::Point2f> & cv_refs, const std::vector<cv::Point2f> & cv_pts,
         const double & inclined) const;
 };
-
 
 #endif  // AUTO_AIM__SOLVER_HPP

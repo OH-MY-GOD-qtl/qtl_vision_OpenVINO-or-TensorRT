@@ -2,7 +2,6 @@
 
 #include <numeric>
 
-
 ExtendedKalmanFilter::ExtendedKalmanFilter(
     const Eigen::VectorXd & x0, const Eigen::MatrixXd & P0,
     std::function<Eigen::VectorXd(const Eigen::VectorXd &, const Eigen::VectorXd &)> x_add)
@@ -79,7 +78,8 @@ Eigen::VectorXd ExtendedKalmanFilter::update(
         recent_nis_failures.pop_front();
     }
 
-    int recent_failures = std::accumulate(recent_nis_failures.begin(), recent_nis_failures.end(), 0);
+    int recent_failures =
+        std::accumulate(recent_nis_failures.begin(), recent_nis_failures.end(), 0);
     double recent_rate = static_cast<double>(recent_failures) / recent_nis_failures.size();
 
     data["residual_yaw"] = residual[0];
@@ -92,4 +92,3 @@ Eigen::VectorXd ExtendedKalmanFilter::update(
 
     return x;
 }
-

@@ -3,7 +3,6 @@
 #include <csignal>
 #include <stdexcept>
 
-
 bool exit_ = false;
 bool exiter_inited_ = false;
 
@@ -22,4 +21,3 @@ Exiter::Exiter()
 }
 
 bool Exiter::exit() const { return exit_; }
-

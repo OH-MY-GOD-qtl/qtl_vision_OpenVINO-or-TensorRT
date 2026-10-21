@@ -12,8 +12,6 @@
 #include "common/common.hpp"
 #include "serial/serial.h"
 
-
-
 // 云台到视觉通信数据结构体
 struct __attribute__((packed)) GimbalToVision
 {
@@ -78,13 +76,13 @@ public:
     Eigen::Quaterniond q(std::chrono::steady_clock::time_point t);
 
     void send(
-        bool control, bool fire, float yaw, float yaw_vel, float yaw_acc, float pitch, float pitch_vel,
-        float pitch_acc, bool is_empty = true);
+        bool control, bool fire, float yaw, float yaw_vel, float yaw_acc, float pitch,
+        float pitch_vel, float pitch_acc, bool is_empty = true);
 
     void send(VisionToGimbal VisionToGimbal);
 
 private:
-    bool simulate_ = false;  // 无硬件模拟模式：不打开串口，固定自瞄
+    bool simulate_ = false;      // 无硬件模拟模式：不打开串口，固定自瞄
     bool debug_serial_ = false;  // 打印串口收发原始字节（调试用）
     serial::Serial serial_;
 
@@ -106,6 +104,5 @@ private:
     void log_sim();  // 模拟模式下的控制信息打印
     void dump_hex(const char * tag, const uint8_t * data, size_t size);
 };
-
 
 #endif  // IO__GIMBAL_HPP

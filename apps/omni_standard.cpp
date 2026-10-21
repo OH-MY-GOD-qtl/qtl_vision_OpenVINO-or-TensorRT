@@ -8,8 +8,8 @@
 #include <atomic>
 #include <chrono>
 #include <memory>
-#include <optional>
 #include <opencv2/opencv.hpp>
+#include <optional>
 #include <string>
 #include <vector>
 

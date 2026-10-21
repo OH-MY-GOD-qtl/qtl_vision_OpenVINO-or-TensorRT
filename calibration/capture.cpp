@@ -6,10 +6,10 @@
 
 #include "camera/camera.hpp"
 #include "comm/gimbal.hpp"
-#include "tools/yaml.hpp"
 #include "tools/img_tools.hpp"
 #include "tools/logger.hpp"
 #include "tools/math_tools.hpp"
+#include "tools/yaml.hpp"
 #include "yaml-cpp/yaml.h"
 
 const std::string keys =
@@ -26,8 +26,9 @@ void write_q(const std::string q_path, const Eigen::Quaterniond & q)
     q_file.close();
 }
 
-void capture_loop(int pattern_cols, int pattern_rows,
-    const std::string & config_path, const std::string & output_folder)
+void capture_loop(
+    int pattern_cols, int pattern_rows, const std::string & config_path,
+    const std::string & output_folder)
 {
     Gimbal gimbal(config_path);
     Camera camera(config_path);
@@ -58,15 +59,15 @@ void capture_loop(int pattern_cols, int pattern_rows,
         cv::cvtColor(img, gray, cv::COLOR_BGR2GRAY);
 
         // 检测方形棋盘格角点
-        auto success = cv::findChessboardCorners(gray, cv::Size(11, 8), centers_2d, 
-                                                                                cv::CALIB_CB_ADAPTIVE_THRESH | 
-                                                                                cv::CALIB_CB_NORMALIZE_IMAGE |
-                                                                                cv::CALIB_CB_FAST_CHECK);
+        auto success = cv::findChessboardCorners(
+            gray, cv::Size(11, 8), centers_2d,
+            cv::CALIB_CB_ADAPTIVE_THRESH | cv::CALIB_CB_NORMALIZE_IMAGE | cv::CALIB_CB_FAST_CHECK);
 
         // 如果检测成功，可以进一步精确角点位置
         if (success) {
-                cv::cornerSubPix(gray, centers_2d, cv::Size(11, 11), cv::Size(-1, -1), 
-                                                cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::MAX_ITER, 30, 0.001));
+            cv::cornerSubPix(
+                gray, centers_2d, cv::Size(11, 11), cv::Size(-1, -1),
+                cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::MAX_ITER, 30, 0.001));
         }
 
         // 绘制检测结果
@@ -108,11 +109,13 @@ int main(int argc, char * argv[])
     auto yaml = yaml_load(config_path);
     auto pattern_cols = yaml["pattern_cols"];
     auto pattern_rows = yaml["pattern_rows"];
-    logger()->info("标定板尺寸为列行{}x{},中心间距{}mm", pattern_cols.as<int>(), pattern_rows.as<int>(), yaml_read<double>(yaml, "center_distance_mm"));
-    // 主循环，保存图片和对应四元数 
+    logger()->info(
+        "标定板尺寸为列行{}x{},中心间距{}mm", pattern_cols.as<int>(), pattern_rows.as<int>(),
+        yaml_read<double>(yaml, "center_distance_mm"));
+    // 主循环，保存图片和对应四元数
 
-
-    capture_loop(pattern_cols.as<int>()-1, pattern_rows.as<int>()-1, config_path, output_folder);
+    capture_loop(
+        pattern_cols.as<int>() - 1, pattern_rows.as<int>() - 1, config_path, output_folder);
 
     logger()->warn("注意四元数输出顺序为wxyz");
 

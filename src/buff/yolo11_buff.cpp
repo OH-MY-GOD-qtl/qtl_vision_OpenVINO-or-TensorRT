@@ -1,4 +1,5 @@
 #include "buff/yolo11_buff.hpp"
+
 #include "image.hpp"
 #include "tools/yaml.hpp"
 
@@ -30,7 +31,7 @@ std::vector<YOLO11_BUFF::Object> YOLO11_BUFF::get_multicandidateboxes(cv::Mat & 
 
     if (image.empty()) {
         logger()->warn("Empty img!, camera drop!");
-        return std::vector<YOLO11_BUFF::Object> ();
+        return std::vector<YOLO11_BUFF::Object>();
     }
 
     cv::Mat bgr_img = image;
@@ -54,9 +55,9 @@ std::vector<YOLO11_BUFF::Object> YOLO11_BUFF::get_multicandidateboxes(cv::Mat & 
     const int out_cols = output_shape[2];  // 获得"output"节点的cols 8400
     const cv::Mat det_output(
         out_rows, out_cols, CV_32F, (float *)output_buffer);  // output_buff类型转换
-    std::vector<cv::Rect> boxes;                            // 目标框
-    std::vector<float> confidences;                         // 置信度
-    std::vector<std::vector<float>> objects_keypoints;      // 关键点
+    std::vector<cv::Rect> boxes;                              // 目标框
+    std::vector<float> confidences;                           // 置信度
+    std::vector<std::vector<float>> objects_keypoints;        // 关键点
     // 输出格式是[15,8400], 每列代表一个框(即最多有8400个框), 前面4行分别是[cx, cy, ow, oh], 中间score, 最后5*2关键点(3代表每个关键点的信息, 包括[x, y, visibility],如果是2，则没有visibility)
     // 15 = 4 + 1 + NUM_POINTS * 2      56
     for (int i = 0; i < det_output.cols; ++i) {
@@ -120,8 +121,8 @@ std::vector<YOLO11_BUFF::Object> YOLO11_BUFF::get_multicandidateboxes(cv::Mat & 
             obj.rect.tl().x, obj.rect.tl().y - 15, textSize.width, textSize.height + 5);
         cv::rectangle(image, textBox, cv::Scalar(0, 255, 255), cv::FILLED);
         cv::putText(
-            image, label, cv::Point(obj.rect.tl().x, obj.rect.tl().y - 5), cv::FONT_HERSHEY_SIMPLEX, 0.5,
-            cv::Scalar(0, 0, 0));
+            image, label, cv::Point(obj.rect.tl().x, obj.rect.tl().y - 5), cv::FONT_HERSHEY_SIMPLEX,
+            0.5, cv::Scalar(0, 0, 0));
         const int radius = 2;  // 绘制关键点
         const cv::Size & shape = image.size();
         for (int i = 0; i < NUM_POINTS; ++i)
@@ -198,22 +199,23 @@ std::vector<YOLO11_BUFF::Object> YOLO11_BUFF::get_onecandidatebox(cv::Mat & imag
         if (max_confidence < 0.7) save(std::to_string(start), image);
 
         /// 绘制关键点和连线
-        cv::rectangle(image, obj.rect, cv::Scalar(255, 255, 255), 1, 8);                  // 绘制矩形框
-        const std::string label = "buff:" + std::to_string(max_confidence).substr(0, 4);  // 绘制标签
+        cv::rectangle(image, obj.rect, cv::Scalar(255, 255, 255), 1, 8);  // 绘制矩形框
+        const std::string label =
+            "buff:" + std::to_string(max_confidence).substr(0, 4);  // 绘制标签
         const cv::Size textSize = cv::getTextSize(label, cv::FONT_HERSHEY_SIMPLEX, 0.5, 1, nullptr);
         const cv::Rect textBox(
             obj.rect.tl().x, obj.rect.tl().y - 15, textSize.width, textSize.height + 5);
         cv::rectangle(image, textBox, cv::Scalar(0, 255, 255), cv::FILLED);
         cv::putText(
-            image, label, cv::Point(obj.rect.tl().x, obj.rect.tl().y - 5), cv::FONT_HERSHEY_SIMPLEX, 0.5,
-            cv::Scalar(0, 0, 0));
+            image, label, cv::Point(obj.rect.tl().x, obj.rect.tl().y - 5), cv::FONT_HERSHEY_SIMPLEX,
+            0.5, cv::Scalar(0, 0, 0));
         const int radius = 2;  // 绘制关键点
         const cv::Size & shape = image.size();
         for (int i = 0; i < NUM_POINTS; ++i) {
             cv::circle(image, obj.kpt[i], radius, cv::Scalar(255, 255, 0), -1, cv::LINE_AA);
             cv::putText(
-                image, std::to_string(i + 1), obj.kpt[i] + cv::Point2f(5, -5), cv::FONT_HERSHEY_SIMPLEX,
-                0.5, cv::Scalar(255, 255, 0), 1, cv::LINE_AA);
+                image, std::to_string(i + 1), obj.kpt[i] + cv::Point2f(5, -5),
+                cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 0), 1, cv::LINE_AA);
         }
     }
 
@@ -233,7 +235,8 @@ void YOLO11_BUFF::convert(
     if (BGR2RGB) cv::cvtColor(output, output, cv::COLOR_BGR2RGB);
 }
 
-float YOLO11_BUFF::fill_tensor_data_image(ov::Tensor & input_tensor, const cv::Mat & input_image) const
+float YOLO11_BUFF::fill_tensor_data_image(
+    ov::Tensor & input_tensor, const cv::Mat & input_image) const
 {
     /// letterbox变换: 不改变宽高比(aspect ratio), 将input_image缩放并放置到blob_image左上角
     const ov::Shape tensor_shape = input_tensor.get_shape();

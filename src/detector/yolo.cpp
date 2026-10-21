@@ -7,7 +7,6 @@
 #include "detector/yolos/yolov8.hpp"
 #include "tools/yaml.hpp"
 
-
 YOLO::YOLO(const std::string & config_path, bool debug)
 {
     auto yaml = yaml_load(config_path);
@@ -40,4 +39,3 @@ std::vector<Armor> YOLO::postprocess(
 {
     return yolo_->postprocess(scale, output, bgr_img, frame_count);
 }
-

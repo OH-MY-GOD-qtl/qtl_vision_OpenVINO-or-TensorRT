@@ -6,17 +6,16 @@
 
 using namespace std::chrono_literals;
 
-
 MindVision::MindVision(double exposure_ms, double gamma, const std::string & vid_pid)
 : exposure_ms_(exposure_ms),
-    gamma_(gamma),
-    handle_(-1),
-    quit_(false),
-    ok_(false),
-    queue_(1),
-    libusb_ok_(false),
-    vid_(-1),
-    pid_(-1)
+  gamma_(gamma),
+  handle_(-1),
+  quit_(false),
+  ok_(false),
+  queue_(1),
+  libusb_ok_(false),
+  vid_(-1),
+  pid_(-1)
 {
     set_vid_pid(vid_pid);
     libusb_ok_ = (libusb_init(NULL) == 0);
@@ -166,4 +165,3 @@ void MindVision::reset_usb() const
 
     libusb_close(handle);
 }
-

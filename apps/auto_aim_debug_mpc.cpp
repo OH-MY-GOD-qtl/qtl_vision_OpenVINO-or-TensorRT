@@ -9,16 +9,16 @@
 
 #include "camera/camera.hpp"
 #include "comm/gimbal.hpp"
+#include "detector/yolo.hpp"
 #include "planner.hpp"
 #include "solver.hpp"
-#include "tracker/tracker.hpp"
-#include "detector/yolo.hpp"
 #include "tools/exiter.hpp"
 #include "tools/img_tools.hpp"
 #include "tools/logger.hpp"
 #include "tools/math_tools.hpp"
 #include "tools/plotter.hpp"
 #include "tools/thread_safe_queue.hpp"
+#include "tracker/tracker.hpp"
 
 using namespace std::chrono_literals;
 
@@ -64,15 +64,15 @@ int main(int argc, char * argv[])
             double yaw_vel_cmd = plan.yaw_vel;
             double pitch_vel_cmd = plan.pitch_vel;
             if (plan.control) {
-                constexpr double kp_yaw = 8.0;    // yaw 角度误差 -> 速度 增益 (rad/s)/rad
-                constexpr double kp_pitch = 12.0; // pitch 角度误差 -> 速度 增益 (rad/s)/rad
+                constexpr double kp_yaw = 8.0;     // yaw 角度误差 -> 速度 增益 (rad/s)/rad
+                constexpr double kp_pitch = 12.0;  // pitch 角度误差 -> 速度 增益 (rad/s)/rad
                 yaw_vel_cmd += kp_yaw * limit_rad(plan.yaw - gs.yaw);
                 pitch_vel_cmd += kp_pitch * (plan.pitch - gs.pitch);
             }
 
             gimbal.send(
-                plan.control, plan.fire, plan.yaw, yaw_vel_cmd, plan.yaw_acc, plan.pitch, pitch_vel_cmd,
-                plan.pitch_acc, is_empty);
+                plan.control, plan.fire, plan.yaw, yaw_vel_cmd, plan.yaw_acc, plan.pitch,
+                pitch_vel_cmd, plan.pitch_acc, is_empty);
 
             nlohmann::json data;
             data["t"] = delta_time(std::chrono::steady_clock::now(), t0);
@@ -82,7 +82,8 @@ int main(int argc, char * argv[])
             data["gimbal_pitch"] = gs.pitch * 57.2958;  // 世界坐标系中云台当前pitch角度（单位：度）
             //data["gimbal_pitch_vel"] = gs.pitch_vel;
 
-            data["target_yaw"] = plan.target_yaw * 57.2958;  //目标在世界坐标系中的yaw角度（单位：度）
+            data["target_yaw"] =
+                plan.target_yaw * 57.2958;  //目标在世界坐标系中的yaw角度（单位：度）
             data["target_pitch"] =
                 plan.target_pitch * 57.2958;  //目标在世界坐标系中的pitch角度（单位：度）
 
@@ -110,11 +111,12 @@ int main(int argc, char * argv[])
                 data["w"] = 0.0;
             }
 
-            float diff_yaw = (plan.yaw - gs.yaw)*57.2958;
-            float diff_pitch = (plan.pitch - gs.pitch)*57.2958;
+            float diff_yaw = (plan.yaw - gs.yaw) * 57.2958;
+            float diff_pitch = (plan.pitch - gs.pitch) * 57.2958;
             data["diff_yaw"] = diff_yaw;
             data["diff_pitch"] = diff_pitch;
-            data["distance"] = target.has_value() ? std::hypot(target->ekf_x()[0], target->ekf_x()[2]) : 0.0;
+            data["distance"] =
+                target.has_value() ? std::hypot(target->ekf_x()[0], target->ekf_x()[2]) : 0.0;
 
             plotter.plot(data);
 
@@ -131,13 +133,13 @@ int main(int argc, char * argv[])
 
         solver.set_R_gimbal2world(q);
         auto armors = yolo.detect(img);
-        auto targets = tracker.track(armors, t,gimbal.state().id);
+        auto targets = tracker.track(armors, t, gimbal.state().id);
         if (!targets.empty())
             target_queue.push(targets.front());
         else
             target_queue.push(std::nullopt);
 
-        if (!targets.empty()) {//绘制目标投影
+        if (!targets.empty()) {  //绘制目标投影
             auto target = targets.front();
 
             // 当前帧target更新后
@@ -151,8 +153,8 @@ int main(int argc, char * argv[])
             // 红框：按当前帧时间戳重新计算预测点，与绿框同帧对齐（原 planner.debug_xyza
             // 由计划线程异步写入，存在数据竞争且与显示帧率不同步，导致运动顿挫）
             auto aim_xyza = planner.predict_xyza(target, gimbal.state().bullet_speed, t);
-            auto image_points =
-                solver.reproject_armor(aim_xyza.head(3), aim_xyza[3], target.armor_type, target.name);
+            auto image_points = solver.reproject_armor(
+                aim_xyza.head(3), aim_xyza[3], target.armor_type, target.name);
             draw_points(img, image_points, {0, 0, 255});
         }
 

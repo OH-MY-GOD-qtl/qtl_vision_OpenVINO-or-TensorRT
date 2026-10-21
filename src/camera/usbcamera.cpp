@@ -7,7 +7,6 @@
 
 using namespace std::chrono_literals;
 
-
 USBCamera::USBCamera(const std::string & open_name, const std::string & config_path)
 : open_name_(open_name), quit_(false), ok_(false), queue_(1), open_count_(0)
 {

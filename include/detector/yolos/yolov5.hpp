@@ -1,9 +1,9 @@
 #ifndef AUTO_AIM__YOLOV5_HPP
 #define AUTO_AIM__YOLOV5_HPP
 
+#include <memory>
 #include <opencv2/opencv.hpp>
 #include <openvino/openvino.hpp>
-#include <memory>
 #include <string>
 #include <vector>
 
@@ -11,7 +11,6 @@
 #include "detector/detector.hpp"
 #include "detector/tensorrt_infer.hpp"
 #include "detector/yolo.hpp"
-
 
 class YOLOV5 : public YOLOBase
 {
@@ -39,19 +38,20 @@ private:
     // ---- TensorRT 后端（WSL 本机 NVIDIA 显卡）----
     std::unique_ptr<TensorRTInfer> trt_;
 
-    cv::Mat input_;               // 预分配的 640x640 letterbox 输入（两后端共用）
-    std::vector<float> blob_;     // 1x3x640x640 f32 NCHW（TensorRT 输入，帧间复用）
+    cv::Mat input_;            // 预分配的 640x640 letterbox 输入（两后端共用）
+    std::vector<float> blob_;  // 1x3x640x640 f32 NCHW（TensorRT 输入，帧间复用）
 
     cv::Rect roi_;
     cv::Point2f offset_;
 
     Detector detector_;  // 复用其 check_name/check_type_neural 等公共判定
 
-    std::vector<Armor> parse(double scale, cv::Mat & output, const cv::Mat & bgr_img, int frame_count);
+    std::vector<Armor> parse(
+        double scale, cv::Mat & output, const cv::Mat & bgr_img, int frame_count);
 
-    void draw_detections(const cv::Mat & img, const std::vector<Armor> & armors, int frame_count) const;
+    void draw_detections(
+        const cv::Mat & img, const std::vector<Armor> & armors, int frame_count) const;
     double sigmoid(double x);
 };
-
 
 #endif  //AUTO_AIM__YOLOV5_HPP

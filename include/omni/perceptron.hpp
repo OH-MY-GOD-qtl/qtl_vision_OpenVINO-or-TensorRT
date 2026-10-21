@@ -8,14 +8,12 @@
 #include <thread>
 #include <vector>
 
-#include "omni/decider.hpp"
-#include "omni/detection.hpp"
+#include "armor.hpp"
 #include "camera/usbcamera.hpp"
 #include "detector/detector.hpp"
-#include "armor.hpp"
+#include "omni/decider.hpp"
+#include "omni/detection.hpp"
 #include "tools/thread_safe_queue.hpp"
-
-
 
 // 全向感知搜索层：3 路 USB 相机 + 传统检测（仅报“有无目标 + 方位”）。
 // 结果带采集时间戳，交由 Decider 做海康优先仲裁与时间对齐。
@@ -23,8 +21,8 @@ class Perceptron
 {
 public:
     Perceptron(
-        USBCamera * usbcam1, USBCamera * usbcam2, USBCamera * usbcam3,
-        const Decider & decider, const std::string & config_path);
+        USBCamera * usbcam1, USBCamera * usbcam2, USBCamera * usbcam3, const Decider & decider,
+        const std::string & config_path);
 
     ~Perceptron();
 
@@ -44,7 +42,8 @@ private:
     std::shared_ptr<Detector> detector2_;
     std::shared_ptr<Detector> detector3_;
 
-    const Decider & decider_;  // 复用外部 Decider（安装角/FOV 单一来源；delta_angle 为 const，可并发调用）
+    const Decider &
+        decider_;  // 复用外部 Decider（安装角/FOV 单一来源；delta_angle 为 const，可并发调用）
     bool stop_flag_;
     mutable std::mutex mutex_;
     std::condition_variable condition_;

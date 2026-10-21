@@ -7,7 +7,6 @@
 
 #include "armor.hpp"
 
-
 class Classifier
 {
 public:
@@ -27,6 +26,5 @@ private:
     cv::Mat input_f32_;     // 包装 input_tensor_ 内存的 f32 输入
     cv::Mat gray_;          // 灰度中间缓冲：多个目标连续分类时复用
 };
-
 
 #endif  // AUTO_AIM__CLASSIFIER_HPP

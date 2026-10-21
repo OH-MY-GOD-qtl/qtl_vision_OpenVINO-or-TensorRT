@@ -6,9 +6,9 @@
 #include <opencv2/core/eigen.hpp>
 #include <opencv2/opencv.hpp>
 
-#include "tools/yaml.hpp"
 #include "tools/img_tools.hpp"
 #include "tools/math_tools.hpp"
+#include "tools/yaml.hpp"
 
 const std::string keys =
     "{help h usage ? |                          | 输出命令行参数说明}"
@@ -81,7 +81,8 @@ void yaml_load(
 
         // 识别标定板
         std::vector<cv::Point2f> centers_2d;
-        auto success = cv::findChessboardCorners(img, pattern_size, centers_2d);  // 默认是方形网格图案
+        auto success =
+            cv::findChessboardCorners(img, pattern_size, centers_2d);  // 默认是方形网格图案
 
         // 显示识别结果
         cv::drawChessboardCorners(drawing, pattern_size, centers_2d, success);
@@ -101,7 +102,8 @@ void yaml_load(
         cv::Mat rvec, tvec;
         auto centers_3d_ = centers_3d(pattern_size, center_distance_mm);
         cv::solvePnP(
-            centers_3d_, centers_2d, camera_matrix, distort_coeffs, rvec, tvec, false, cv::SOLVEPNP_IPPE);
+            centers_3d_, centers_2d, camera_matrix, distort_coeffs, rvec, tvec, false,
+            cv::SOLVEPNP_IPPE);
 
         // 记录所需的数据
         R_world2gimbal_list.emplace_back(R_world2gimbal_cv);
@@ -127,15 +129,17 @@ void print_yaml(
     result << YAML::Value << YAML::Flow << R_gimbal2imubody_data;
     result << YAML::Newline;
     result << YAML::Newline;
-    result << YAML::Comment(fmt::format(
-        "相机同理想情况的偏角: yaw{:.2f} pitch{:.2f} roll{:.2f} degree", camera_ypr[0], camera_ypr[1],
-        camera_ypr[2]));
+    result << YAML::Comment(
+        fmt::format(
+            "相机同理想情况的偏角: yaw{:.2f} pitch{:.2f} roll{:.2f} degree", camera_ypr[0],
+            camera_ypr[1], camera_ypr[2]));
     result << YAML::Newline;
     result << YAML::Comment(fmt::format("标定板到世界坐标系原点的水平距离: {:.2f} m", distance));
     result << YAML::Newline;
-    result << YAML::Comment(fmt::format(
-        "标定板同竖直摆放时的偏角: yaw{:.2f} pitch{:.2f} roll{:.2f} degree", board_ypr[0], board_ypr[1],
-        board_ypr[2]));
+    result << YAML::Comment(
+        fmt::format(
+            "标定板同竖直摆放时的偏角: yaw{:.2f} pitch{:.2f} roll{:.2f} degree", board_ypr[0],
+            board_ypr[1], board_ypr[2]));
     result << YAML::Key << "R_camera2gimbal";
     result << YAML::Value << YAML::Flow << R_camera2gimbal_data;
     result << YAML::Key << "t_camera2gimbal";

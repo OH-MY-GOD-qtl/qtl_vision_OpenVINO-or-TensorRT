@@ -2,12 +2,10 @@
 #define IMAGE__IMAGE_HPP
 
 #include <opencv2/opencv.hpp>
-
 #include <string>
 #include <vector>
 
 #include "common/color.hpp"
-
 
 // ---- 图像预处理：灰度 / 二值 / 形态学 / letterbox / 通道双阈值 ----
 //
@@ -32,7 +30,6 @@ void dilate_binary(
 // （roi 之外恒为 0，因为 resize 不会写出 roi）。退化输入（缩放后宽或高为 0）
 // 返回空 roi 且不写 dst。
 cv::Rect letterbox(const cv::Mat & img, cv::Mat & dst, double & scale);
-
 
 // 分离颜色通道双阈值预处理:
 //   1. 通道分离后取颜色差（红敌 R-B / 蓝敌 B-R，饱和差），过 color_threshold 得颜色掩码；
@@ -59,6 +56,5 @@ private:
     std::vector<cv::Mat> channels_;
     cv::Mat diff_, color_mask_, gray_, bright_mask_, kernel_;
 };
-
 
 #endif  // IMAGE__IMAGE_HPP

@@ -3,13 +3,12 @@
 #include "tools/math_tools.hpp"
 #include "tools/yaml.hpp"
 
-
 CBoard::CBoard(const std::string & config_path)
 : mode(Mode::idle),
-    shoot_mode(ShootMode::left_shoot),
-    bullet_speed(0),
-    queue_(5000),
-    can_(read_yaml(config_path), std::bind(&CBoard::callback, this, std::placeholders::_1))
+  shoot_mode(ShootMode::left_shoot),
+  bullet_speed(0),
+  queue_(5000),
+  can_(read_yaml(config_path), std::bind(&CBoard::callback, this, std::placeholders::_1))
 // 注意: callback的运行会早于Cboard构造函数的完成
 {
     logger()->info("[Cboard] Waiting for q...");
@@ -116,4 +115,3 @@ std::string CBoard::read_yaml(const std::string & config_path)
 
     return yaml["can_interface"].as<std::string>();
 }
-

@@ -4,7 +4,6 @@
 #include <cmath>
 #include <numeric>
 
-
 Lightbar::Lightbar(const cv::RotatedRect & rotated_rect, std::size_t id)
 : id(id), rotated_rect(rotated_rect)
 {
@@ -104,7 +103,7 @@ void correct_lightbar_points(Lightbar & lightbar, const cv::Mat & gray_img)
     for (int i = 0; i < roi.rows; ++i) {
         for (int j = 0; j < roi.cols; ++j) {
             const float weight = roi.at<float>(i, j);
-            if (weight > 1e-3) {          // 忽略极小值提升性能
+            if (weight > 1e-3) {            // 忽略极小值提升性能
                 points.emplace_back(j, i);  // 坐标相对于ROI区域
             }
         }
@@ -140,14 +139,14 @@ void correct_lightbar_points(Lightbar & lightbar, const cv::Mat & gray_img)
                 const cv::Point2f cur_point(start_point.x + dx * step, start_point.y + dy * step);
 
                 // 边界检查
-                if (
-                    cur_point.x < 0 || cur_point.x >= gray_img.cols || cur_point.y < 0 ||
+                if (cur_point.x < 0 || cur_point.x >= gray_img.cols || cur_point.y < 0 ||
                     cur_point.y >= gray_img.rows) {
                     break;
                 }
 
                 // 计算亮度差（使用双线性插值提升精度）
-                const auto prev_val = gray_img.at<uchar>(cv::Point2i(cur_point - cv::Point2f(dx, dy)));
+                const auto prev_val =
+                    gray_img.at<uchar>(cv::Point2i(cur_point - cv::Point2f(dx, dy)));
                 const auto cur_val = gray_img.at<uchar>(cv::Point2i(cur_point));
                 const float diff = prev_val - cur_val;
 
@@ -165,9 +164,9 @@ void correct_lightbar_points(Lightbar & lightbar, const cv::Mat & gray_img)
 
         // 返回候选点均值
         return candidates.empty()
-                            ? cv::Point2f(-1, -1)
-                            : std::accumulate(candidates.begin(), candidates.end(), cv::Point2f(0, 0)) /
-                                    static_cast<float>(candidates.size());
+                   ? cv::Point2f(-1, -1)
+                   : std::accumulate(candidates.begin(), candidates.end(), cv::Point2f(0, 0)) /
+                         static_cast<float>(candidates.size());
     };
 
     // 并行检测顶部和底部

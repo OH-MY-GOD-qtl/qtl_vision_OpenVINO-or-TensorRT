@@ -6,7 +6,6 @@
 #include <functional>
 #include <map>
 
-
 class ExtendedKalmanFilter
 {
 public:
@@ -31,15 +30,17 @@ public:
     Eigen::VectorXd update(
         const Eigen::Ref<const Eigen::VectorXd> & z, const Eigen::Ref<const Eigen::MatrixXd> & H,
         const Eigen::Ref<const Eigen::MatrixXd> & R,
-        std::function<Eigen::VectorXd(const Eigen::VectorXd &, const Eigen::VectorXd &)> z_subtract =
-            [](const Eigen::VectorXd & a, const Eigen::VectorXd & b) { return a - b; });
+        std::function<Eigen::VectorXd(const Eigen::VectorXd &, const Eigen::VectorXd &)>
+            z_subtract =
+                [](const Eigen::VectorXd & a, const Eigen::VectorXd & b) { return a - b; });
 
     Eigen::VectorXd update(
         const Eigen::Ref<const Eigen::VectorXd> & z, const Eigen::Ref<const Eigen::MatrixXd> & H,
         const Eigen::Ref<const Eigen::MatrixXd> & R,
         std::function<Eigen::VectorXd(const Eigen::VectorXd &)> h,
-        std::function<Eigen::VectorXd(const Eigen::VectorXd &, const Eigen::VectorXd &)> z_subtract =
-            [](const Eigen::VectorXd & a, const Eigen::VectorXd & b) { return a - b; });
+        std::function<Eigen::VectorXd(const Eigen::VectorXd &, const Eigen::VectorXd &)>
+            z_subtract =
+                [](const Eigen::VectorXd & a, const Eigen::VectorXd & b) { return a - b; });
 
     std::map<std::string, double> data;  //卡方检验数据
     std::deque<int> recent_nis_failures{0};
@@ -54,6 +55,5 @@ private:
     int nis_count_ = 0;
     int total_count_ = 0;
 };
-
 
 #endif  // TOOLS__EXTENDED_KALMAN_FILTER_HPP

@@ -9,13 +9,11 @@
 
 #include "classifier.hpp"
 #include "image.hpp"
-#include "tools/yaml.hpp"
 #include "tools/img_tools.hpp"
 #include "tools/logger.hpp"
+#include "tools/yaml.hpp"
 
-
-YOLOV8::YOLOV8(const std::string & config_path, bool debug)
-: detector_(config_path), debug_(debug)
+YOLOV8::YOLOV8(const std::string & config_path, bool debug) : detector_(config_path), debug_(debug)
 {
     auto yaml = yaml_load(config_path);
 
@@ -223,9 +221,9 @@ void YOLOV8::sort_keypoints(std::vector<cv::Point2f> & keypoints)
     std::vector<cv::Point2f> top_points = {keypoints[0], keypoints[1]};
     std::vector<cv::Point2f> bottom_points = {keypoints[2], keypoints[3]};
 
-    std::sort(top_points.begin(), top_points.end(), [](const cv::Point2f & a, const cv::Point2f & b) {
-        return a.x < b.x;
-    });
+    std::sort(
+        top_points.begin(), top_points.end(),
+        [](const cv::Point2f & a, const cv::Point2f & b) { return a.x < b.x; });
 
     std::sort(
         bottom_points.begin(), bottom_points.end(),
@@ -242,4 +240,3 @@ std::vector<Armor> YOLOV8::postprocess(
 {
     return parse(scale, output, bgr_img, frame_count);
 }
-

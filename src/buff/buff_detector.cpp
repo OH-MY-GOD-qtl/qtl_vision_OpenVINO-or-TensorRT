@@ -3,7 +3,6 @@
 #include "image.hpp"
 #include "tools/logger.hpp"
 
-
 Buff_Detector::Buff_Detector(const std::string & config) : status_(LOSE), lose_(0), MODE_(config) {}
 
 void Buff_Detector::handle_img(const cv::Mat & bgr_img, cv::Mat & dilated_img)
@@ -41,7 +40,7 @@ cv::Point2f Buff_Detector::get_r_center(std::vector<FanBlade> & fanblades, cv::M
     double radius = cv::norm(fanblades[0].points[2] - fanblades[0].center) * 0.8;
     cv::Mat mask = cv::Mat::zeros(dilated_img.size(), CV_8U);  // mask
     circle(mask, r_center_t, radius, cv::Scalar(255), -1);
-    bitwise_and(dilated_img, mask, dilated_img);               // 将遮罩应用于二值化图像
+    bitwise_and(dilated_img, mask, dilated_img);        // 将遮罩应用于二值化图像
     draw_point(bgr_img, r_center_t, {255, 255, 0}, 5);  // 调试用
     // cv::imshow("Dilated Image", dilated_img);                // 调试用
 
@@ -49,13 +48,14 @@ cv::Point2f Buff_Detector::get_r_center(std::vector<FanBlade> & fanblades, cv::M
 
     std::vector<std::vector<cv::Point>> contours;
     auto r_center = r_center_t;
-    cv::findContours(dilated_img, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE);  // external找外部区域
+    cv::findContours(
+        dilated_img, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE);  // external找外部区域
     double ratio_1 = INF;
     for (auto & it : contours) {
         auto rotated_rect = cv::minAreaRect(it);
         double ratio = rotated_rect.size.height > rotated_rect.size.width
-                                            ? rotated_rect.size.height / rotated_rect.size.width
-                                            : rotated_rect.size.width / rotated_rect.size.height;
+                           ? rotated_rect.size.height / rotated_rect.size.width
+                           : rotated_rect.size.width / rotated_rect.size.height;
         ratio += cv::norm(rotated_rect.center - r_center_t) / (radius / 3);
         if (ratio < ratio_1) {
             ratio_1 = ratio;
@@ -91,7 +91,8 @@ std::optional<PowerRune> Buff_Detector::detect_24(cv::Mat & bgr_img)
     /// results转扇叶FanBlade
 
     std::vector<FanBlade> fanblades;
-    for (auto & result : results) fanblades.emplace_back(FanBlade(result.kpt, result.kpt[4], _light));
+    for (auto & result : results)
+        fanblades.emplace_back(FanBlade(result.kpt, result.kpt[4], _light));
 
     /// 生成PowerRune
     auto r_center = get_r_center(fanblades, bgr_img);
@@ -180,4 +181,3 @@ std::optional<PowerRune> Buff_Detector::detect_debug(cv::Mat & bgr_img, cv::Poin
     P.emplace(powerrune);
     return P;
 }
-

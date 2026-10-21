@@ -9,7 +9,6 @@
 #include "camera/camera.hpp"
 #include "tools/thread_safe_queue.hpp"
 
-
 class MindVision : public CameraBase
 {
 public:
@@ -40,6 +39,5 @@ private:
     void set_vid_pid(const std::string & vid_pid);
     void reset_usb() const;
 };
-
 
 #endif  // IO__MINDVISION_HPP

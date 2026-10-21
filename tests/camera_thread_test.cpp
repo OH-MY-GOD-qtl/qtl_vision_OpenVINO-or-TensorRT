@@ -8,13 +8,12 @@
 #include <opencv2/opencv.hpp>
 #include <thread>
 
+#include "aimer.hpp"
 #include "camera/camera.hpp"
 #include "comm/cboard.hpp"
-#include "aimer.hpp"
-#include "solver.hpp"
-#include "tracker/tracker.hpp"
 #include "detector/yolo.hpp"
 #include "omni/detect_frame.hpp"
+#include "solver.hpp"
 #include "tools/exiter.hpp"
 #include "tools/img_tools.hpp"
 #include "tools/logger.hpp"
@@ -22,6 +21,7 @@
 #include "tools/plotter.hpp"
 #include "tools/recorder.hpp"
 #include "tools/thread_pool.hpp"
+#include "tracker/tracker.hpp"
 
 const std::string keys =
     "{help h usage ? |                        | 输出命令行参数说明}"

@@ -8,12 +8,11 @@
 #include <cmath>
 #include <vector>
 
-#include "planner.hpp"
 #include "buff/buff_target.hpp"
 #include "buff/buff_type.hpp"
 #include "comm/command.hpp"
 #include "comm/gimbal.hpp"
-
+#include "planner.hpp"
 
 class BuffAimer
 {

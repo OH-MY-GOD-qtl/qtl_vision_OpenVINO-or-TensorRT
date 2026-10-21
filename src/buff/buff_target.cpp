@@ -1,6 +1,5 @@
 #include "buff/buff_target.hpp"
 
-
 ///voter
 
 Voter::Voter() : clockwise_(0) {}
@@ -31,9 +30,9 @@ Eigen::Vector3d BuffTarget::point_buff2world(const Eigen::Vector3d & point_in_bu
     auto R_dis = ekf_.x[3];
     Eigen::Vector3d point_in_world =
         R_buff2world * point_in_buff + Eigen::Vector3d(
-                                                                            R_dis * std::cos(R_pitch) * std::cos(R_yaw),
-                                                                            R_dis * std::cos(R_pitch) * std::sin(R_yaw),
-                                                                            R_dis * std::sin(R_pitch));
+                                           R_dis * std::cos(R_pitch) * std::cos(R_yaw),
+                                           R_dis * std::cos(R_pitch) * std::sin(R_yaw),
+                                           R_dis * std::sin(R_pitch));
     return point_in_world;
 }
 
@@ -390,8 +389,7 @@ void BigTarget::get_target(
     update(time_gap, p.value());
 
     // 处理发散
-    if (
-        ekf_.x[7] > 1.045 * 1.5 || ekf_.x[7] < 0.78 / 1.5 || ekf_.x[8] > 2.0 * 1.5 ||
+    if (ekf_.x[7] > 1.045 * 1.5 || ekf_.x[7] < 0.78 / 1.5 || ekf_.x[8] > 2.0 * 1.5 ||
         ekf_.x[8] < 1.884 / 1.5) {
         logger()->debug("[BuffTarget] 大符角度发散a: {:.2f}b:{:.2f}", ekf_.x[7], ekf_.x[8]);
         first_in_ = true;

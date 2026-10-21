@@ -1,6 +1,5 @@
 #include "tools/img_tools.hpp"
 
-
 void draw_point(cv::Mat & img, const cv::Point & point, const cv::Scalar & color, int radius)
 {
     cv::circle(img, point, radius, color, -1);
@@ -26,4 +25,3 @@ void draw_text(
 {
     cv::putText(img, text, point, cv::FONT_HERSHEY_SIMPLEX, font_scale, color, thickness);
 }
-

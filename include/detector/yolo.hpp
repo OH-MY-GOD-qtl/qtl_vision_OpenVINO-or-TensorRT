@@ -5,7 +5,6 @@
 
 #include "armor.hpp"
 
-
 class YOLOBase
 {
 public:
@@ -28,6 +27,5 @@ public:
 private:
     std::unique_ptr<YOLOBase> yolo_;
 };
-
 
 #endif  // AUTO_AIM__YOLO_HPP

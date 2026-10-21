@@ -1,13 +1,13 @@
 #include "comm/gimbal.hpp"
 
+#include <fmt/format.h>
+
+#include <algorithm>
+
 #include "tools/crc.hpp"
 #include "tools/logger.hpp"
 #include "tools/math_tools.hpp"
 #include "tools/yaml.hpp"
-
-#include <algorithm>
-#include <fmt/format.h>
-
 
 Gimbal::Gimbal(const std::string & config_path, bool simulate_override)
 {
@@ -26,7 +26,7 @@ Gimbal::Gimbal(const std::string & config_path, bool simulate_override)
     auto baud_rate = yaml_read<int>(yaml, "baud_rate");
     try {
         serial_.setPort(com_port);
-        serial_.setBaudrate(baud_rate); 
+        serial_.setBaudrate(baud_rate);
         serial::Timeout timeout = serial::Timeout::simpleTimeout(100);
         serial_.setTimeout(timeout);
         serial_.open();
@@ -81,7 +81,8 @@ Eigen::Quaterniond Gimbal::q(std::chrono::steady_clock::time_point t)
 
     auto make_q = [](double yaw, double pitch) {
         return (Eigen::AngleAxisd(yaw, Eigen::Vector3d::UnitZ()) *
-                Eigen::AngleAxisd(pitch, Eigen::Vector3d::UnitY())).normalized();
+                Eigen::AngleAxisd(pitch, Eigen::Vector3d::UnitY()))
+            .normalized();
     };
 
     // 无历史数据（模拟模式/刚启动）时回退到当前姿态
@@ -187,8 +188,7 @@ void Gimbal::dump_hex(const char * tag, const uint8_t * data, size_t size)
 {
     std::string hex;
     hex.reserve(size * 3);
-    for (size_t i = 0; i < size; ++i)
-        hex += fmt::format("{:02X} ", static_cast<int>(data[i]));
+    for (size_t i = 0; i < size; ++i) hex += fmt::format("{:02X} ", static_cast<int>(data[i]));
     logger()->info("[Gimbal][{}] {}bytes: {}", tag, size, hex);
 }
 
@@ -228,8 +228,8 @@ void Gimbal::read_thread()
         auto t = std::chrono::steady_clock::now();
 
         if (!read(
-                    reinterpret_cast<uint8_t *>(&rx_data_) + sizeof(rx_data_.head),
-                    sizeof(rx_data_) - sizeof(rx_data_.head))) {
+                reinterpret_cast<uint8_t *>(&rx_data_) + sizeof(rx_data_.head),
+                sizeof(rx_data_) - sizeof(rx_data_.head))) {
             error_count++;
             continue;
         }
@@ -251,7 +251,7 @@ void Gimbal::read_thread()
         float temp_pitch_vel = rx_data_.pitch_vel;
         float temp_bullet_speed = rx_data_.bullet_speed;
         uint8_t temp_mode = rx_data_.mode;
-        int temp_id = rx_data_.id;// 添加id字段
+        int temp_id = rx_data_.id;  // 添加id字段
 
         std::lock_guard<std::mutex> lock(mutex_);
 
@@ -261,12 +261,13 @@ void Gimbal::read_thread()
         state_.pitch = -temp_pitch;
         state_.pitch_vel = -temp_pitch_vel;
         state_.bullet_speed = temp_bullet_speed;
-        state_.id = temp_id;// 添加id字段
+        state_.id = temp_id;  // 添加id字段
         // 删除弹丸剩余量
 
         // 记录姿态-时间戳历史，供 q(t) 按相机捕获时刻插值云台姿态（时间戳对齐）
         Eigen::Quaterniond q_now = (Eigen::AngleAxisd(state_.yaw, Eigen::Vector3d::UnitZ()) *
-                                    Eigen::AngleAxisd(state_.pitch, Eigen::Vector3d::UnitY())).normalized();
+                                    Eigen::AngleAxisd(state_.pitch, Eigen::Vector3d::UnitY()))
+                                       .normalized();
         q_history_.emplace_back(q_now, t);
         while (q_history_.size() > kQHistoryMax) q_history_.pop_front();
 
@@ -292,7 +293,6 @@ void Gimbal::read_thread()
         // // 打印接收云台信息
         // logger()->debug("[Gimbal] Data received successfully. Mode: {}, Yaw: {:.2f}, Pitch: {:.2f},CRC: {}",
         //                 temp_id, static_cast<int>(temp_mode), temp_yaw * 57.3, temp_pitch * 57.3, temp_crc16);
-
     }
 
     logger()->info("[Gimbal] read_thread stopped.");

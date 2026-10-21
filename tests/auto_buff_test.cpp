@@ -118,19 +118,23 @@ int main(int argc, char * argv[])
             auto image_points =
                 solver.reproject_buff(Rxyz_in_world_now, target.ekf_x()[4], target.ekf_x()[5]);
             draw_points(
-                img, std::vector<cv::Point2f>(image_points.begin(), image_points.begin() + 4), {0, 255, 0});
+                img, std::vector<cv::Point2f>(image_points.begin(), image_points.begin() + 4),
+                {0, 255, 0});
             draw_points(
-                img, std::vector<cv::Point2f>(image_points.begin() + 4, image_points.end()), {0, 255, 0});
+                img, std::vector<cv::Point2f>(image_points.begin() + 4, image_points.end()),
+                {0, 255, 0});
 
             // buff瞄准位置(预测)
             double dangle = target.ekf_x()[5] - target_copy.ekf_x()[5];
             auto Rxyz_in_world_pre = target.point_buff2world(Eigen::Vector3d(0.0, 0.0, 0.0));
-            image_points =
-                solver.reproject_buff(Rxyz_in_world_pre, target_copy.ekf_x()[4], target_copy.ekf_x()[5]);
+            image_points = solver.reproject_buff(
+                Rxyz_in_world_pre, target_copy.ekf_x()[4], target_copy.ekf_x()[5]);
             draw_points(
-                img, std::vector<cv::Point2f>(image_points.begin(), image_points.begin() + 4), {255, 0, 0});
+                img, std::vector<cv::Point2f>(image_points.begin(), image_points.begin() + 4),
+                {255, 0, 0});
             draw_points(
-                img, std::vector<cv::Point2f>(image_points.begin() + 4, image_points.end()), {255, 0, 0});
+                img, std::vector<cv::Point2f>(image_points.begin() + 4, image_points.end()),
+                {255, 0, 0});
 
             // 观测器内部数据
             Eigen::VectorXd x = target.ekf_x();

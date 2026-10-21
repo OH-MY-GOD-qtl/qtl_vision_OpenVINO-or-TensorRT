@@ -5,19 +5,19 @@
 #include <nlohmann/json.hpp>
 #include <opencv2/opencv.hpp>
 
+#include "aimer.hpp"
 #include "camera/camera.hpp"
 #include "comm/cboard.hpp"
-#include "aimer.hpp"
+#include "detector/yolo.hpp"
 #include "shooter.hpp"
 #include "solver.hpp"
-#include "tracker/tracker.hpp"
-#include "detector/yolo.hpp"
 #include "tools/exiter.hpp"
 #include "tools/img_tools.hpp"
 #include "tools/logger.hpp"
 #include "tools/math_tools.hpp"
 #include "tools/plotter.hpp"
 #include "tools/recorder.hpp"
+#include "tracker/tracker.hpp"
 
 using namespace std::chrono;
 

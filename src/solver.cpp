@@ -4,10 +4,9 @@
 
 #include <vector>
 
-#include "tools/yaml.hpp"
 #include "tools/logger.hpp"
 #include "tools/math_tools.hpp"
-
+#include "tools/yaml.hpp"
 
 constexpr double LIGHTBAR_LENGTH = 56e-3;     // m
 constexpr double BIG_ARMOR_WIDTH = 230e-3;    // m
@@ -80,8 +79,8 @@ void Solver::solve(Armor & armor) const
 
     // 平衡不做yaw优化，因为pitch假设不成立
     auto is_balance = (armor.type == ArmorType::big) &&
-                                        (armor.name == ArmorName::three || armor.name == ArmorName::four ||
-                                            armor.name == ArmorName::five);
+                      (armor.name == ArmorName::three || armor.name == ArmorName::four ||
+                       armor.name == ArmorName::five);
     if (is_balance) return;
 
     optimize_yaw(armor);
@@ -110,7 +109,8 @@ std::vector<cv::Point2f> Solver::reproject_armor(
     Eigen::Matrix3d R_armor2camera =
         R_camera2gimbal_.transpose() * R_gimbal2world_.transpose() * R_armor2world;
     Eigen::Vector3d t_armor2camera =
-        R_camera2gimbal_.transpose() * (R_gimbal2world_.transpose() * t_armor2world - t_camera2gimbal_);
+        R_camera2gimbal_.transpose() *
+        (R_gimbal2world_.transpose() * t_armor2world - t_camera2gimbal_);
 
     // get rvec tvec
     cv::Vec3d rvec;
@@ -175,7 +175,8 @@ double Solver::oupost_reprojection_error(Armor armor, const double & pitch)
     Eigen::Matrix3d _R_armor2camera =
         R_camera2gimbal_.transpose() * R_gimbal2world_.transpose() * _R_armor2world;
     Eigen::Vector3d t_armor2camera =
-        R_camera2gimbal_.transpose() * (R_gimbal2world_.transpose() * t_armor2world - t_camera2gimbal_);
+        R_camera2gimbal_.transpose() *
+        (R_gimbal2world_.transpose() * t_armor2world - t_camera2gimbal_);
 
     // get rvec tvec
     cv::Vec3d _rvec;
@@ -272,7 +273,7 @@ double Solver::SJTU_cost(
         // 长度差代价 + 起点差代价(1 / 2)（0 度左右应该抛弃)
         double pixel_dis =  // dis 是指方差平面内到原点的距离
             (0.5 * ((refs[i] - pts[i]).norm() + (refs[p] - pts[p]).norm()) +
-                std::fabs(ref_d.norm() - pt_d.norm())) /
+             std::fabs(ref_d.norm() - pt_d.norm())) /
             ref_d.norm();
         double angular_dis = ref_d.norm() * get_abs_angle(ref_d, pt_d) / ref_d.norm();
         // 平方可能是为了配合 sin 和 cos

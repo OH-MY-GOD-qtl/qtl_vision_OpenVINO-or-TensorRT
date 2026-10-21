@@ -5,7 +5,6 @@
 
 #include "tools/logger.hpp"
 
-
 inline YAML::Node yaml_load(const std::string & path)
 {
     try {
@@ -26,6 +25,5 @@ inline T yaml_read(const YAML::Node & yaml, const std::string & key)
     logger()->error("[YAML] {} not found!", key);
     exit(1);
 }
-
 
 #endif  // TOOLS__YAML_HPP

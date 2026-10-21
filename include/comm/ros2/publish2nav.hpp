@@ -12,7 +12,6 @@
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/string.hpp"
 
-
 class Publish2Nav : public rclcpp::Node
 {
 public:
@@ -28,6 +27,5 @@ private:
     // ROS2 发布者
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr publisher_;
 };
-
 
 #endif  // Publish2Nav_HPP_

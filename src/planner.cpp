@@ -8,7 +8,6 @@
 
 using namespace std::chrono_literals;
 
-
 // 在构造函数中添加基础偏移量的读取
 Planner::Planner(const std::string & config_path)
 {
@@ -98,22 +97,23 @@ Plan Planner::plan(Target & target, double bullet_speed)
     plan.pitch_acc = pitch_solver_->work->u(0, HALF_HORIZON);
 
     auto shoot_offset_ = 2;
-    plan.fire =
-        std::hypot(
-            traj(0, HALF_HORIZON + shoot_offset_) - yaw_solver_->work->x(0, HALF_HORIZON + shoot_offset_),
-            traj(2, HALF_HORIZON + shoot_offset_) -
-                pitch_solver_->work->x(0, HALF_HORIZON + shoot_offset_)) < fire_thresh_;
+    plan.fire = std::hypot(
+                    traj(0, HALF_HORIZON + shoot_offset_) -
+                        yaw_solver_->work->x(0, HALF_HORIZON + shoot_offset_),
+                    traj(2, HALF_HORIZON + shoot_offset_) -
+                        pitch_solver_->work->x(0, HALF_HORIZON + shoot_offset_)) < fire_thresh_;
     return plan;
 }
 
 Plan Planner::plan(std::optional<Target> & target, double bullet_speed)
 {
-    if (!target.has_value()) return {false}; //c++聚合初始化,plan的数据字段均为false或0
+    if (!target.has_value()) return {false};  //c++聚合初始化,plan的数据字段均为false或0
 
-    double delay_time =
-        std::abs(target->ekf_x()[7]) > decision_speed_ ? high_speed_delay_time_ : low_speed_delay_time_;
+    double delay_time = std::abs(target->ekf_x()[7]) > decision_speed_ ? high_speed_delay_time_
+                                                                       : low_speed_delay_time_;
 
-    auto future = std::chrono::steady_clock::now() + std::chrono::microseconds(int(delay_time * 1e6));
+    auto future =
+        std::chrono::steady_clock::now() + std::chrono::microseconds(int(delay_time * 1e6));
 
     target->predict(future);
 
@@ -254,7 +254,7 @@ std::pair<double, double> Planner::get_offset_by_distance(double distance)
         }
     }
 
-    return {0.0, 0.0}; // 兜底返回
+    return {0.0, 0.0};  // 兜底返回
 }
 
 Eigen::Vector4d Planner::predict_xyza(
@@ -283,8 +283,7 @@ Eigen::Vector4d Planner::predict_xyza(
     }
 
     auto bullet_traj = BallisticTrajectory(bullet_speed, min_dist, xyz.z());
-    if (bullet_traj.unsolvable)
-        return Eigen::Vector4d(xyz.x(), xyz.y(), xyz.z(), yaw);
+    if (bullet_traj.unsolvable) return Eigen::Vector4d(xyz.x(), xyz.y(), xyz.z(), yaw);
 
     tgt.predict(bullet_traj.fly_time);
 
@@ -301,4 +300,3 @@ Eigen::Vector4d Planner::predict_xyza(
 
     return Eigen::Vector4d(xyz.x(), xyz.y(), xyz.z(), yaw);
 }
-

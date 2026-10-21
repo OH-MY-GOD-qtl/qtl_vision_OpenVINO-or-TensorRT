@@ -16,7 +16,7 @@ const double SMALL_W = CV_PI / 3;
 class Predictor
 {
 public:
-    Predictor(){};
+    Predictor() {};
     virtual void update(double angle, double nowtime) = 0;  // 纯虚函数
     virtual double predict(double delta_time) = 0;          // 纯虚函数
     virtual bool is_unsolve() const = 0;                    // 纯虚函数
@@ -162,18 +162,18 @@ public:
         // x0 << 0.0, 1.32, 0.78, 1.884, 0.0; // 初始角度为 0，初始角速度为 1,a:0,w:0
         // x0 << 0.0, 1.045, 1.045, 2.0, 0.0; // 初始角度为 0，初始角速度为 1,a:0,w:0
         // 初始状态协方差矩阵
-        P0 << 0.01, 0.0, 0.0, 0.0, 0.0, 0.0, 0.01, 0.0, 0.0, 0.0, 0.0, 0.0, 0.01, 0.0, 0.0, 0.0, 0.0,
-            0.0, 0.01, 0.0, 0.0, 0.0, 0.0, 0.0, 0.01;
+        P0 << 0.01, 0.0, 0.0, 0.0, 0.0, 0.0, 0.01, 0.0, 0.0, 0.0, 0.0, 0.0, 0.01, 0.0, 0.0, 0.0,
+            0.0, 0.0, 0.01, 0.0, 0.0, 0.0, 0.0, 0.0, 0.01;
 
         // 状态转移矩阵
         // A << 1.0, 1.0,
         //     0.0, 1.0;
         // 过程噪声协方差矩阵                            //// 调整
         Q << 0.03, 0.0, 0.0, 0.0, 0.0,  // 0.01-0.03
-            0.0, 0.05, 0.0, 0.0, 0.0,     //
-            0.0, 0.0, 0.01, 0.0, 0.0,     //
-            0.0, 0.0, 0.0, 0.01, 0.0,     //
-            0.0, 0.0, 0.0, 0.0, 0.05;     //
+            0.0, 0.05, 0.0, 0.0, 0.0,   //
+            0.0, 0.0, 0.01, 0.0, 0.0,   //
+            0.0, 0.0, 0.0, 0.01, 0.0,   //
+            0.0, 0.0, 0.0, 0.0, 0.05;   //
         //
         // Q << 0.01, 0.0, 0.0, 0.0, 0.0,
         //     0.0, 0.01, 0.0, 0.0, 0.0,
@@ -226,16 +226,18 @@ public:
         double w = ekf.x[3];
         double sita = ekf.x[4];
         A << 1.0, 0.0,
-            (cw_ccw > 0 ? 1 : -1) * (-1 / w * cos(sita + w * deltatime) + 1 / w * cos(sita) - deltatime),
-            (cw_ccw > 0 ? 1 : -1) * (a / (w * w) * cos(sita + w * deltatime) - a / (w * w) * cos(sita)),
-            (cw_ccw > 0 ? 1 : -1) * (a / w * sin(sita + w * deltatime) - a / w * sin(sita)), 0.0, 0.0,
-            sin(sita + w * deltatime) - 1, deltatime * a * cos(sita + w * deltatime),
-            a * cos(sita + w * deltatime), 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0,
-            0.0, deltatime, 1.0;
+            (cw_ccw > 0 ? 1 : -1) *
+                (-1 / w * cos(sita + w * deltatime) + 1 / w * cos(sita) - deltatime),
+            (cw_ccw > 0 ? 1 : -1) *
+                (a / (w * w) * cos(sita + w * deltatime) - a / (w * w) * cos(sita)),
+            (cw_ccw > 0 ? 1 : -1) * (a / w * sin(sita + w * deltatime) - a / w * sin(sita)), 0.0,
+            0.0, sin(sita + w * deltatime) - 1, deltatime * a * cos(sita + w * deltatime),
+            a * cos(sita + w * deltatime), 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0,
+            0.0, 0.0, deltatime, 1.0;
         ekf.predict(A, Q, [&](const Eigen::VectorXd & x) {
             Eigen::VectorXd m(5);  //a w sita
-            m << x[0] + (cw_ccw > 0 ? 1 : -1) * (-a / w * cos(sita + w * deltatime) + a / w * cos(sita) +
-                                                                                        (2.09 - a) * deltatime),
+            m << x[0] + (cw_ccw > 0 ? 1 : -1) * (-a / w * cos(sita + w * deltatime) +
+                                                 a / w * cos(sita) + (2.09 - a) * deltatime),
                 a * sin(sita + w * deltatime) + 2.09 - a, a, w, sita + w * deltatime;
             return m;
         });
@@ -268,7 +270,7 @@ public:
         double w = X_best[3];
         double sita = X_best[4];
         return (cw_ccw > 0 ? 1 : -1) *
-                        (-a / w * cos(sita + w * delta_time) + a / w * cos(sita) + (2.09 - a) * delta_time);
+               (-a / w * cos(sita + w * delta_time) + a / w * cos(sita) + (2.09 - a) * delta_time);
     }
 
     virtual bool is_unsolve() const { return unsolvable; }
@@ -289,11 +291,11 @@ public:
     Eigen::VectorXd X_best;
     XYZ_predictor()
     : x0(Eigen::VectorXd(3)),
-        P0(Eigen::MatrixXd(3, 3)),
-        A(Eigen::MatrixXd(3, 3)),
-        Q(Eigen::MatrixXd(3, 3)),
-        H(Eigen::MatrixXd(3, 3)),
-        R(Eigen::MatrixXd(3, 3))
+      P0(Eigen::MatrixXd(3, 3)),
+      A(Eigen::MatrixXd(3, 3)),
+      Q(Eigen::MatrixXd(3, 3)),
+      H(Eigen::MatrixXd(3, 3)),
+      R(Eigen::MatrixXd(3, 3))
     {
         // 初始状态
         x0 << 0.0, 0.0, 7.0;  // 初始x为 0，初始角y为 0, 初始角z为 7m

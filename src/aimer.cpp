@@ -5,11 +5,10 @@
 #include <cmath>
 #include <vector>
 
-#include "tools/yaml.hpp"
 #include "tools/logger.hpp"
 #include "tools/math_tools.hpp"
 #include "tools/trajectory.hpp"
-
+#include "tools/yaml.hpp"
 
 Aimer::Aimer(const std::string & config_path)
 : left_yaw_offset_(std::nullopt), right_yaw_offset_(std::nullopt)
@@ -104,8 +103,8 @@ Command Aimer::aim(
         // 检查弹道是否可解
         if (current_traj.unsolvable) {
             logger()->debug(
-                "[Aimer] Unsolvable trajectory in iter {}: speed={:.2f}, d={:.2f}, z={:.2f}", iter + 1,
-                bullet_speed, d, xyz.z());
+                "[Aimer] Unsolvable trajectory in iter {}: speed={:.2f}, d={:.2f}, z={:.2f}",
+                iter + 1, bullet_speed, d, xyz.z());
             debug_aim_point.valid = false;
             return {false, false, 0, 0};
         }
@@ -182,7 +181,8 @@ AimPoint Aimer::choose_aim_point(const Target & target)
 
             // 未处于锁定模式时，选择delta_angle绝对值较小的装甲板，进入锁定模式
             if (lock_id_ != id0 && lock_id_ != id1)
-                lock_id_ = (std::abs(delta_angle_list[id0]) < std::abs(delta_angle_list[id1])) ? id0 : id1;
+                lock_id_ =
+                    (std::abs(delta_angle_list[id0]) < std::abs(delta_angle_list[id1])) ? id0 : id1;
 
             return {true, armor_xyza_list[lock_id_]};
         }
@@ -210,4 +210,3 @@ AimPoint Aimer::choose_aim_point(const Target & target)
 
     return {false, armor_xyza_list[0]};
 }
-

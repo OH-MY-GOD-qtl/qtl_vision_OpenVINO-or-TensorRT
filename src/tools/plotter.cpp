@@ -4,7 +4,6 @@
 #include <sys/socket.h>  // socket, sendto
 #include <unistd.h>      // close
 
-
 Plotter::Plotter(std::string host, uint16_t port)
 {
     socket_ = ::socket(AF_INET, SOCK_DGRAM, 0);
@@ -24,4 +23,3 @@ void Plotter::plot(const nlohmann::json & json)
         socket_, data.c_str(), data.length(), 0, reinterpret_cast<sockaddr *>(&destination_),
         sizeof(destination_));
 }
-

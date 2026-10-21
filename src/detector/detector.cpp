@@ -7,11 +7,10 @@
 #include <filesystem>
 #include <limits>
 
-#include "tools/yaml.hpp"
+#include "image.hpp"
 #include "tools/img_tools.hpp"
 #include "tools/logger.hpp"
-#include "image.hpp"
-
+#include "tools/yaml.hpp"
 
 Detector::Detector(const std::string & config_path, bool debug, bool use_classifier)
 : debug_(debug), use_classifier_(use_classifier)
@@ -37,7 +36,8 @@ Detector::Detector(const std::string & config_path, bool debug, bool use_classif
     max_armor_ratio_ = yaml_read<double>(yaml, "max_armor_ratio");
     max_side_ratio_ = yaml_read<double>(yaml, "max_side_ratio");
     min_confidence_ = yaml_read<double>(yaml, "min_confidence");
-    max_rectangular_error_ = yaml_read<double>(yaml, "max_rectangular_error") / 57.3;  // degree to rad
+    max_rectangular_error_ =
+        yaml_read<double>(yaml, "max_rectangular_error") / 57.3;  // degree to rad
 
     save_path_ = "patterns";
     std::filesystem::create_directory(save_path_);
@@ -62,9 +62,9 @@ std::vector<Armor> Detector::detect(const cv::Mat & bgr_img, int frame_count)
         logger()->debug("[Detector] contours={} lightbars={}", contours_.size(), lightbars.size());
 
     // 将灯条从左到右排序
-    std::sort(
-        lightbars.begin(), lightbars.end(),
-        [](const Lightbar & a, const Lightbar & b) { return a.center.x < b.center.x; });
+    std::sort(lightbars.begin(), lightbars.end(), [](const Lightbar & a, const Lightbar & b) {
+        return a.center.x < b.center.x;
+    });
 
     // 获取装甲板
     std::vector<Armor> armors;
@@ -111,8 +111,7 @@ std::vector<Armor> Detector::detect(const cv::Mat & bgr_img, int frame_count)
     // 检查装甲板是否存在共用灯条的情况
     for (auto armor1 = armors.begin(); armor1 != armors.end(); armor1++) {
         for (auto armor2 = std::next(armor1); armor2 != armors.end(); armor2++) {
-            if (
-                armor1->left.id != armor2->left.id && armor1->left.id != armor2->right.id &&
+            if (armor1->left.id != armor2->left.id && armor1->left.id != armor2->right.id &&
                 armor1->right.id != armor2->left.id && armor1->right.id != armor2->right.id) {
                 continue;
             }
@@ -171,8 +170,8 @@ bool Detector::detect(Armor & armor, const cv::Mat & bgr_img)
     auto armor_rotaterect = cv::minAreaRect(points);
     cv::Rect boundingBox = armor_rotaterect.boundingRect();
     // 检查boundingBox是否超出图像边界
-    if (
-        boundingBox.x < 0 || boundingBox.y < 0 || boundingBox.x + boundingBox.width > bgr_img.cols ||
+    if (boundingBox.x < 0 || boundingBox.y < 0 ||
+        boundingBox.x + boundingBox.width > bgr_img.cols ||
         boundingBox.y + boundingBox.height > bgr_img.rows) {
         return false;
     }
@@ -196,9 +195,9 @@ bool Detector::detect(Armor & armor, const cv::Mat & bgr_img)
     if (lightbars.size() < 2) return false;
 
     // 将灯条从左到右排序
-    std::sort(
-        lightbars.begin(), lightbars.end(),
-        [](const Lightbar & a, const Lightbar & b) { return a.center.x < b.center.x; });
+    std::sort(lightbars.begin(), lightbars.end(), [](const Lightbar & a, const Lightbar & b) {
+        return a.center.x < b.center.x;
+    });
 
     // 计算与 tl_roi, bl_roi 和 br_roi, tr_roi 距离最近的灯条
     Lightbar * closest_left_lightbar = nullptr;
@@ -222,13 +221,13 @@ bool Detector::detect(Armor & armor, const cv::Mat & bgr_img)
         }
     }
 
-    if (
-        closest_left_lightbar && closest_right_lightbar &&
+    if (closest_left_lightbar && closest_right_lightbar &&
         min_distance_br_tr + min_distance_tl_bl < 15) {
         // 将四个点从armor_roi坐标系转换到原始图像坐标系
         armor.points[0] = closest_left_lightbar->top + cv::Point2f(boundingBox.x, boundingBox.y);
         armor.points[1] = closest_right_lightbar->top + cv::Point2f(boundingBox.x, boundingBox.y);
-        armor.points[2] = closest_right_lightbar->bottom + cv::Point2f(boundingBox.x, boundingBox.y);
+        armor.points[2] =
+            closest_right_lightbar->bottom + cv::Point2f(boundingBox.x, boundingBox.y);
         armor.points[3] = closest_left_lightbar->bottom + cv::Point2f(boundingBox.x, boundingBox.y);
         return true;
     }
@@ -261,9 +260,9 @@ bool Detector::check_name(const Armor & armor, bool save_uncertain) const
 bool Detector::check_type_neural(const Armor & armor)
 {
     auto name_ok = (armor.type == ArmorType::small)
-                                        ? (armor.name != ArmorName::one && armor.name != ArmorName::base)
-                                        : (armor.name != ArmorName::two && armor.name != ArmorName::sentry &&
-                                            armor.name != ArmorName::outpost);
+                       ? (armor.name != ArmorName::one && armor.name != ArmorName::base)
+                       : (armor.name != ArmorName::two && armor.name != ArmorName::sentry &&
+                          armor.name != ArmorName::outpost);
 
     return name_ok;
 }
@@ -312,8 +311,8 @@ cv::Mat Detector::get_pattern_neural(const cv::Mat & bgr_img, const Armor & armo
 bool Detector::check_type(const Armor & armor) const
 {
     auto name_ok = armor.type == ArmorType::small
-                                        ? (armor.name != ArmorName::one && armor.name != ArmorName::base)
-                                        : (armor.name == ArmorName::one || armor.name == ArmorName::base);
+                       ? (armor.name != ArmorName::one && armor.name != ArmorName::base)
+                       : (armor.name == ArmorName::one || armor.name == ArmorName::base);
 
     // 保存异常的图案，用于分类器的迭代
     if (!name_ok) {
@@ -428,4 +427,3 @@ void Detector::show_result(
     // cv::imshow("threshold", binary_img2);
     cv::imshow("detection", detection);
 }
-

@@ -13,8 +13,6 @@
 
 #include "tools/thread_safe_queue.hpp"
 
-
-
 struct __attribute__((packed)) IMU_Receive_Frame
 {
     uint8_t FrameHeader1;
@@ -89,6 +87,5 @@ private:
     IMU_Receive_Frame receive_data{};  //receive data frame
     IMU_Data data{};
 };
-
 
 #endif

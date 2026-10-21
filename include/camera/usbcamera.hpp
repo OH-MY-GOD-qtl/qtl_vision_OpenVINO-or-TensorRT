@@ -9,7 +9,6 @@
 #include "camera/camera.hpp"
 #include "tools/thread_safe_queue.hpp"
 
-
 class USBCamera : public CameraBase
 {
 public:
@@ -46,6 +45,5 @@ private:
     void open();
     void close();
 };
-
 
 #endif

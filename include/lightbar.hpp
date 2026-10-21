@@ -1,14 +1,11 @@
 #ifndef LIGHTBAR__LIGHTBAR_HPP
 #define LIGHTBAR__LIGHTBAR_HPP
 
-#include <opencv2/opencv.hpp>
-
 #include <cstddef>
-#include <vector>
+#include <opencv2/opencv.hpp>
 #include <vector>
 
 #include "common/color.hpp"
-
 
 // 灯条：由旋转矩形拟合出的装甲板发光灯条模型（几何量由构造函数计算）
 struct Lightbar
@@ -46,6 +43,5 @@ Color get_lightbar_color(const cv::Mat & bgr_img, const std::vector<cv::Point> &
 
 // 利用 PCA 回归灯条角点，参考自 https://github.com/CSU-FYT-Vision/FYT2024_vision
 void correct_lightbar_points(Lightbar & lightbar, const cv::Mat & gray_img);
-
 
 #endif  // LIGHTBAR__LIGHTBAR_HPP

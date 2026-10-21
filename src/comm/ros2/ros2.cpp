@@ -31,4 +31,3 @@ std::vector<int8_t> ROS2::subscribe_autoaim_target()
 {
     return subscribe2nav_->subscribe_autoaim_target();
 }
-

@@ -4,19 +4,19 @@
 #include <opencv2/opencv.hpp>
 #include <thread>
 
+#include "aimer.hpp"
 #include "camera/camera.hpp"
 #include "detector/yolo.hpp"
-#include "aimer.hpp"
 #include "planner.hpp"
 #include "shooter.hpp"
 #include "solver.hpp"
-#include "tracker/tracker.hpp"
 #include "tools/exiter.hpp"
 #include "tools/img_tools.hpp"
 #include "tools/logger.hpp"
 #include "tools/math_tools.hpp"
 #include "tools/plotter.hpp"
 #include "tools/recorder.hpp"
+#include "tracker/tracker.hpp"
 
 const std::string keys =
     "{help h usage ? | | 输出命令行参数说明}"
@@ -64,8 +64,8 @@ int main(int argc, char * argv[])
                 auto is_empty = target.has_value() ? false : true;
 
                 gimbal.send(
-                    plan.control, plan.fire, plan.yaw, plan.yaw_vel, plan.yaw_acc, plan.pitch, plan.pitch_vel,
-                    plan.pitch_acc, is_empty);
+                    plan.control, plan.fire, plan.yaw, plan.yaw_vel, plan.yaw_acc, plan.pitch,
+                    plan.pitch_vel, plan.pitch_acc, is_empty);
 
                 std::this_thread::sleep_for(10ms);
             } else
@@ -92,7 +92,7 @@ int main(int argc, char * argv[])
         /// 自瞄
         if (mode.load() == GimbalMode::AUTO_AIM) {
             auto armors = yolo.detect(img);
-            auto targets = tracker.track(armors, t,gimbal.state().id);
+            auto targets = tracker.track(armors, t, gimbal.state().id);
             if (!targets.empty())
                 target_queue.push(targets.front());
             else

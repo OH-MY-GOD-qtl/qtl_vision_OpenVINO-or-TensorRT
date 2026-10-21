@@ -6,8 +6,6 @@
 #include <random>
 #include <vector>
 
-
-
 class RansacSineFitter
 {
 public:
@@ -41,8 +39,8 @@ private:
     std::deque<std::pair<double, double>> fit_data_;
 
     bool fit_partial_model(
-        const std::vector<std::pair<double, double>> & sample, double omega, Eigen::Vector3d & params);
+        const std::vector<std::pair<double, double>> & sample, double omega,
+        Eigen::Vector3d & params);
 
     int evaluate_inliers(double A, double omega, double phi, double C);
 };
-

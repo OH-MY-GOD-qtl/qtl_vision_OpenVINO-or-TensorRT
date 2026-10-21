@@ -6,10 +6,9 @@
 #include <algorithm>
 
 #include "image.hpp"
-#include "tools/yaml.hpp"
 #include "tools/img_tools.hpp"
 #include "tools/logger.hpp"
-
+#include "tools/yaml.hpp"
 
 YOLOV5::YOLOV5(const std::string & config_path, bool debug)
 : debug_(debug), detector_(config_path, false)
@@ -223,7 +222,8 @@ std::vector<Armor> YOLOV5::parse(
             armors.emplace_back(
                 color_ids[i], num_ids[i], confidences[i], boxes[i], armors_key_points[i], offset_);
         } else {
-            armors.emplace_back(color_ids[i], num_ids[i], confidences[i], boxes[i], armors_key_points[i]);
+            armors.emplace_back(
+                color_ids[i], num_ids[i], confidences[i], boxes[i], armors_key_points[i]);
         }
     }
 
@@ -284,4 +284,3 @@ std::vector<Armor> YOLOV5::postprocess(
 {
     return parse(scale, output, bgr_img, frame_count);
 }
-

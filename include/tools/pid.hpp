@@ -1,7 +1,6 @@
 #ifndef TOOLS__PID_HPP
 #define TOOLS__PID_HPP
 
-
 class PID
 {
 public:
@@ -11,7 +10,8 @@ public:
     // kd: D项系数
     // max_out: PID最大输出值
     // max_iout I项最大输出值
-    PID(float dt, float kp, float ki, float kd, float max_out, float max_iout, bool angular = false);
+    PID(float dt, float kp, float ki, float kd, float max_out, float max_iout,
+        bool angular = false);
 
     float pout = 0.0f;  // P项输出, 用于调试
     float iout = 0.0f;  // I项输出, 用于调试
@@ -30,6 +30,5 @@ private:
 
     float last_fdb_ = 0.0f;  // 上次反馈值
 };
-
 
 #endif  // TOOLS__PID_HPP

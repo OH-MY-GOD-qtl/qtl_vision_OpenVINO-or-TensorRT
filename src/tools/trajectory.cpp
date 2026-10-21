@@ -2,7 +2,6 @@
 
 #include <cmath>
 
-
 constexpr double g = 9.7833;
 
 BallisticTrajectory::BallisticTrajectory(const double v0, const double d, const double h)
@@ -28,4 +27,3 @@ BallisticTrajectory::BallisticTrajectory(const double v0, const double d, const 
     pitch = (t_1 < t_2) ? pitch_1 : pitch_2;
     fly_time = (t_1 < t_2) ? t_1 : t_2;
 }
-

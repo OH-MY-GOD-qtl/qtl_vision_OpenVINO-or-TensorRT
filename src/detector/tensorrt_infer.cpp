@@ -6,7 +6,6 @@
 #include <fstream>
 #include <utility>
 
-
 namespace
 {
 // 文件级 logger：把 TensorRT 内部日志转发到 stderr（与项目 spdlog 解耦）
@@ -36,11 +35,15 @@ inline int64_t volume(const nvinfer1::Dims & d)
 inline std::size_t elem_size(nvinfer1::DataType dt)
 {
     switch (dt) {
-        case nvinfer1::DataType::kHALF: return 2;
-        case nvinfer1::DataType::kINT32: return 4;
-        case nvinfer1::DataType::kINT8: return 1;
+        case nvinfer1::DataType::kHALF:
+            return 2;
+        case nvinfer1::DataType::kINT32:
+            return 4;
+        case nvinfer1::DataType::kINT8:
+            return 1;
         case nvinfer1::DataType::kFLOAT:
-        default: return 4;
+        default:
+            return 4;
     }
 }
 
@@ -52,7 +55,6 @@ inline std::vector<int64_t> dims_to_vec(const nvinfer1::Dims & d)
     return v;
 }
 }  // namespace
-
 
 TensorRTInfer::TensorRTInfer(const std::string & engine_path)
 {
@@ -105,7 +107,8 @@ TensorRTInfer::TensorRTInfer(const std::string & engine_path)
     auto in_dims = engine_->getTensorShape(in_names[0].c_str());
     auto in_dtype = engine_->getTensorDataType(in_names[0].c_str());
     if (in_dtype != nvinfer1::DataType::kFLOAT && in_dtype != nvinfer1::DataType::kHALF) {
-        std::fprintf(stderr, "[TensorRT] 不支持的输入类型（仅支持 FP32/FP16），实际=%d\n",
+        std::fprintf(
+            stderr, "[TensorRT] 不支持的输入类型（仅支持 FP32/FP16），实际=%d\n",
             static_cast<int>(in_dtype));
         return;
     }
@@ -169,12 +172,7 @@ TensorRTInfer::TensorRTInfer(const std::string & engine_path)
     ok_ = true;
 }
 
-
-TensorRTInfer::~TensorRTInfer()
-{
-    release();
-}
-
+TensorRTInfer::~TensorRTInfer() { release(); }
 
 void TensorRTInfer::release()
 {
@@ -204,7 +202,6 @@ void TensorRTInfer::release()
         runtime_ = nullptr;
     }
 }
-
 
 std::vector<TrtTensor> & TensorRTInfer::infer(const float * input_nchw)
 {

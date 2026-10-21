@@ -7,19 +7,19 @@
 #include <opencv2/opencv.hpp>
 #include <thread>
 
-#include "camera/camera.hpp"
 #include "aimer.hpp"
+#include "camera/camera.hpp"
 #include "detector/detector.hpp"  // 使用传统检测器
 #include "planner.hpp"
 #include "shooter.hpp"
 #include "solver.hpp"
-#include "tracker/tracker.hpp"
 #include "tools/exiter.hpp"
 #include "tools/img_tools.hpp"
 #include "tools/logger.hpp"
 #include "tools/math_tools.hpp"
 #include "tools/plotter.hpp"
 #include "tools/recorder.hpp"
+#include "tracker/tracker.hpp"
 
 const std::string keys =
     "{help h usage ? | | 输出命令行参数说明}"
@@ -68,14 +68,16 @@ int main(int argc, char * argv[])
                 auto is_empty = target.has_value() ? false : true;
 
                 gimbal.send(
-                    plan.control, plan.fire, plan.yaw, plan.yaw_vel, plan.yaw_acc, plan.pitch, plan.pitch_vel,
-                    plan.pitch_acc, is_empty);
+                    plan.control, plan.fire, plan.yaw, plan.yaw_vel, plan.yaw_acc, plan.pitch,
+                    plan.pitch_vel, plan.pitch_acc, is_empty);
                 nlohmann::json data;
 
                 // 计算帧率
                 frame_count++;
                 auto current_time = std::chrono::steady_clock::now();
-                auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(current_time - last_fps_time).count();
+                auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                   current_time - last_fps_time)
+                                   .count();
                 double fps = 0.0;
                 if (elapsed >= 1000) {
                     fps = frame_count * 1000.0 / elapsed;
@@ -122,14 +124,14 @@ int main(int argc, char * argv[])
             auto armors = detector.detect(img);  // 使用传统检测方法
 
             // 绘制装甲板
-            for (const auto &armor : armors) {
+            for (const auto & armor : armors) {
                 if (armor.points.size() != 4) continue;
                 // 绘制装甲板边界框
                 for (int i = 0; i < 4; i++) {
-                    cv::line(img, 
-                                        cv::Point(armor.points[i].x, armor.points[i].y), 
-                                        cv::Point(armor.points[(i+1)%4].x, armor.points[(i+1)%4].y), 
-                                        {0, 255, 0}, 2);
+                    cv::line(
+                        img, cv::Point(armor.points[i].x, armor.points[i].y),
+                        cv::Point(armor.points[(i + 1) % 4].x, armor.points[(i + 1) % 4].y),
+                        {0, 255, 0}, 2);
                 }
             }
 

@@ -4,20 +4,20 @@
 #include <nlohmann/json.hpp>
 #include <opencv2/opencv.hpp>
 
-#include "camera/camera.hpp"
 #include "aimer.hpp"
-#include "solver.hpp"
-#include "tracker/tracker.hpp"
+#include "camera/camera.hpp"
 #include "detector/yolo.hpp"
+#include "solver.hpp"
 #include "tools/exiter.hpp"
 #include "tools/img_tools.hpp"
 #include "tools/logger.hpp"
 #include "tools/math_tools.hpp"
 #include "tools/plotter.hpp"
+#include "tracker/tracker.hpp"
 
-const std::string keys = 
-    "{help h usage ? |                              | 输出命令行参数说明 }" 
-    "{@config-path   | configs/camera_auto_aim.yaml | 相机测试自瞄配置文件的路径}" ;
+const std::string keys =
+    "{help h usage ? |                              | 输出命令行参数说明 }"
+    "{@config-path   | configs/camera_auto_aim.yaml | 相机测试自瞄配置文件的路径}";
 
 int main(int argc, char * argv[])
 {
@@ -76,13 +76,13 @@ int main(int argc, char * argv[])
         logger()->info(
             "[{}] yolo: {:.1f}ms, tracker: {:.1f}ms, aimer: {:.1f}ms", frame_count,
             delta_time(tracker_start, yolo_start) * 1e3,
-            delta_time(aimer_start, tracker_start) * 1e3,
-            delta_time(finish, aimer_start) * 1e3);
+            delta_time(aimer_start, tracker_start) * 1e3, delta_time(finish, aimer_start) * 1e3);
 
         // 绘制装甲板检测结果
-        for (const auto& armor : armors) {
-            cv::rectangle(img, armor.box, {255, 0, 0}, 2);// 绘制装甲板框
-            draw_text(img, fmt::format("{}", ARMOR_NAMES[armor.name]), armor.box.tl(), {255, 255, 255});
+        for (const auto & armor : armors) {
+            cv::rectangle(img, armor.box, {255, 0, 0}, 2);  // 绘制装甲板框
+            draw_text(
+                img, fmt::format("{}", ARMOR_NAMES[armor.name]), armor.box.tl(), {255, 255, 255});
         }
 
         nlohmann::json data;
@@ -121,8 +121,8 @@ int main(int argc, char * argv[])
             // aimer瞄准位置
             auto aim_point = aimer.debug_aim_point;
             Eigen::Vector4d aim_xyza = aim_point.xyza;
-            auto image_points =
-                solver.reproject_armor(aim_xyza.head(3), aim_xyza[3], target.armor_type, target.name);
+            auto image_points = solver.reproject_armor(
+                aim_xyza.head(3), aim_xyza[3], target.armor_type, target.name);
             if (aim_point.valid) draw_points(img, image_points, {0, 0, 255});
 
             // 观测器内部数据
@@ -143,11 +143,9 @@ int main(int argc, char * argv[])
 
         plotter.plot(data);
 
-
-            cv::resize(img, img, {}, 0.5, 0.5);  // 显示时缩小图片尺寸
-            cv::imshow("cream_auto_aim", img);
-            if (cv::waitKey(1) == 'q') break;
-
+        cv::resize(img, img, {}, 0.5, 0.5);  // 显示时缩小图片尺寸
+        cv::imshow("cream_auto_aim", img);
+        if (cv::waitKey(1) == 'q') break;
     }
 
     return 0;

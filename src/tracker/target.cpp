@@ -6,20 +6,19 @@
 #include "tools/logger.hpp"
 #include "tools/math_tools.hpp"
 
-
 Target::Target(
     const Armor & armor, std::chrono::steady_clock::time_point t, double radius, int armor_num,
     Eigen::VectorXd P0_dig)
 : name(armor.name),
-    armor_type(armor.type),
-    jumped(false),
-    last_id(0),
-    update_count_(0),
-    armor_num_(armor_num),
-    t_(t),
-    is_switch_(false),
-    is_converged_(false),
-    switch_count_(0)
+  armor_type(armor.type),
+  jumped(false),
+  last_id(0),
+  update_count_(0),
+  armor_num_(armor_num),
+  t_(t),
+  is_switch_(false),
+  is_converged_(false),
+  switch_count_(0)
 {
     auto r = radius;
     priority = armor.priority;
@@ -160,7 +159,7 @@ void Target::update(const Armor & armor)
         const auto & xyza = xyza_i_list[i].first;
         Eigen::Vector3d ypd = xyz2ypd(xyza.head(3));
         auto angle_error = std::abs(limit_rad(armor.ypr_in_world[0] - xyza[3])) +
-                                                std::abs(limit_rad(armor.ypd_in_world[0] - ypd[0]));
+                           std::abs(limit_rad(armor.ypd_in_world[0] - ypd[0]));
 
         if (std::abs(angle_error) < std::abs(min_angle_error)) {
             id = xyza_i_list[i].second;
@@ -193,7 +192,7 @@ void Target::update_ypda(const Armor & armor, int id)
     auto delta_angle = limit_rad(armor.ypr_in_world[0] - center_yaw);
     Eigen::VectorXd R_dig{
         {4e-3, 4e-3, log(std::abs(delta_angle) + 1) + 1,
-            log(std::abs(armor.ypd_in_world[2]) + 1) / 200 + 9e-2}};
+         log(std::abs(armor.ypd_in_world[2]) + 1) / 200 + 9e-2}};
 
     //测量过程噪声偏差的方差(R向量转换为对角矩阵)
     Eigen::MatrixXd R = R_dig.asDiagonal();
@@ -318,4 +317,3 @@ Eigen::Matrix<double, 4, 11> Target::h_jacobian(const Eigen::VectorXd & x, int i
 }
 
 bool Target::checkinit() { return isinit; }
-

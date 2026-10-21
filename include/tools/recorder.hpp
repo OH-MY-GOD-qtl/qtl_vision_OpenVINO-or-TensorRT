@@ -40,5 +40,4 @@ private:
     void save_to_file();
 };
 
-
 #endif  // TOOLS__RECORDER_HPP

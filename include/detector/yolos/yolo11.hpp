@@ -1,7 +1,6 @@
 #ifndef AUTO_AIM__YOLO11_HPP
 #define AUTO_AIM__YOLO11_HPP
 
-#include <vector>
 #include <opencv2/opencv.hpp>
 #include <openvino/openvino.hpp>
 #include <string>
@@ -10,7 +9,6 @@
 #include "armor.hpp"
 #include "detector/detector.hpp"
 #include "detector/yolo.hpp"
-
 
 class YOLO11 : public YOLOBase
 {
@@ -40,11 +38,12 @@ private:
 
     Detector detector_;  // 复用其 check_name/check_type_neural 等公共判定
 
-    std::vector<Armor> parse(double scale, cv::Mat & output, const cv::Mat & bgr_img, int frame_count);
+    std::vector<Armor> parse(
+        double scale, cv::Mat & output, const cv::Mat & bgr_img, int frame_count);
 
-    void draw_detections(const cv::Mat & img, const std::vector<Armor> & armors, int frame_count) const;
+    void draw_detections(
+        const cv::Mat & img, const std::vector<Armor> & armors, int frame_count) const;
     void sort_keypoints(std::vector<cv::Point2f> & keypoints);
 };
-
 
 #endif  //AUTO_AIM__YOLO11_HPP

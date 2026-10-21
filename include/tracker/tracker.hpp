@@ -3,15 +3,14 @@
 
 #include <Eigen/Dense>
 #include <chrono>
-#include <vector>
 #include <string>
+#include <vector>
 
 #include "armor.hpp"
-#include "solver.hpp"
-#include "tracker/target.hpp"
 #include "omni/detection.hpp"
+#include "solver.hpp"
 #include "tools/thread_safe_queue.hpp"
-
+#include "tracker/target.hpp"
 
 class Tracker
 {
@@ -52,6 +51,5 @@ private:
 
     bool update_target(std::vector<Armor> & armors, std::chrono::steady_clock::time_point t);
 };
-
 
 #endif  // AUTO_AIM__TRACKER_HPP

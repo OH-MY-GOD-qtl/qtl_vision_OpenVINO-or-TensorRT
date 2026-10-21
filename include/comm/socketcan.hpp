@@ -19,17 +19,17 @@ using namespace std::chrono_literals;
 
 constexpr int MAX_EVENTS = 10;
 
-
 class SocketCAN
 {
 public:
-    SocketCAN(const std::string & interface, std::function<void(const can_frame & frame)> rx_handler)
+    SocketCAN(
+        const std::string & interface, std::function<void(const can_frame & frame)> rx_handler)
     : interface_(interface),
-        socket_fd_(-1),
-        epoll_fd_(-1),
-        rx_handler_(rx_handler),
-        quit_(false),
-        ok_(false)
+      socket_fd_(-1),
+      epoll_fd_(-1),
+      rx_handler_(rx_handler),
+      quit_(false),
+      ok_(false)
     {
         try_open();
 
@@ -152,6 +152,5 @@ private:
         ::close(socket_fd_);
     }
 };
-
 
 #endif  // IO__SOCKETCAN_HPP

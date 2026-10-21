@@ -4,7 +4,6 @@
 
 float clip(float value, float min, float max) { return std::max(min, std::min(max, value)); }
 
-
 PID::PID(float dt, float kp, float ki, float kd, float max_out, float max_iout, bool angular)
 : dt_(dt), kp_(kp), ki_(ki), kd_(kd), max_out_(max_out), max_iout_(max_iout), angular_(angular)
 {
@@ -22,4 +21,3 @@ float PID::calc(float set, float fdb)
 
     return clip(this->pout + this->iout + this->dout, -max_out_, max_out_);
 }
-

@@ -1,6 +1,5 @@
 #include "image.hpp"
 
-
 cv::Mat to_gray(const cv::Mat & bgr)
 {
     cv::Mat gray;
@@ -8,10 +7,7 @@ cv::Mat to_gray(const cv::Mat & bgr)
     return gray;
 }
 
-void to_gray(const cv::Mat & bgr, cv::Mat & dst)
-{
-    cv::cvtColor(bgr, dst, cv::COLOR_BGR2GRAY);
-}
+void to_gray(const cv::Mat & bgr, cv::Mat & dst) { cv::cvtColor(bgr, dst, cv::COLOR_BGR2GRAY); }
 
 cv::Mat to_binary(const cv::Mat & gray, double threshold)
 {
@@ -56,12 +52,11 @@ cv::Rect letterbox(const cv::Mat & img, cv::Mat & dst, double & scale)
     return roi;
 }
 
-
 ChannelThresholder::ChannelThresholder(
     Color enemy_color, double color_threshold, double brightness_threshold)
 : enemy_color_(enemy_color),
-    color_threshold_(color_threshold),
-    brightness_threshold_(brightness_threshold)
+  color_threshold_(color_threshold),
+  brightness_threshold_(brightness_threshold)
 {
     kernel_ = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
 }

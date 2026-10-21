@@ -1,12 +1,12 @@
 #ifndef OMNI__USB_CAMERA_CONFIG_HPP
 #define OMNI__USB_CAMERA_CONFIG_HPP
 
+#include <yaml-cpp/yaml.h>
+
 #include <cstddef>
 #include <stdexcept>
 #include <string>
 #include <vector>
-
-#include <yaml-cpp/yaml.h>
 
 struct OmniUsbCameraConfig
 {
@@ -31,8 +31,8 @@ inline std::vector<OmniUsbCameraConfig> load_usb_camera_configs(const YAML::Node
                     "Each omni_usb_cameras entry requires device and yaw_offset_from_hik");
             }
             cameras.push_back(
-                {camera["device"].as<std::string>(),
-                 camera["yaw_offset_from_hik"].as<double>(), true});
+                {camera["device"].as<std::string>(), camera["yaw_offset_from_hik"].as<double>(),
+                 true});
         }
         return cameras;
     }

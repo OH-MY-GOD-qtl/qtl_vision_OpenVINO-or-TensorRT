@@ -6,9 +6,7 @@
 #include "camera/mindvision.hpp"
 #include "camera/usbcamera.hpp"
 #include "camera/video_camera.hpp"
-
 #include "tools/yaml.hpp"
-
 
 Camera::Camera(const std::string & config_path)
 {
@@ -52,4 +50,3 @@ bool Camera::try_read(
 {
     return camera_->try_read(img, timestamp, timeout_ms);
 }
-

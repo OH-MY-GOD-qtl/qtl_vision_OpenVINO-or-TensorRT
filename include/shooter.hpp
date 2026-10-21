@@ -3,9 +3,8 @@
 
 #include <string>
 
-#include "comm/command.hpp"
 #include "aimer.hpp"
-
+#include "comm/command.hpp"
 
 class Shooter
 {
@@ -13,8 +12,8 @@ public:
     Shooter(const std::string & config_path);
 
     bool shoot(
-        const Command & command, const Aimer & aimer,
-        const std::vector<Target> & targets, const Eigen::Vector3d & gimbal_pos);
+        const Command & command, const Aimer & aimer, const std::vector<Target> & targets,
+        const Eigen::Vector3d & gimbal_pos);
 
 private:
     Command last_command_;

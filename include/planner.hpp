@@ -2,12 +2,11 @@
 #define AUTO_AIM__PLANNER_HPP
 
 #include <Eigen/Dense>
-#include <vector>
 #include <optional>
+#include <vector>
 
-#include "tracker/target.hpp"
 #include "tinympc/tiny_api.hpp"
-
+#include "tracker/target.hpp"
 
 constexpr double DT = 0.01;
 constexpr int HALF_HORIZON = 10;
@@ -43,7 +42,7 @@ public:
     Eigen::Vector4d predict_xyza(
         const Target & target, double bullet_speed, std::chrono::steady_clock::time_point t) const;
 
-// 在Planner类的private部分添加基础偏移量成员变量
+    // 在Planner类的private部分添加基础偏移量成员变量
 private:
     // 距离相关的偏移量配置，格式：distance -> (yaw_offset, pitch_offset)
     std::vector<std::tuple<double, double, double>> distance_offsets_;
@@ -66,6 +65,5 @@ private:
     Eigen::Matrix<double, 2, 1> aim(const Target & target, double bullet_speed);
     StateTraj get_trajectory(Target & target, double yaw0, double bullet_speed);
 };
-
 
 #endif  // AUTO_AIM__PLANNER_HPP

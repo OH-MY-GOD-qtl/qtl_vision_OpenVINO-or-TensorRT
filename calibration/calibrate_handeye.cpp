@@ -6,9 +6,9 @@
 #include <opencv2/core/eigen.hpp>
 #include <opencv2/opencv.hpp>
 
-#include "tools/yaml.hpp"
 #include "tools/img_tools.hpp"
 #include "tools/math_tools.hpp"
+#include "tools/yaml.hpp"
 
 const std::string keys =
     "{help h usage ? |                          | 输出命令行参数说明}"
@@ -118,7 +118,8 @@ void yaml_load(
         cv::Mat rvec, tvec;
         auto centers_3d_ = centers_3d(pattern_size, center_distance_mm);
         cv::solvePnP(
-            centers_3d_, corners_2d, camera_matrix, distort_coeffs, rvec, tvec, false, cv::SOLVEPNP_IPPE);
+            centers_3d_, corners_2d, camera_matrix, distort_coeffs, rvec, tvec, false,
+            cv::SOLVEPNP_IPPE);
 
         // 记录所需的数据
         R_gimbal2world_list.emplace_back(R_gimbal2world_cv);
@@ -145,7 +146,8 @@ void print_yaml(
     result << YAML::Newline;
     result << YAML::Comment(
         fmt::format(
-            "相机同理想情况的偏角: yaw{:.2f} pitch{:.2f} roll{:.2f} degree", ypr[0], ypr[1], ypr[2]));
+            "相机同理想情况的偏角: yaw{:.2f} pitch{:.2f} roll{:.2f} degree", ypr[0], ypr[1],
+            ypr[2]));
     result << YAML::Key << "R_camera2gimbal";
     result << YAML::Value << YAML::Flow << R_camera2gimbal_data;
     result << YAML::Key << "t_camera2gimbal";
