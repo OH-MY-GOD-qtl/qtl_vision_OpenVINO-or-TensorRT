@@ -1,0 +1,4 @@
+{
+    "cmake.cmakePath": "/usr/bin/cmake",
+    "C_Cpp.default.compilerPath": "/usr/bin/g++"
+}
