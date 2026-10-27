@@ -70,7 +70,9 @@ struct Armor
 
     ArmorType type;
     ArmorName name;
-    ArmorPriority priority;
+    // 默认最低优先级：Tracker 会按 priority stable_sort，未显式赋值时保持
+    // “离画面中心近”的既有顺序；omni 链路由 Decider::set_priority 覆盖。
+    ArmorPriority priority = ArmorPriority::fifth;
     int class_id;
     cv::Rect box;
     cv::Mat pattern;
