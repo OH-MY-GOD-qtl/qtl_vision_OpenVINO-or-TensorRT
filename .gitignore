@@ -1,6 +1,6 @@
 build/
 assets/demo.avi
-logs/*.log
+logs/
 patterns/
 records/
 MvSdkLog/
