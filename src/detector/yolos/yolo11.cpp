@@ -11,8 +11,9 @@
 #include "tools/logger.hpp"
 #include "tools/yaml.hpp"
 
+// 仅复用 Detector 的判定逻辑；YOLO11 直接输出类别，不需要数字分类器。
 YOLO11::YOLO11(const std::string & config_path, bool debug)
-: debug_(debug), detector_(config_path, false)
+: debug_(debug), detector_(config_path, false, false)
 {
     auto yaml = yaml_load(config_path);
 
