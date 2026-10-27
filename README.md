@@ -3,9 +3,15 @@
 RoboMaster 视觉系统（C++17）：源自 dx_vision（同济 SuperPower 25 赛季开源），
 按"功能等价、算法管线优化、模块化清晰、Jetson适配"标准重构。
 
+> **新装甲迁移中（2026-10-27）**
+> 新装甲取消灯条、改为中央图案发光；现有传统检测与模型均面向旧装甲，不能直接复用。
+> 方案、未知项与验收指标见 [`docs/adr/0001-new-armor-recognition.md`](docs/adr/0001-new-armor-recognition.md)。
+> `configs/new_armor.yaml` 目前是骨架（模型/尺寸未定），**暂不可运行**；
+> 旧装甲继续使用 `configs/standard1.yaml` 与下文现有链路。
+
 **核心能力**
 
-- **自瞄**：传统视觉 / YOLO v5·v8·v11 检测 + EKF 跟踪 + PnP 位姿解算，弹道 Aimer 或 MPC 规划
+- **自瞄**：传统视觉 / YOLO v5·v8·v11 检测 + EKF 跟踪 + PnP 位姿解算，弹道 Aimer 或 MPC 规划（现有模型面向旧装甲；新装甲迁移中）
 - **推理双后端**：YOLOv5 支持 OpenVINO（CPU，机器人端）与 TensorRT（GPU，本机），改 `use_tensorrt` 一键切换
 - **能量机关**：yolo11_buff 检测 + 解算 + 预测 + 瞄准
 - **全向感知**：3 路 USB 传统检测做方位搜索 + 1 路海康 YOLO 主瞄准，海康优先决策、安装角/FOV 可配置、按采集时间戳对齐
@@ -177,12 +183,18 @@ cd qtl_vision_OpenVINO-or-TensorRT  # 进入项目根目录
 （`MAIN` 不传参数时默认 `configs/standard1.yaml`）；`split_video` 的参数为
 `输入路径 起始帧 结束帧 输出路径`，其余标定类工具的额外参数见[标定流程](#标定流程)。
 
+> 新装甲目前没有可运行入口：`configs/new_armor.yaml` 的模型路径是占位，
+> 且 `src/solver.cpp` 的板宽/板高仍是旧装甲值；待实物测量与模型训练完成后再启用。
+
 约定：`*_sim.yaml` 为模拟配置（`simulate: true`），不打开串口、固定自瞄模式、
 只打印模拟下发，用于无云台硬件时跑通算法链路。
 
 ---
 
 ## 配置说明
+
+现有配置与模型均面向**旧装甲（双灯条）**。新装甲无灯条，传统链路不适用；
+新装甲配置见 `configs/new_armor.yaml`（骨架，暂不可运行）。
 
 配置文件均为 yaml，路径作为各程序的第一个参数传入。常用键：
 
@@ -223,6 +235,7 @@ simulate: true                 # 模拟模式（见上）
 | `demo.yaml` | hikrobot | YOLO 回放测试 |
 | `video_demo.yaml` | 视频文件 | 无硬件调试（自带 `simulate: true`） |
 | `omni.yaml` | hikrobot + USB ×3 | 全向感知（3 USB 传统 + 1 海康 YOLO） |
+| `new_armor.yaml` | hikrobot | 新装甲骨架（YOLO11-pose；模型/尺寸未定，暂不可运行） |
 
 ---
 
@@ -234,6 +247,9 @@ simulate: true                 # 模拟模式（见上）
 |---|---|---|
 | USB × 3 | 传统视觉（灯条几何，`use_classifier=false` 不识别编号） | 全向搜索：只报「有无目标 + 方位」，引导 yaw 转向 |
 | 海康 × 1 | YOLO（TensorRT） | 主瞄准：走完整精确链路（PnP + EKF + MPC） |
+
+> 全向感知的 USB 传统搜索依赖灯条，**新装甲不适用**；新装甲目前只有 YOLO11
+> 主瞄准方案（迁移中）。
 
 **决策（海康优先）**：
 
@@ -286,16 +302,23 @@ omni_usb_lpf_alpha: 0.4                           # USB引导yaw一阶低通系�
 （本机 NVIDIA 显卡 GPU 加速），YOLOv5 链路可通过配置一键切换。
 其余模型（v8 / v11 / buff / 分类器）当前仅接入 OpenVINO 后端。
 
+> 新装甲走 YOLO11-pose + OpenVINO。`use_tensorrt` 只被 `yolov5.cpp` 读取，
+> 对 `yolo_name: yolo11` 无效；`configs/new_armor.yaml` 中固定为 `false`，避免误导。
+
 ### 模型清单
+
+> 下表中的装甲板模型均面向**旧装甲（双灯条）**。新装甲（中央图案发光）需要重新训练，
+> 现有模型不能复用；方案见 [`docs/adr/0001-new-armor-recognition.md`](docs/adr/0001-new-armor-recognition.md)。
 
 | 模型文件 | 用途 | 后端 | 说明 |
 |---|---|---|---|
-| `assets/0526.onnx` | YOLOv5 装甲板检测 | OpenVINO / TensorRT | 深圳大学开源模型，本项目默认自瞄检测模型 |
-| `assets/yolov5.engine` | YOLOv5 装甲板检测 | TensorRT | 由 `0526.onnx` 转换的 TensorRT 序列化引擎 |
-| `assets/yolov8.xml` | YOLOv8 装甲板检测 | OpenVINO | `yolo_name: yolov8` 时选用 |
-| `assets/yolo11.xml` | YOLO11 装甲板检测 | OpenVINO | `yolo_name: yolo11` 时选用 |
+| `assets/0526.onnx` | YOLOv5 装甲板检测 | OpenVINO / TensorRT | 深圳大学开源模型，**旧装甲专用**，本项目旧链路默认检测模型 |
+| `assets/yolov5.engine` | YOLOv5 装甲板检测 | TensorRT | 由 `0526.onnx` 转换，**旧装甲专用** |
+| `assets/yolov8.xml` | YOLOv8 装甲板检测 | OpenVINO | **旧装甲模型**；`yolo_name: yolov8` 时选用 |
+| `assets/yolo11.xml` | YOLO11 装甲板检测 | OpenVINO | **旧装甲模型**；`yolo_name: yolo11` 时选用 |
 | `assets/yolo11_buff_int8.xml` | 能量机关检测 | OpenVINO | INT8 量化，供 buff 模块 |
-| `assets/tiny_resnet.onnx` | 装甲板数字分类器 | OpenVINO | 数字 1~5 识别 |
+| `assets/tiny_resnet.onnx` | 装甲板数字分类器 | OpenVINO | **旧装甲数字分类器**；新装甲模型直接输出类别，不再使用 |
+| `assets/new_armor_yolo11.xml`（待训练） | 新装甲 YOLO11-pose 检测 | OpenVINO | 占位文件，当前不存在；见 ADR-0001 |
 
 ### 后端切换（YOLOv5）
 
@@ -539,11 +562,12 @@ crontab -e
 | `Not found camera!` | 相机未插/未识别：`lsusb \| grep 2bdf` 确认；插拔后重试 |
 | 进程退不掉 / 相机被占 | 按过 Ctrl+Z：进程只是被挂起。`ps aux` 找到 PID 后 `kill -9`，以后用 **q / Ctrl+C** 退出 |
 | 画面花屏/卡死 | 相机 SDK 版本与头文件不匹配（如混用 3.x/4.8 库），保持同版本整套拷贝 |
-| 检测不到装甲板 | ① `enemy_color` 与实际敌方颜色不符；② 曝光/增益不适配现场光照；③ 调 `color_threshold`/`brightness_threshold`；④ YOLO 检查 `min_confidence` |
+| 检测不到装甲板 | ① `enemy_color` 与实际敌方颜色不符（旧装甲）；② 曝光/增益不适配现场光照；③ 调 `color_threshold`/`brightness_threshold`（旧装甲）；④ YOLO 检查 `min_confidence`；⑤ **新装甲无灯条，传统链路必然检测不到，需用新 YOLO 模型（见 ADR-0001）** |
 | 自瞄弹道/距离明显偏 | 相机内参未更新（`camera_matrix` 仍是别的相机标定值），按标定流程重标 |
 | `calibrate_camera` 没写文件 | 设计如此：结果只打印在终端，需手动复制进配置 |
 | 想换相机型号 | 改配置 `camera_name` + `vid_pid`，确认对应 SDK 目录 lib 齐全 |
-| 想在 CPU / GPU 间切换推理后端 | 改配置 `use_tensorrt`：`true` 走 TensorRT 引擎（`yolov5_engine_path`），`false` 走 OpenVINO（`yolov5_model_path`），仅 YOLOv5 支持 |
+| 想在 CPU / GPU 间切换推理后端 | 改配置 `use_tensorrt`：`true` 走 TensorRT 引擎（`yolov5_engine_path`），`false` 走 OpenVINO（`yolov5_model_path`），**仅 YOLOv5 支持**；`yolo_name: yolo11` 不读该键 |
+| 新装甲用哪个配置/模型 | 目前没有可运行配置。`configs/new_armor.yaml` 是骨架（模型路径为占位，`solver.cpp` 尺寸仍为旧装甲值）；现有模型均不能用于新装甲，方案见 ADR-0001 |
 | `[TensorRT] 反序列化引擎失败` / `无法打开引擎文件` | ① `yolov5_engine_path` 指向的 `.engine` 不存在或与当前 TensorRT / GPU 架构不匹配；② 用同版本 TensorRT 重新导出引擎；③ 检查 CUDA 驱动与 `libnvinfer` 版本 |
 | 机器人（arm64）相机打不开 | `third_party/camera_sdk/*/lib/arm64/` SDK 不完整，用官方 aarch64 包补齐 |
 
