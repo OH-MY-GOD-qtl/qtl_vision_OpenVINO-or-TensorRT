@@ -4,6 +4,7 @@
 #include <yaml-cpp/yaml.h>
 
 #include <algorithm>
+#include <stdexcept>
 
 #include "image.hpp"
 #include "tools/img_tools.hpp"
@@ -14,6 +15,22 @@ YOLO11::YOLO11(const std::string & config_path, bool debug)
 : debug_(debug), detector_(config_path, false)
 {
     auto yaml = yaml_load(config_path);
+
+    // 可选：类别数覆盖与类别映射。缺省时类别数从输出张量自动推断，
+    // class_map 为空表示模型类别 id 直接作为 armor_properties 下标。
+    if (yaml["class_num"]) {
+        class_num_ = yaml["class_num"].as<int>();
+        if (class_num_ <= 0) throw std::runtime_error("[YOLO11] class_num must be positive");
+    }
+    if (yaml["class_map"]) {
+        class_map_ = yaml["class_map"].as<std::vector<int>>();
+        for (auto id : class_map_) {
+            if (id < 0 || id >= static_cast<int>(armor_properties.size())) {
+                throw std::runtime_error(
+                    fmt::format("[YOLO11] class_map value {} out of range", id));
+            }
+        }
+    }
 
     model_path_ = yaml_read<std::string>(yaml, "yolo11_model_path");
     device_ = yaml_read<std::string>(yaml, "device");
@@ -96,6 +113,30 @@ std::vector<Armor> YOLO11::parse(
     const float * data = output.ptr<float>(0);
     const int anchor_num = output.cols;
 
+    // 输出必须为 feature-major [1][features][anchors]；features = 4 + class_num + 8。
+    if (output.rows > output.cols) {
+        logger()->error(
+            "[YOLO11] expect feature-major output [1][features][anchors], got {}x{}", output.rows,
+            output.cols);
+        return {};
+    }
+    const int detected_class_num = output.rows - 12;
+    if (detected_class_num <= 0) {
+        logger()->error("[YOLO11] invalid output features: {}", output.rows);
+        return {};
+    }
+    if (class_num_ > 0 && class_num_ != detected_class_num) {
+        logger()->warn(
+            "[YOLO11] class_num config {} != detected {}, use detected", class_num_,
+            detected_class_num);
+    }
+    const int class_num = detected_class_num;
+    if (!class_map_.empty() && static_cast<int>(class_map_.size()) != class_num) {
+        logger()->error(
+            "[YOLO11] class_map size {} != class_num {}", class_map_.size(), class_num);
+        return {};
+    }
+
     std::vector<int> ids;
     std::vector<float> confidences;
     std::vector<cv::Rect> boxes;
@@ -108,7 +149,7 @@ std::vector<Armor> YOLO11::parse(
     for (int r = 0; r < anchor_num; r++) {
         const float * xywh = data + r;
         const float * scores = data + 4 * anchor_num + r;
-        const float * key_points = data + (4 + class_num_) * anchor_num + r;
+        const float * key_points = data + (4 + class_num) * anchor_num + r;
 
         std::vector<cv::Point2f> armor_key_points;
         armor_key_points.reserve(4);
@@ -116,7 +157,7 @@ std::vector<Armor> YOLO11::parse(
         // 原实现为 cv::minMaxLoc(scores)：取最大分数及其下标
         float score = scores[0];
         int max_point = 0;
-        for (int c = 1; c < class_num_; c++) {
+        for (int c = 1; c < class_num; c++) {
             if (scores[c * anchor_num] > score) {
                 score = scores[c * anchor_num];
                 max_point = c;
@@ -151,10 +192,23 @@ std::vector<Armor> YOLO11::parse(
     std::vector<Armor> armors;
     for (const auto & i : indices) {
         sort_keypoints(armors_key_points[i]);
+
+        const int model_id = ids[i];
+        if (!class_map_.empty() &&
+            (model_id < 0 || model_id >= static_cast<int>(class_map_.size()))) {
+            logger()->warn("[YOLO11] class id {} out of class_map range", model_id);
+            continue;
+        }
+        const int armor_id = class_map_.empty() ? model_id : class_map_[model_id];
+        if (armor_id < 0 || armor_id >= static_cast<int>(armor_properties.size())) {
+            logger()->warn("[YOLO11] class id {} maps to invalid armor id {}", model_id, armor_id);
+            continue;
+        }
+
         if (use_roi_) {
-            armors.emplace_back(ids[i], confidences[i], boxes[i], armors_key_points[i], offset_);
+            armors.emplace_back(armor_id, confidences[i], boxes[i], armors_key_points[i], offset_);
         } else {
-            armors.emplace_back(ids[i], confidences[i], boxes[i], armors_key_points[i]);
+            armors.emplace_back(armor_id, confidences[i], boxes[i], armors_key_points[i]);
         }
     }
 

@@ -24,7 +24,11 @@ private:
     std::string device_, model_path_;
     bool debug_, use_roi_;
 
-    const int class_num_ = 38;
+    // 模型类别数：<=0 时从输出特征数自动推断（features - 4 - 8）。
+    int class_num_ = -1;
+    // 模型类别 id -> armor_properties 下标；为空表示 identity。
+    std::vector<int> class_map_;
+
     const float nms_threshold_ = 0.3;
     const float score_threshold_ = 0.7;
 
