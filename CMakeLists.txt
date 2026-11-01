@@ -117,6 +117,14 @@ link_directories(third_party/camera_sdk/mindvision/lib/${SDK_ARCH})
 
 target_link_libraries(io PUBLIC MvCameraControl MVSDK usb-1.0 yaml-cpp serial)
 
+#################### 血量灯条识别库 ####################
+# 血条 186x22mm，掉血时点亮长度变短；百分比靠同面装甲板宽度换算（见 docs/adr/0002）
+add_library(blood_bar STATIC
+    src/blood_bar.cpp
+)
+
+target_link_libraries(blood_bar PUBLIC ${OpenCV_LIBS} yaml-cpp image)
+
 #################### 自瞄任务库 ####################
 add_library(auto_aim OBJECT
     # 装甲板数据模型
