@@ -197,7 +197,7 @@ add_executable(traditional_debug apps/traditional_debug.cpp)
 add_executable(omni_standard apps/omni_standard.cpp)
 
 foreach(app standard standard_mpc auto_aim_debug_mpc traditional_debug omni_standard)
-    target_link_libraries(${app} ${OpenCV_LIBS} fmt::fmt yaml-cpp auto_aim auto_buff tools io)
+    target_link_libraries(${app} ${OpenCV_LIBS} fmt::fmt yaml-cpp auto_aim auto_buff tools io blood_bar)
 endforeach()
 
 # 全向感知入口额外依赖 omni 库（Perceptron 3×USB 搜索 + Decider 海康优先仲裁）

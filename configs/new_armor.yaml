@@ -26,6 +26,30 @@ use_tensorrt: false
 # 旧 YOLOv5 TensorRT 引擎由旧模型导出，新模型不可复用。
 # yolov5_engine_path: assets/yolov5.engine
 
+#####-----血量灯条（186x22mm，掉血时点亮长度变短）-----#####
+# 未点亮段不发光，百分比靠“同面装甲板外框宽”换算；无可用装甲板时退回血条高度自归一化。
+hp_bar:
+  enabled: true
+  length_mm: 186               # 满条长度
+  height_mm: 22                # 条高（自归一化兜底用）
+  armor_width_mm: 141          # 装甲板外框宽（YOLO 四角的上/下边），尺度参考
+  armor_height_mm: 125         # 装甲板外框高（左/右边），同面校验
+  self_norm_min_height_px: 12  # 血条高 < 12px（≈4.4m 以外）时禁止自归一化
+  min_edge_px: 2
+  min_area_px2: 25
+  max_aspect_ratio: 12
+  min_fill_ratio: 0.55
+  max_distance_ratio: 3.0      # 血条中心与装甲板中心的最大距离（相对装甲板宽）
+  min_association_score: 0.25
+  low_upper: 0.30              # ≤30% 低
+  medium_upper: 0.60           # ≤60% 中，其余为高
+  hysteresis: 0.05             # ±5% 迟滞
+  median_frames: 5
+  hold_frames: 0               # 0 = 丢检立即 unknown
+  ros2:
+    topic: enemy_hp
+    rate_hz: 10
+
 #####-----ROI-----#####
 roi:
   x: 420
