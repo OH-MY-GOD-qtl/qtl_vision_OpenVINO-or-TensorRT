@@ -6,8 +6,10 @@
 #include <opencv2/opencv.hpp>
 
 #include "aimer.hpp"
+#include "blood_bar.hpp"
 #include "camera/camera.hpp"
 #include "comm/cboard.hpp"
+#include "comm/hp_reporter.hpp"
 #include "detector/yolo.hpp"
 #include "shooter.hpp"
 #include "solver.hpp"
@@ -47,6 +49,10 @@ int main(int argc, char * argv[])
     Aimer aimer(config_path);
     Shooter shooter(config_path);
 
+    // 血量灯条：检测 + 同面装甲板尺度换算 + 三档迟滞；ROS2 关闭时上报器为空实现
+    BloodBarPipeline hp_pipeline(config_path);
+    auto hp_reporter = make_hp_reporter(config_path);
+
     cv::Mat img;
     Eigen::Quaterniond q;
     std::chrono::steady_clock::time_point t;
@@ -71,6 +77,15 @@ int main(int argc, char * argv[])
         Eigen::Vector3d ypr = eulers(solver.R_gimbal2world(), 2, 1, 0);
 
         auto armors = detector.detect(img);
+
+        // 血量识别：与当前帧装甲板配对；检不到即上报 unknown（3）
+        const auto hp = hp_pipeline.update(img, armors);
+        hp_reporter->report({static_cast<int>(hp.level), hp.percent, hp.valid});
+        static int hp_log_count = 0;
+        if (hp_pipeline.enabled() && ++hp_log_count % 30 == 0)
+            logger()->info(
+                "[HP] level={} (0低/1中/2高/3未知) percent={:.3f}", static_cast<int>(hp.level),
+                hp.percent);
 
         auto targets = tracker.track(armors, t);
 

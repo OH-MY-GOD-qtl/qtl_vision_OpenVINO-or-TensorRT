@@ -33,6 +33,11 @@ max_side_ratio: 1.5
 max_rectangular_error: 25 # degree
 min_confidence: 0.8
 
+#####-----血量灯条-----#####
+# 旧装甲没有该灯条，默认关闭；完整参数见 configs/new_armor.yaml 的 hp_bar 段。
+hp_bar:
+  enabled: false
+
 #####-----tracker参数-----#####
 min_detect_count: 5
 max_temp_lost_count: 15
