@@ -19,6 +19,14 @@ find_package(Eigen3 REQUIRED)
 find_package(spdlog REQUIRED)
 find_package(nlohmann_json REQUIRED)
 
+# ROS2（可选）：默认关闭，打开后编译血量灯条的 ROS2 上报（std_msgs/String）。
+# 需要先 source /opt/ros/<distro>/setup.bash，否则 find_package(rclcpp) 会失败。
+option(QTL_ENABLE_ROS2 "编译 ROS2 血量上报接口" OFF)
+if(QTL_ENABLE_ROS2)
+  find_package(rclcpp REQUIRED)
+  find_package(std_msgs REQUIRED)
+endif()
+
 # OpenVINO 路径：优先命令行传入，其次部署机 /opt/intel，最后系统安装
 if(NOT OpenVINO_DIR)
   if(EXISTS "/opt/intel/openvino_2024.6.0/runtime/cmake")
@@ -102,6 +110,9 @@ add_library(io OBJECT
     src/comm/gimbal.cpp
     src/comm/cboard.cpp
     src/comm/dm_imu.cpp
+    # 血量上报：无 ROS2 时为空实现，有 ROS2 时发 std_msgs/String
+    src/comm/hp_reporter.cpp
+    src/comm/ros2/hp_reporter_ros2.cpp
 )
 
 # 相机厂商 SDK 库目录与链接
@@ -116,6 +127,11 @@ link_directories(third_party/camera_sdk/hikrobot/lib/${SDK_ARCH})
 link_directories(third_party/camera_sdk/mindvision/lib/${SDK_ARCH})
 
 target_link_libraries(io PUBLIC MvCameraControl MVSDK usb-1.0 yaml-cpp serial)
+
+if(QTL_ENABLE_ROS2)
+  target_compile_definitions(io PUBLIC QTL_WITH_ROS2)
+  target_link_libraries(io PUBLIC rclcpp::rclcpp ${std_msgs_TARGETS})
+endif()
 
 #################### 血量灯条识别库 ####################
 # 血条 186x22mm，掉血时点亮长度变短；百分比靠同面装甲板宽度换算（见 docs/adr/0002）
