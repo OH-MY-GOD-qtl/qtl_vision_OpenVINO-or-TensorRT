@@ -48,7 +48,7 @@ qtl_vision_OpenVINO-or-TensorRT/
 ├── src/                        # 源文件，与 include/ 对应（单文件模块同样平铺）
 ├── apps/                       # 主程序入口（7 个）
 ├── calibration/                # 标定工具（5 个）
-├── tests/                      # 测试（22 个，其中 3 个 ROS2 默认不编译）
+├── tests/                      # 测试（23 个，其中 3 个 ROS2 默认不编译）
 ├── configs/                    # yaml 配置
 ├── assets/                     # 模型文件（onnx/xml/bin/engine）+ demo 视频
 ├── third_party/
@@ -75,6 +75,7 @@ qtl_vision_OpenVINO-or-TensorRT/
 | `planner` | MPC 规划器（tinympc） |
 | `fire` | 弹道迭代瞄准 + 开火判定 |
 | `buff` | 能量机关：检测/解算/预测/瞄准（yolo11_buff） |
+| `blood_bar` | 血量灯条：检测点亮长度 → 三档血量，与同面装甲板宽度做尺度换算 |
 | `omni` | 全向感知：3 路 USB 传统检测（方位搜索）+ 海康优先仲裁（可配置安装角/FOV、时间对齐） |
 
 ---
@@ -128,7 +129,7 @@ mkdir build && cd build
 cmake .. && make -j
 ```
 
-生成 32 个可执行文件：主程序入口 8 个、标定工具 5 个、测试 19 个。
+生成 33 个可执行文件：主程序入口 8 个、标定工具 5 个、测试 20 个。
 
 > 构建同时依赖 OpenVINO 与 TensorRT/CUDA（见[环境准备](#环境准备)）；三者任一缺失
 > 都会在 `cmake` 配置阶段报错。TensorRT 仅 YOLOv5 链路用到，其余模型走 OpenVINO。
@@ -236,6 +237,46 @@ simulate: true                 # 模拟模式（见上）
 | `video_demo.yaml` | 视频文件 | 无硬件调试（自带 `simulate: true`） |
 | `omni.yaml` | hikrobot + USB ×3 | 全向感知（3 USB 传统 + 1 海康 YOLO） |
 | `new_armor.yaml` | hikrobot | 新装甲骨架（YOLO11-pose；模型/尺寸未定，暂不可运行） |
+
+---
+
+## 血量灯条识别（`hp_bar`）
+
+新装甲在装甲板同面有一条 186 mm × 22 mm 的血量灯条：满血全亮，掉血时**点亮长度**变短，
+未点亮段不发光、在图像中不可见。`standard` 每帧检测它并输出三档血量（参数见
+`configs/new_armor.yaml` 的 `hp_bar` 段，旧装甲配置里默认关闭）。
+
+| 项 | 说明 |
+|---|---|
+| 尺度参考 | 同面装甲板外框宽 141 mm → `px/mm`，`p = lit_len_px / (186 × px_per_mm)`；同一平面下透视压缩比在分子分母抵消，无需 `cos(yaw)` 修正 |
+| 兜底 | 无可用装甲板时用血条自身 22 mm 自归一化，仅当条高 ≥ 12 px（≈ 4.4 m 内） |
+| 同面校验 | 血条高 / 装甲板高 ≈ 22/125（与距离无关），配合图像距离与朝向选最佳配对 |
+| 分档 | ≤30% 低 / ≤60% 中 / 其余 高，±5% 迟滞 + 5 帧中值 |
+| 丢失 | 立即 `unknown`（`hold_frames: 0`） |
+
+ROS2 上报（构建时打开 `-DQTL_ENABLE_ROS2=ON`，并先 `source /opt/ros/<distro>/setup.bash`）：
+
+| 项 | 值 |
+|---|---|
+| topic | `enemy_hp`（`hp_bar.ros2.topic` 可改） |
+| 类型 | `std_msgs/msg/String`，内容为单个数字 |
+| 编码 | `0` 低 / `1` 中 / `2` 高 / `3` unknown |
+| 频率 | 10 Hz（`hp_bar.ros2.rate_hz`） |
+
+```bash
+cmake -S . -B build -DQTL_ENABLE_ROS2=ON && cmake --build build --target standard -j
+./build/standard configs/new_armor.yaml
+ros2 topic echo /enemy_hp std_msgs/msg/String
+```
+
+离线验证：
+
+```bash
+./build/blood_bar_test                                          # 合成图断言（无硬件）
+./build/blood_bar_test --ros2-check configs/new_armor.yaml      # 上报冒烟（需 ROS2 构建）
+```
+
+> 目前没有真实素材，阈值（颜色/亮度/长宽比/配对面）需上机后用带血条的录像再标定。
 
 ---
 
