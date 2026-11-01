@@ -259,6 +259,10 @@ endforeach()
 target_link_libraries(auto_buff_test ${TEST_BASE_LIBS} auto_aim auto_buff)
 target_link_libraries(omni_config_test ${TEST_BASE_LIBS} auto_aim omni)
 
+# 血量灯条识别：合成图断言 + 可选 ROS2 上报冒烟
+add_executable(blood_bar_test tests/blood_bar_test.cpp)
+target_link_libraries(blood_bar_test ${TEST_BASE_LIBS} blood_bar)
+
 foreach(t   camera_test
             cboard_test
             fire_test
