@@ -216,6 +216,16 @@ BloodBar make_bar(double lit_px, double height_px, const cv::Point2f & org)
     return bar;
 }
 
+std::vector<cv::Point2f> make_armor(
+    const cv::Point2f & tl, double width_px, double height_px)
+{
+    return {
+        tl,
+        cv::Point2f(static_cast<float>(tl.x + width_px), tl.y),
+        cv::Point2f(static_cast<float>(tl.x + width_px), static_cast<float>(tl.y + height_px)),
+        cv::Point2f(tl.x, static_cast<float>(tl.y + height_px))};
+}
+
 void test_coplanar_height_check()
 {
     BloodBarParams params;  // armor_width_mm=141, armor_height_mm=125, height_mm=22
@@ -230,11 +240,7 @@ void test_coplanar_height_check()
 
     const auto bar = make_bar(lit_px, bar_h_px, {100.f, 100.f});
     const cv::Point2f tl(100.f, static_cast<float>(100.f + bar_h_px + 10.f));
-    const std::vector<cv::Point2f> armor = {
-        tl,
-        cv::Point2f(static_cast<float>(tl.x + armor_w_px), tl.y),
-        cv::Point2f(static_cast<float>(tl.x + armor_w_px), static_cast<float>(tl.y + armor_h_px)),
-        cv::Point2f(tl.x, static_cast<float>(tl.y + armor_h_px))};
+    const auto armor = make_armor(tl, armor_w_px, armor_h_px);
 
     const auto fit = fit_bar_to_armor(bar, armor, params);
     check(fit.has_value(), "coplanar: fit under 60deg yaw");
@@ -245,28 +251,31 @@ void test_coplanar_height_check()
     }
 }
 
-void test_impossible_percent_is_invalid()
+void test_percent_over_tolerance_is_invalid()
 {
     BloodBarParams params;
 
-    // 板宽 169.2 px -> 1.2 px/mm -> 满条 223.2 px；点亮段画成 290 px 显然不成立
     const double scale = 1.2;
-    const double armor_w_px = 141.0 * scale;
-    const double armor_h_px = 125.0 * scale;
+    const double full_px = 186.0 * scale;  // 满条 223.2 px
+    const auto armor = make_armor({100.f, 160.f}, 141.0 * scale, 125.0 * scale);
 
-    const auto bar = make_bar(290.0, 22.0 * scale, {100.f, 100.f});
-    const cv::Point2f tl(100.f, static_cast<float>(100.f + 22.0 * scale + 10.0));
-    const std::vector<cv::Point2f> armor = {
-        tl,
-        cv::Point2f(static_cast<float>(tl.x + armor_w_px), tl.y),
-        cv::Point2f(static_cast<float>(tl.x + armor_w_px), static_cast<float>(tl.y + armor_h_px)),
-        cv::Point2f(tl.x, static_cast<float>(tl.y + armor_h_px))};
+    // 轻微超量（102%）落在容差带内：量测噪声，视为满血
+    {
+        const auto bar = make_bar(full_px * 1.02, 22.0 * scale, {100.f, 100.f});
+        const auto percent = estimate_percent(bar, armor, params);
+        check(percent.has_value(), "tolerance: 102% still valid");
+        if (percent) check_near(*percent, 1.0, 1e-6, "tolerance: 102% -> 100%");
+    }
 
-    const auto fit = fit_bar_to_armor(bar, armor, params);
-    check(!fit.has_value(), "impossible: over 100% rejected, not clamped");
-
-    const auto percent = estimate_percent(bar, armor, params);
-    check(!percent.has_value(), "impossible: estimate returns no value");
+    // 明显不可能（130%）：几何错配，报无效而不是截断成满血
+    {
+        const auto bar = make_bar(full_px * 1.30, 22.0 * scale, {100.f, 100.f});
+        check(
+            !fit_bar_to_armor(bar, armor, params).has_value(), "over tolerance: fit rejected");
+        check(
+            !estimate_percent(bar, armor, params).has_value(),
+            "over tolerance: estimate invalid");
+    }
 }
 }  // namespace
 
@@ -297,7 +306,7 @@ int main(int argc, char * argv[])
     test_stabilizer();
     test_median_filter();
     test_coplanar_height_check();
-    test_impossible_percent_is_invalid();
+    test_percent_over_tolerance_is_invalid();
 
     if (g_failures == 0) {
         std::cout << "\nall blood_bar tests passed\n";

@@ -59,8 +59,12 @@ public:
     void report(const HpReport & report) override
     {
         const auto now = std::chrono::steady_clock::now();
+        const bool level_changed = report.level != last_level_;
+        last_level_ = report.level;
+
         const double elapsed_s = std::chrono::duration<double>(now - last_publish_).count();
-        if (elapsed_s < period_s_) return;
+        // 档位变化立即发（丢检 -> unknown 不能被 10 Hz 心跳拖后），其余按心跳节流
+        if (!level_changed && elapsed_s < period_s_) return;
         last_publish_ = now;
 
         std_msgs::msg::String message;
@@ -71,6 +75,7 @@ public:
 private:
     const double period_s_;
     std::chrono::steady_clock::time_point last_publish_;
+    int last_level_ = -1;
     std::shared_ptr<rclcpp::Node> node_;
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr publisher_;
     std::thread spin_thread_;

@@ -55,12 +55,17 @@ cv::Point2f unit(const cv::Point2f & v)
     return v / static_cast<float>(n);
 }
 
-// 超过 105% 说明血条与装甲板不在同一平面（或配错了板），宁可报 unknown 也不截成 100%
-constexpr double kMaxPercent = 1.05;
-
-std::optional<double> normalize_percent(double percent)
+// 两条平行边的平均长度（宽：上/下边；高：左/右边）
+double avg_edge(
+    const cv::Point2f & a, const cv::Point2f & b, const cv::Point2f & c,
+    const cv::Point2f & d)
 {
-    if (!std::isfinite(percent) || percent < 0.0 || percent > kMaxPercent) return std::nullopt;
+    return (cv::norm(b - a) + cv::norm(d - c)) / 2.0;
+}
+
+std::optional<double> normalize_percent(double percent, double max_percent)
+{
+    if (!std::isfinite(percent) || percent < 0.0 || percent > max_percent) return std::nullopt;
     return std::clamp(percent, 0.0, 1.0);
 }
 }  // namespace
@@ -75,8 +80,7 @@ std::optional<BarArmorFit> fit_bar_to_armor(
 
     const cv::Point2f top_dir = unit(armor_points[1] - armor_points[0]);
     const double width_px =
-        (cv::norm(armor_points[1] - armor_points[0]) + cv::norm(armor_points[2] - armor_points[3])) /
-        2.0;
+        avg_edge(armor_points[0], armor_points[1], armor_points[3], armor_points[2]);
     if (width_px < 2.0) return std::nullopt;
 
     // 长度轴 = 与装甲板上下边更平行的那条边；另一条是 22 mm 的高度轴
@@ -89,14 +93,14 @@ std::optional<BarArmorFit> fit_bar_to_armor(
     const double px_per_mm = width_px / params.armor_width_mm;
     if (px_per_mm < 1e-6) return std::nullopt;
 
-    const auto percent = normalize_percent(lit_px / (params.length_mm * px_per_mm));
+    const auto percent =
+        normalize_percent(lit_px / (params.length_mm * px_per_mm), params.max_valid_percent);
     if (!percent) return std::nullopt;
 
     // 同面校验：用板高换算垂直方向 px/mm。偏转时板宽会压缩、板高不会，
     // 所以只能拿板高来验证血条高是否落在同一平面。
     const double armor_height_px =
-        (cv::norm(armor_points[3] - armor_points[0]) + cv::norm(armor_points[2] - armor_points[1])) /
-        2.0;
+        avg_edge(armor_points[0], armor_points[3], armor_points[1], armor_points[2]);
     if (armor_height_px < 2.0) return std::nullopt;
 
     const double px_per_mm_v = armor_height_px / params.armor_height_mm;
@@ -163,6 +167,7 @@ BloodBarParams load_blood_bar_params(const std::string & config_path)
     params.medium_upper = read_double(hp, "medium_upper", params.medium_upper);
     params.hysteresis = read_double(hp, "hysteresis", params.hysteresis);
     params.median_frames = read_int(hp, "median_frames", params.median_frames);
+    params.max_valid_percent = read_double(hp, "max_valid_percent", params.max_valid_percent);
 
     return params;
 }
@@ -240,7 +245,8 @@ std::optional<double> estimate_percent(
     const double height_px = bar.edge_len[1 - len_axis];
     if (height_px < params.self_norm_min_height_px) return std::nullopt;
 
-    return normalize_percent(lit_px * params.height_mm / (height_px * params.length_mm));
+    return normalize_percent(
+        lit_px * params.height_mm / (height_px * params.length_mm), params.max_valid_percent);
 }
 
 HpLevel classify_hp(double percent, HpLevel previous, const BloodBarParams & params)

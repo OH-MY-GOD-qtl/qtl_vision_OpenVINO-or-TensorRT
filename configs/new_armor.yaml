@@ -45,7 +45,7 @@ hp_bar:
   medium_upper: 0.60           # ≤60% 中，其余为高
   hysteresis: 0.05             # ±5% 迟滞
   median_frames: 5
-
+  max_valid_percent: 1.05      # 超过视为几何错配，报 unknown 而不是截断成满血
   ros2:
     topic: enemy_hp
     rate_hz: 10

@@ -48,6 +48,9 @@ struct BloodBarParams
     double medium_upper = 0.60;
     double hysteresis = 0.05;
     int median_frames = 5;
+    // 估计超过该值视为几何错配（配错板/尺度错配），报 unknown 而不是截断成满血。
+    // 留 5% 容差吸收满血时的量测噪声。
+    double max_valid_percent = 1.05;
 };
 
 // 读取 yaml 的 hp_bar 段；缺键回退默认值（不 exit，兼容旧配置）
