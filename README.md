@@ -252,8 +252,7 @@ simulate: true                 # 模拟模式（见上）
 | 尺度参考 | 同面装甲板外框宽 141 mm → `px/mm`，`p = lit_len_px / (186 × px_per_mm)`；同一平面下透视压缩比在分子分母抵消，无需 `cos(yaw)` 修正 |
 | 兜底 | 无可用装甲板时用血条自身 22 mm 自归一化，仅当条高 ≥ 12 px（≈ 4.4 m 内） |
 | 同面校验 | 血条高 / 装甲板高 ≈ 22/125（与距离无关），配合图像距离与朝向选最佳配对 |
-| 分档 | ≤30% 低 / ≤60% 中 / 其余 高，±5% 迟滞 + 5 帧中值 |
-| 丢失 | 立即 `unknown`，不做保持 |
+| 分档 | ≤30% 低 / ≤60% 中 / 其余 高，±5% 迟滞 + 5 帧中值 || 几何错配 | 估计 > `max_valid_percent`（默认 105%）直接报 `unknown`，不截断成满血 || 丢失 | 立即 `unknown`，不做保持 |
 
 ROS2 上报（构建时打开 `-DQTL_ENABLE_ROS2=ON`，并先 `source /opt/ros/<distro>/setup.bash`）：
 
@@ -262,7 +261,7 @@ ROS2 上报（构建时打开 `-DQTL_ENABLE_ROS2=ON`，并先 `source /opt/ros/<
 | topic | `enemy_hp`（`hp_bar.ros2.topic` 可改） |
 | 类型 | `std_msgs/msg/String`，内容为单个数字 |
 | 编码 | `0` 低 / `1` 中 / `2` 高 / `3` unknown |
-| 频率 | 10 Hz（`hp_bar.ros2.rate_hz`） |
+| 频率 | 10 Hz 心跳（`hp_bar.ros2.rate_hz`）；档位变化（含丢检→unknown）立即发送 |
 
 ```bash
 cmake -S . -B build -DQTL_ENABLE_ROS2=ON && cmake --build build --target standard -j
