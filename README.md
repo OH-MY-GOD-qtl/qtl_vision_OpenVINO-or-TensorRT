@@ -118,7 +118,8 @@ sudo udevadm control --reload && sudo udevadm trigger
   MVS 官方 aarch64 包按同样方式补齐，否则会出现与 x86 相同的枚举失败。
 - 迈德威视目录仅有 `libMVSDK.so`。
 
-ROS2 非编译必需（通讯为 ros2 预留，对应源码未参与构建）。
+ROS2 非编译必需：除 `comm/ros2/hp_reporter_ros2.cpp`（血量上报，需 `-DQTL_ENABLE_ROS2=ON`）
+外，`comm/ros2` 其余源码未参与构建。
 
 ---
 
@@ -252,7 +253,7 @@ simulate: true                 # 模拟模式（见上）
 | 兜底 | 无可用装甲板时用血条自身 22 mm 自归一化，仅当条高 ≥ 12 px（≈ 4.4 m 内） |
 | 同面校验 | 血条高 / 装甲板高 ≈ 22/125（与距离无关），配合图像距离与朝向选最佳配对 |
 | 分档 | ≤30% 低 / ≤60% 中 / 其余 高，±5% 迟滞 + 5 帧中值 |
-| 丢失 | 立即 `unknown`（`hold_frames: 0`） |
+| 丢失 | 立即 `unknown`，不做保持 |
 
 ROS2 上报（构建时打开 `-DQTL_ENABLE_ROS2=ON`，并先 `source /opt/ros/<distro>/setup.bash`）：
 
@@ -265,8 +266,10 @@ ROS2 上报（构建时打开 `-DQTL_ENABLE_ROS2=ON`，并先 `source /opt/ros/<
 
 ```bash
 cmake -S . -B build -DQTL_ENABLE_ROS2=ON && cmake --build build --target standard -j
-./build/standard configs/new_armor.yaml
 ros2 topic echo /enemy_hp std_msgs/msg/String
+
+# 新装甲模型可用后再打开下面这行（当前 new_armor.yaml 仍是骨架，不可运行）
+# ./build/standard configs/new_armor.yaml
 ```
 
 离线验证：
@@ -464,7 +467,8 @@ trtexec --onnx=assets/0526.onnx --saveEngine=assets/yolov5.engine
 - **裁判系统 CBoard**（`comm/cboard`）：SocketCAN 读取裁判系统数据（imu/模式/弹速），
   仅 `standard` 依赖 can0（`standard_mpc` 使用串口 `Gimbal`）。
 - **达妙 IMU**（`comm/dm_imu`）：串口读取 IMU 姿态。
-- **ros2**（`comm/ros2`）：publish2nav/subscribe2nav 预留，未参与构建。
+- **ros2**（`comm/ros2`）：publish2nav/subscribe2nav 预留，未参与构建；
+  `hp_reporter_ros2.cpp` 在 `QTL_ENABLE_ROS2=ON` 时参与构建。
 
 ---
 
@@ -588,7 +592,7 @@ crontab -e
 `assets/demo.avi`（约 60MB，gitignore）+ `assets/demo.txt`（每帧云台四元数真值，
 620 帧）配套使用；缺失时从 dx_vision 仓库 `assets/demo/demo.avi` 复制。
 
-其余 19 个 `*_test` 覆盖相机/检测/云台/弹道/规划等模块，ROS2 相关 3 个测试
+其余 20 个 `*_test` 覆盖相机/检测/云台/弹道/规划等模块，ROS2 相关 3 个测试
 默认不编译（CMake 中注释）。
 
 ---
