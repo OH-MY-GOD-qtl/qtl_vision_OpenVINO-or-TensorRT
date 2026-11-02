@@ -176,7 +176,7 @@ void test_stabilizer()
     check(stabilizer.update(0.54).level == HpLevel::medium, "stabilizer: 54% -> medium");
     check(stabilizer.update(0.20).level == HpLevel::low, "stabilizer: 20% -> low");
 
-    // hold_frames = 0：丢失检测立即 unknown
+    // 规格 C6：丢失检测立即 unknown
     const auto lost = stabilizer.update(std::nullopt);
     check(lost.level == HpLevel::unknown && !lost.valid, "stabilizer: lost -> unknown");
 
@@ -196,6 +196,77 @@ void test_median_filter()
     stabilizer.update(0.55);
     const auto spike = stabilizer.update(0.95);
     check(spike.level == HpLevel::medium, "median: single spike ignored");
+}
+
+// 手工构造一个水平血条（不走检测器），便于精确控制几何
+BloodBar make_bar(double lit_px, double height_px, const cv::Point2f & org)
+{
+    BloodBar bar;
+    bar.points = {
+        org,
+        cv::Point2f(static_cast<float>(org.x + lit_px), org.y),
+        cv::Point2f(static_cast<float>(org.x + lit_px), static_cast<float>(org.y + height_px)),
+        cv::Point2f(org.x, static_cast<float>(org.y + height_px))};
+    bar.center = cv::Point2f(
+        static_cast<float>(org.x + lit_px / 2.0), static_cast<float>(org.y + height_px / 2.0));
+    bar.edge_len[0] = lit_px;
+    bar.edge_len[1] = height_px;
+    bar.edge_dir[0] = {1.f, 0.f};
+    bar.edge_dir[1] = {0.f, 1.f};
+    return bar;
+}
+
+void test_coplanar_height_check()
+{
+    BloodBarParams params;  // armor_width_mm=141, armor_height_mm=125, height_mm=22
+
+    // 60° 偏转：板宽与血条长度同步压缩一半；板高与条高不受影响
+    const double scale = 1.2;  // 正对时的 px/mm
+    const double cos_yaw = 0.5;
+    const double lit_px = 186.0 * 0.5 * scale * cos_yaw;  // 50% 血量
+    const double bar_h_px = 22.0 * scale;
+    const double armor_w_px = 141.0 * scale * cos_yaw;
+    const double armor_h_px = 125.0 * scale;
+
+    const auto bar = make_bar(lit_px, bar_h_px, {100.f, 100.f});
+    const cv::Point2f tl(100.f, static_cast<float>(100.f + bar_h_px + 10.f));
+    const std::vector<cv::Point2f> armor = {
+        tl,
+        cv::Point2f(static_cast<float>(tl.x + armor_w_px), tl.y),
+        cv::Point2f(static_cast<float>(tl.x + armor_w_px), static_cast<float>(tl.y + armor_h_px)),
+        cv::Point2f(tl.x, static_cast<float>(tl.y + armor_h_px))};
+
+    const auto fit = fit_bar_to_armor(bar, armor, params);
+    check(fit.has_value(), "coplanar: fit under 60deg yaw");
+    if (fit) {
+        check_near(fit->percent, 0.50, 0.02, "coplanar: percent unaffected by yaw");
+        // 板高不随偏转压缩，用它做同面校验时得分应保持高位
+        check(fit->score > 0.60, "coplanar: score stays high under yaw");
+    }
+}
+
+void test_impossible_percent_is_invalid()
+{
+    BloodBarParams params;
+
+    // 板宽 169.2 px -> 1.2 px/mm -> 满条 223.2 px；点亮段画成 290 px 显然不成立
+    const double scale = 1.2;
+    const double armor_w_px = 141.0 * scale;
+    const double armor_h_px = 125.0 * scale;
+
+    const auto bar = make_bar(290.0, 22.0 * scale, {100.f, 100.f});
+    const cv::Point2f tl(100.f, static_cast<float>(100.f + 22.0 * scale + 10.0));
+    const std::vector<cv::Point2f> armor = {
+        tl,
+        cv::Point2f(static_cast<float>(tl.x + armor_w_px), tl.y),
+        cv::Point2f(static_cast<float>(tl.x + armor_w_px), static_cast<float>(tl.y + armor_h_px)),
+        cv::Point2f(tl.x, static_cast<float>(tl.y + armor_h_px))};
+
+    const auto fit = fit_bar_to_armor(bar, armor, params);
+    check(!fit.has_value(), "impossible: over 100% rejected, not clamped");
+
+    const auto percent = estimate_percent(bar, armor, params);
+    check(!percent.has_value(), "impossible: estimate returns no value");
 }
 }  // namespace
 
@@ -225,6 +296,8 @@ int main(int argc, char * argv[])
     test_classification();
     test_stabilizer();
     test_median_filter();
+    test_coplanar_height_check();
+    test_impossible_percent_is_invalid();
 
     if (g_failures == 0) {
         std::cout << "\nall blood_bar tests passed\n";

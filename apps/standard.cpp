@@ -49,9 +49,10 @@ int main(int argc, char * argv[])
     Aimer aimer(config_path);
     Shooter shooter(config_path);
 
-    // 血量灯条：检测 + 同面装甲板尺度换算 + 三档迟滞；ROS2 关闭时上报器为空实现
+    // 血量灯条：检测 + 同面装甲板尺度换算 + 三档迟滞；功能关闭时不创建上报器
     BloodBarPipeline hp_pipeline(config_path);
-    auto hp_reporter = make_hp_reporter(config_path);
+    std::unique_ptr<HpReporter> hp_reporter;
+    if (hp_pipeline.enabled()) hp_reporter = make_hp_reporter(config_path);
 
     cv::Mat img;
     Eigen::Quaterniond q;
@@ -79,13 +80,17 @@ int main(int argc, char * argv[])
         auto armors = detector.detect(img);
 
         // 血量识别：与当前帧装甲板配对；检不到即上报 unknown（3）
-        const auto hp = hp_pipeline.update(img, armors);
-        hp_reporter->report({static_cast<int>(hp.level), hp.percent, hp.valid});
-        static int hp_log_count = 0;
-        if (hp_pipeline.enabled() && ++hp_log_count % 30 == 0)
-            logger()->info(
-                "[HP] level={} (0低/1中/2高/3未知) percent={:.3f}", static_cast<int>(hp.level),
-                hp.percent);
+        if (hp_pipeline.enabled()) {
+            const auto hp = hp_pipeline.update(img, armors);
+            if (hp_reporter)
+                hp_reporter->report({static_cast<int>(hp.level), hp.percent, hp.valid});
+
+            static int hp_log_count = 0;
+            if (++hp_log_count % 30 == 0)
+                logger()->info(
+                    "[HP] level={} (0低/1中/2高/3未知) percent={:.3f}", static_cast<int>(hp.level),
+                    hp.percent);
+        }
 
         auto targets = tracker.track(armors, t);
 

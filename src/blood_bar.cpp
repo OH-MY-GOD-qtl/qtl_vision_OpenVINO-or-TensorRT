@@ -55,22 +55,19 @@ cv::Point2f unit(const cv::Point2f & v)
     return v / static_cast<float>(n);
 }
 
-double clamp_percent(double percent)
+// 超过 105% 说明血条与装甲板不在同一平面（或配错了板），宁可报 unknown 也不截成 100%
+constexpr double kMaxPercent = 1.05;
+
+std::optional<double> normalize_percent(double percent)
 {
-    if (!std::isfinite(percent)) return -1;
+    if (!std::isfinite(percent) || percent < 0.0 || percent > kMaxPercent) return std::nullopt;
     return std::clamp(percent, 0.0, 1.0);
 }
+}  // namespace
 
-// 血条与某块装甲板的同面拟合结果
-struct ArmorFit
-{
-    double percent = -1;
-    double score = 0;
-};
-
-// 用装甲板外框宽当尺子，并用「血条高 / 装甲板高」做同面校验。
-// 同一平面下两者的透视压缩比一致，因此不需要 cos(yaw) 修正。
-std::optional<ArmorFit> fit_to_armor(
+// 用装甲板外框宽当尺子量点亮长度，并用板高做「同面」校验：
+// 偏转时板宽与血条长度同步压缩、互相抵消；板高不压缩，可独立校验。
+std::optional<BarArmorFit> fit_bar_to_armor(
     const BloodBar & bar, const std::vector<cv::Point2f> & armor_points,
     const BloodBarParams & params)
 {
@@ -92,11 +89,18 @@ std::optional<ArmorFit> fit_to_armor(
     const double px_per_mm = width_px / params.armor_width_mm;
     if (px_per_mm < 1e-6) return std::nullopt;
 
-    const double percent = clamp_percent(lit_px / (params.length_mm * px_per_mm));
-    if (percent < 0) return std::nullopt;
+    const auto percent = normalize_percent(lit_px / (params.length_mm * px_per_mm));
+    if (!percent) return std::nullopt;
 
-    // 同面校验：血条高应约等于 22 mm 在该平面的投影像素
-    const double expected_height_px = params.height_mm * px_per_mm;
+    // 同面校验：用板高换算垂直方向 px/mm。偏转时板宽会压缩、板高不会，
+    // 所以只能拿板高来验证血条高是否落在同一平面。
+    const double armor_height_px =
+        (cv::norm(armor_points[3] - armor_points[0]) + cv::norm(armor_points[2] - armor_points[1])) /
+        2.0;
+    if (armor_height_px < 2.0) return std::nullopt;
+
+    const double px_per_mm_v = armor_height_px / params.armor_height_mm;
+    const double expected_height_px = params.height_mm * px_per_mm_v;
     const double height_err =
         (expected_height_px < 1e-6) ? 1.0 : std::abs(height_px / expected_height_px - 1.0);
 
@@ -110,12 +114,11 @@ std::optional<ArmorFit> fit_to_armor(
     // 朝向一致为主，尺寸比为软约束（远距离时高只有几像素，噪声大）
     const double score = cos_dir / (1.0 + 2.0 * height_err) / (1.0 + 0.3 * dist_norm);
 
-    ArmorFit fit;
-    fit.percent = percent;
+    BarArmorFit fit;
+    fit.percent = *percent;
     fit.score = score;
     return fit;
 }
-}  // namespace
 
 BloodBarParams load_blood_bar_params(const std::string & config_path)
 {
@@ -160,11 +163,6 @@ BloodBarParams load_blood_bar_params(const std::string & config_path)
     params.medium_upper = read_double(hp, "medium_upper", params.medium_upper);
     params.hysteresis = read_double(hp, "hysteresis", params.hysteresis);
     params.median_frames = read_int(hp, "median_frames", params.median_frames);
-    params.hold_frames = read_int(hp, "hold_frames", params.hold_frames);
-
-    const YAML::Node ros2 = hp["ros2"];
-    params.ros2_topic = read_string(ros2, "topic", params.ros2_topic);
-    params.ros2_rate_hz = read_double(ros2, "rate_hz", params.ros2_rate_hz);
 
     return params;
 }
@@ -231,7 +229,7 @@ std::optional<double> estimate_percent(
     const BloodBarParams & params)
 {
     if (!armor_points.empty()) {
-        auto fit = fit_to_armor(bar, armor_points, params);
+        auto fit = fit_bar_to_armor(bar, armor_points, params);
         if (!fit) return std::nullopt;
         return fit->percent;
     }
@@ -242,10 +240,7 @@ std::optional<double> estimate_percent(
     const double height_px = bar.edge_len[1 - len_axis];
     if (height_px < params.self_norm_min_height_px) return std::nullopt;
 
-    const double percent =
-        clamp_percent(lit_px * params.height_mm / (height_px * params.length_mm));
-    if (percent < 0) return std::nullopt;
-    return percent;
+    return normalize_percent(lit_px * params.height_mm / (height_px * params.length_mm));
 }
 
 HpLevel classify_hp(double percent, HpLevel previous, const BloodBarParams & params)
@@ -276,25 +271,19 @@ HpStabilizer::HpStabilizer(const BloodBarParams & params) : params_(params) {}
 
 HpEstimate HpStabilizer::update(const std::optional<double> & percent)
 {
+    // 规格 C6：丢检立即 unknown，不做保持
     if (!percent) {
-        ++lost_frames_;
-        if (params_.hold_frames <= 0 || lost_frames_ > params_.hold_frames) {
-            level_ = HpLevel::unknown;
-            last_percent_ = -1;
-            window_.clear();
-            return {HpLevel::unknown, -1, false};
-        }
-        return {level_, last_percent_, true};
+        level_ = HpLevel::unknown;
+        window_.clear();
+        return {HpLevel::unknown, -1, false};
     }
 
-    lost_frames_ = 0;
     window_.push_back(*percent);
     const std::size_t window_size = static_cast<std::size_t>(std::max(1, params_.median_frames));
     while (window_.size() > window_size) window_.pop_front();
 
     const double percent_median = median_of(window_);
     level_ = classify_hp(percent_median, level_, params_);
-    last_percent_ = percent_median;
 
     return {level_, percent_median, true};
 }
@@ -331,7 +320,7 @@ std::optional<double> BloodBarPipeline::pick(
             1.0 / (1.0 + cv::norm(bar.center - img_center) / half_diag);
 
         for (const auto & armor : armors) {
-            auto fit = fit_to_armor(bar, armor.points, params_);
+            auto fit = fit_bar_to_armor(bar, armor.points, params_);
             if (!fit || fit->score < params_.min_association_score) continue;
 
             // 瞄准目标在画面中心附近：配对得分之外再加一点中心权重

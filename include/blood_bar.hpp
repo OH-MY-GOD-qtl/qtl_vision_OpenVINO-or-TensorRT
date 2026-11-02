@@ -48,11 +48,6 @@ struct BloodBarParams
     double medium_upper = 0.60;
     double hysteresis = 0.05;
     int median_frames = 5;
-    int hold_frames = 0;  // 0 = 丢检立即 unknown
-
-    // ---- 上报 ----
-    std::string ros2_topic = "enemy_hp";
-    double ros2_rate_hz = 10.0;
 };
 
 // 读取 yaml 的 hp_bar 段；缺键回退默认值（不 exit，兼容旧配置）
@@ -91,6 +86,20 @@ std::optional<double> estimate_percent(
     const BloodBar & bar, const std::vector<cv::Point2f> & armor_points,
     const BloodBarParams & params);
 
+// 血条与某块装甲板的同面拟合结果：percent 为血量估计，score 为同面置信度。
+struct BarArmorFit
+{
+    double percent = -1;
+    double score = 0;
+};
+
+// 四角顺序沿用 Armor::points（左上、右上、右下、左下）。
+// 尺度用板宽（偏转时与血条长度同步压缩，可互相抵消）；
+// 同面校验用板高（偏转时不压缩）。
+std::optional<BarArmorFit> fit_bar_to_armor(
+    const BloodBar & bar, const std::vector<cv::Point2f> & armor_points,
+    const BloodBarParams & params);
+
 // 血量档位（编码与 ROS2 上报一致：0 低 / 1 中 / 2 高 / 3 unknown）
 enum class HpLevel
 {
@@ -120,9 +129,7 @@ public:
 private:
     BloodBarParams params_;
     std::deque<double> window_;
-    double last_percent_ = -1;
     HpLevel level_ = HpLevel::unknown;
-    int lost_frames_ = 0;
 };
 
 // 门面：检测 → 与装甲板配对 → 估计 → 稳定。主程序只依赖这一个类。
