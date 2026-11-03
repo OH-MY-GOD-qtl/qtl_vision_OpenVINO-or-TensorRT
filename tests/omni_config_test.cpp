@@ -104,6 +104,16 @@ omni_hik_yaw_offset: 10
         std::abs(legacy_decider.delta_angle(armors, "usb0")[0] - 15.0) < 1e-6,
         "Legacy offsets must remain relative to the gimbal yaw origin");
 
+    // 现役配置必须使用成对映射，避免设备名与安装角按索引错配
+    if (std::filesystem::exists("configs/omni.yaml")) {
+        const auto active = load_usb_camera_configs(YAML::LoadFile("configs/omni.yaml"));
+        require(active.size() == 3, "configs/omni.yaml must define three USB cameras");
+        for (const auto & camera : active)
+            require(
+                camera.yaw_offset_relative_to_hik,
+                "configs/omni.yaml must use yaw_offset_from_hik");
+    }
+
     std::remove(config_path.c_str());
     return 0;
 }

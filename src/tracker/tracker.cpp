@@ -25,6 +25,9 @@ Tracker::Tracker(const std::string & config_path, Solver & solver)
     max_temp_lost_count_ = yaml_read<int>(yaml, "max_temp_lost_count");
     outpost_max_temp_lost_count_ = yaml_read<int>(yaml, "outpost_max_temp_lost_count");
     normal_temp_lost_count_ = max_temp_lost_count_;
+    switching_max_temp_lost_count_ =
+        yaml["switching_max_temp_lost_count"] ? yaml["switching_max_temp_lost_count"].as<int>()
+                                               : 200;
 
     // 从配置文件读取相机矩阵并计算图像中心坐标
     auto camera_matrix_data = yaml_read<std::vector<double>>(yaml, "camera_matrix");
@@ -221,7 +224,7 @@ void Tracker::state_machine(bool found)
             state_ = "detecting";
         } else {
             temp_lost_count_++;
-            if (temp_lost_count_ > 200) state_ = "lost";
+            if (temp_lost_count_ > switching_max_temp_lost_count_) state_ = "lost";
         }
     }
 

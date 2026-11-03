@@ -8,6 +8,8 @@
 #include <string>
 #include <vector>
 
+#include "tools/logger.hpp"
+
 struct OmniUsbCameraConfig
 {
     std::string device;
@@ -35,6 +37,11 @@ inline std::vector<OmniUsbCameraConfig> load_usb_camera_configs(const YAML::Node
                  true});
         }
         return cameras;
+    }
+
+    if (yaml["omni_usb_devices"] || yaml["omni_usb_yaw_offsets"]) {
+        logger()->warn(
+            "[omni] omni_usb_devices/omni_usb_yaw_offsets 已弃用，请改用 omni_usb_cameras");
     }
 
     std::vector<std::string> devices = {"video0", "video2", "video4"};
