@@ -32,18 +32,25 @@ YOLOV5::YOLOV5(const std::string & config_path, bool debug)
     input_ = cv::Mat(640, 640, CV_8UC3, cv::Scalar(0, 0, 0));
 
     if (use_tensorrt_) {
+#ifdef QTL_ENABLE_TENSORRT
         // ---- TensorRT 后端 ----
         std::string engine_path = yaml_read<std::string>(yaml, "yolov5_engine_path");
         trt_ = std::make_unique<TensorRTInfer>(engine_path);
-        if (!trt_->is_ok()) {
-            logger()->error("[YOLOV5] TensorRT 引擎加载失败: {}", engine_path);
-            exit(1);
+        if (trt_->is_ok()) {
+            int64_t vol = 1;
+            for (auto d : trt_->input_info().dims) vol *= d;
+            blob_.assign(vol, 0.0f);
+            logger()->info("[YOLOV5] 使用 TensorRT 后端: {}", engine_path);
+            return;
         }
-        int64_t vol = 1;
-        for (auto d : trt_->input_info().dims) vol *= d;
-        blob_.assign(vol, 0.0f);
-        logger()->info("[YOLOV5] 使用 TensorRT 后端: {}", engine_path);
-        return;
+        // 引擎与 GPU/TensorRT 版本不匹配时降级，而不是让进程退出
+        logger()->error("[YOLOV5] TensorRT 引擎加载失败: {}，回退 OpenVINO", engine_path);
+        trt_.reset();
+        use_tensorrt_ = false;
+#else
+        logger()->warn("[YOLOV5] 构建未启用 TensorRT，回退 OpenVINO");
+        use_tensorrt_ = false;
+#endif
     }
 
     // ---- OpenVINO 后端 ----
@@ -97,6 +104,7 @@ std::vector<Armor> YOLOV5::detect(const cv::Mat & raw_img, int frame_count)
     double scale;
     letterbox(bgr_img, input_, scale);
 
+#ifdef QTL_ENABLE_TENSORRT
     if (use_tensorrt_) {
         // TensorRT 预处理：u8 BGR letterbox -> f32 NCHW RGB /255
         // （与 OpenVINO PrePostProcessor 的 convert_color(RGB) + scale(255) 完全一致）
@@ -125,6 +133,7 @@ std::vector<Armor> YOLOV5::detect(const cv::Mat & raw_img, int frame_count)
         cv::Mat output(rows, cols, CV_32F, o.data.data());
         return parse(scale, output, raw_img, frame_count);
     }
+#endif
 
     // OpenVINO 后端
     ov::Tensor input_tensor(ov::element::u8, {1, 640, 640, 3}, input_.data);

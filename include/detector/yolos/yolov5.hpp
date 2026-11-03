@@ -9,8 +9,10 @@
 
 #include "armor.hpp"
 #include "detector/detector.hpp"
-#include "detector/tensorrt_infer.hpp"
 #include "detector/yolo.hpp"
+#ifdef QTL_ENABLE_TENSORRT
+#include "detector/tensorrt_infer.hpp"
+#endif
 
 class YOLOV5 : public YOLOBase
 {
@@ -35,8 +37,10 @@ private:
     ov::CompiledModel compiled_model_;
     ov::InferRequest infer_request_;  // 复用以避免逐帧创建推理请求的开销
 
-    // ---- TensorRT 后端（WSL 本机 NVIDIA 显卡）----
+    // ---- TensorRT 后端（WSL 本机 NVIDIA 显卡；QTL_ENABLE_TENSORRT=OFF 时不存在）----
+#ifdef QTL_ENABLE_TENSORRT
     std::unique_ptr<TensorRTInfer> trt_;
+#endif
 
     cv::Mat input_;            // 预分配的 640x640 letterbox 输入（两后端共用）
     std::vector<float> blob_;  // 1x3x640x640 f32 NCHW（TensorRT 输入，帧间复用）
