@@ -46,7 +46,7 @@ qtl_vision_OpenVINO-or-TensorRT/
 ├── CMakeLists.txt              # 扁平构建：每模块一个 OBJECT 库，按注释分组
 ├── include/                    # 头文件；单文件模块平铺，多文件模块按 <模块>/ 分目录
 ├── src/                        # 源文件，与 include/ 对应（单文件模块同样平铺）
-├── apps/                       # 主程序入口（7 个）
+├── apps/                       # 主程序入口（6 个）
 ├── calibration/                # 标定工具（5 个）
 ├── tests/                      # 测试（23 个，其中 3 个 ROS2 默认不编译）
 ├── configs/                    # yaml 配置
@@ -88,7 +88,7 @@ sudo apt install -y libopencv-dev libyaml-cpp-dev libfmt-dev libeigen3-dev \
 # OpenVINO：apt 安装 openvino-2024.6.0（CMake 自动探测 /opt/intel 与 /usr/lib/cmake）
 ```
 
-**TensorRT + CUDA**（本机 NVIDIA 显卡推理，CMake 构建必需，缺失则配置阶段报错）：
+**TensorRT + CUDA**（本机 NVIDIA 显卡推理，默认启用；机器人端可关闭）：
 
 - 安装 NVIDIA 驱动、CUDA toolkit（`cuda_runtime_api.h` 与 `libcudart`）与 TensorRT
   （`NvInfer.h` 与 `libnvinfer`）。
@@ -96,9 +96,10 @@ sudo apt install -y libopencv-dev libyaml-cpp-dev libfmt-dev libeigen3-dev \
   `/usr/local/cuda`、`/usr/include/x86_64-linux-gnu`、`/usr/local/tensorrt`、`/opt/TensorRT`；
   自定义安装位置可手动指定 `TENSORRT_INCLUDE_DIR` / `TENSORRT_LIBRARY` /
   `CUDA_INCLUDE_DIR` / `CUDA_RUNTIME_LIBRARY`。
-- 机器人端 CPU 部署若无需 TensorRT，当前 CMake 仍将其作为硬依赖；如需裁剪可
-  在 `CMakeLists.txt` 中把 `find_*` 的 `FATAL_ERROR` 改为可选并去掉
-  `tensorrt_infer.cpp` 的参与（详见[推理引擎：OpenVINO / TensorRT 双后端](#推理引擎openvino--tensorrt-双后端)）。
+- 机器人端不需要 TensorRT 时，用 `cmake -DQTL_ENABLE_TENSORRT=OFF ..` 配置：
+  不查找 TRT/CUDA、不编译 `tensorrt_infer.cpp`，YOLOv5 自动走 OpenVINO。
+- 运行期引擎加载失败（缺失/版本不匹配）也会回退 OpenVINO 并记录 error，不再 `exit(1)`
+  （详见[推理引擎：OpenVINO / TensorRT 双后端](#推理引擎openvino--tensorrt-双后端)）。
 
 **海康相机 USB 权限**（必须，否则普通用户打不开相机，日志刷 `Unable to open usb!`）：
 
@@ -130,10 +131,10 @@ mkdir build && cd build
 cmake .. && make -j
 ```
 
-生成 33 个可执行文件：主程序入口 8 个、标定工具 5 个、测试 20 个。
+生成 32 个可执行文件：`apps/` 6 个、标定工具 5 个、测试 21 个。
 
-> 构建同时依赖 OpenVINO 与 TensorRT/CUDA（见[环境准备](#环境准备)）；三者任一缺失
-> 都会在 `cmake` 配置阶段报错。TensorRT 仅 YOLOv5 链路用到，其余模型走 OpenVINO。
+> 构建必需 OpenVINO；TensorRT/CUDA 仅在 `QTL_ENABLE_TENSORRT=ON`（默认）时必需。
+> TensorRT 仅 YOLOv5 链路用到，其余模型走 OpenVINO。
 
 ---
 
@@ -166,21 +167,24 @@ cd qtl_vision_OpenVINO-or-TensorRT  # 进入项目根目录
 
 ## 程序入口速查
 
-| 程序 | 源文件 | 用途 | 检测 | 瞄准/规划 | 下发通道 | 默认/推荐配置 |
-|---|---|---|---|---|---|---|
-| `camera_test` | `tests/camera_test.cpp` | 相机出图+fps 验证（`-d` 显示画面） | — | — | — | `standard1.yaml` |
-| `MAIN` | `apps/main.cpp` | 精简传统流水线（调试窗口） | 传统 | 弹道 Aimer+Shooter | 串口 Gimbal | `standard1.yaml`（无硬件用 `video_demo.yaml`） |
-| `traditional_debug` | `apps/traditional_debug.cpp` | 传统视觉自瞄（调试窗口） | 传统 | MPC Planner | 串口 Gimbal | `standard1(_sim).yaml` |
-| `auto_aim_debug_mpc` | `apps/auto_aim_debug_mpc.cpp` | YOLO+EKF+MPC 自瞄（重投影窗口） | YOLO | MPC Planner | 串口 Gimbal | `standard1(_sim).yaml` |
-| `standard` | `apps/standard.cpp` | YOLO 自瞄（无窗口） | YOLO | 弹道 Aimer+Shooter | 裁判系统 CBoard（CAN） | `standard3.yaml` |
-| `standard_mpc` | `apps/standard_mpc.cpp` | YOLO+MPC 自瞄（无窗口） | YOLO | MPC Planner | 串口 Gimbal | `standard3.yaml` |
-| `omni_standard` | `apps/omni_standard.cpp` | 全向感知自瞄（3×USB 搜索 + 海康主瞄准，无窗口） | YOLO + 传统 | MPC Planner | 串口 Gimbal | `omni.yaml` |
-| `camera_auto_aim_test` | `tests/camera_auto_aim_test.cpp` | 相机+自瞄离线测试（无通讯） | YOLO | 弹道 Aimer | — | `camera_auto_aim.yaml` |
-| `capture` | `calibration/capture.cpp` | 采集标定图片（s 保存 / q 退出） | — | — | 串口 Gimbal | `calibration(_sim).yaml` |
-| `calibrate_camera` | `calibration/calibrate_camera.cpp` | 计算内参（结果**只打印不写文件**） | — | — | — | `calibration(_sim).yaml` |
-| `calibrate_handeye` | `calibration/calibrate_handeye.cpp` | 手眼标定（需真实云台姿态） | — | — | — | `calibration.yaml` |
-| `calibrate_robotworld_handeye` | `calibration/calibrate_robotworld_handeye.cpp` | 手眼标定（机器人基座系） | — | — | — | `calibration.yaml` |
-| `split_video` | `calibration/split_video.cpp` | 视频切帧 | — | — | — | — |
+| 程序 | 支持等级 | 源文件 | 用途 | 检测 | 瞄准/规划 | 下发通道 | 默认/推荐配置 |
+|---|---|---|---|---|---|---|---|
+| `camera_test` | debug | `tests/camera_test.cpp` | 相机出图+fps 验证（`-d` 显示画面） | — | — | — | `standard1.yaml` |
+| `MAIN` | debug | `apps/main.cpp` | 精简传统流水线（调试窗口） | 传统 | 弹道 Aimer+Shooter | 串口 Gimbal | `standard1.yaml`（无硬件用 `video_demo.yaml`） |
+| `traditional_debug` | frozen | `apps/traditional_debug.cpp` | 传统视觉自瞄（调试窗口） | 传统 | MPC Planner | 串口 Gimbal | `standard1(_sim).yaml` |
+| `auto_aim_debug_mpc` | debug | `apps/auto_aim_debug_mpc.cpp` | YOLO+EKF+MPC 自瞄（重投影窗口） | YOLO | MPC Planner | 串口 Gimbal | `standard1(_sim).yaml` |
+| `standard` | supported | `apps/standard.cpp` | YOLO 自瞄（无窗口） | YOLO | 弹道 Aimer+Shooter | 裁判系统 CBoard（CAN） | `standard3.yaml` |
+| `standard_mpc` | frozen | `apps/standard_mpc.cpp` | YOLO+MPC 自瞄（无窗口） | YOLO | MPC Planner | 串口 Gimbal | `standard3.yaml` |
+| `omni_standard` | supported | `apps/omni_standard.cpp` | 全向感知自瞄（3×USB 搜索 + 海康主瞄准，无窗口） | YOLO + 传统 | MPC Planner | 串口 Gimbal | `omni.yaml` |
+| `camera_auto_aim_test` | debug | `tests/camera_auto_aim_test.cpp` | 相机+自瞄离线测试（无通讯） | YOLO | 弹道 Aimer | — | `camera_auto_aim.yaml` |
+| `capture` | tool | `calibration/capture.cpp` | 采集标定图片（s 保存 / q 退出） | — | — | 串口 Gimbal | `calibration(_sim).yaml` |
+| `calibrate_camera` | tool | `calibration/calibrate_camera.cpp` | 计算内参（结果**只打印不写文件**） | — | — | — | `calibration(_sim).yaml` |
+| `calibrate_handeye` | tool | `calibration/calibrate_handeye.cpp` | 手眼标定（需真实云台姿态） | — | — | — | `calibration.yaml` |
+| `calibrate_robotworld_handeye` | tool | `calibration/calibrate_robotworld_handeye.cpp` | 手眼标定（机器人基座系） | — | — | — | `calibration.yaml` |
+| `split_video` | tool | `calibration/split_video.cpp` | 视频切帧 | — | — | — | — |
+
+支持等级：`supported` = 主线，功能与文档同步维护；`frozen` = 仅修 bug，不再扩展；
+`debug` = 调试用，接口随时可变；`tool` = 标定/采集工具。
 除 `MAIN` 与 `split_video` 外，所有程序均以 yaml 配置路径作为第一个命令行参数
 （`MAIN` 不传参数时默认 `configs/standard1.yaml`）；`split_video` 的参数为
 `输入路径 起始帧 结束帧 输出路径`，其余标定类工具的额外参数见[标定流程](#标定流程)。
@@ -227,17 +231,17 @@ simulate: true                 # 模拟模式（见上）
 
 各配置文件当前相机指向：
 
-| 文件 | 相机 | 用途 |
-|---|---|---|
-| `standard1.yaml` / `standard3.yaml` / `mvs.yaml` / `calibration.yaml` | hikrobot | 实机自瞄/标定主配置 |
-| `standard1_sim.yaml` / `calibration_sim.yaml` | hikrobot | 模拟模式（本次接入海康相机时生成） |
-| `camera_auto_aim.yaml` | hikrobot | 相机+自瞄离线测试 |
-| `camera.yaml` / `hero.yaml` | hikrobot | 相机测试/英雄 |
-| `example.yaml` | 迈德威视 | 示例 |
-| `demo.yaml` | hikrobot | YOLO 回放测试 |
-| `video_demo.yaml` | 视频文件 | 无硬件调试（自带 `simulate: true`） |
-| `omni.yaml` | hikrobot + USB ×3 | 全向感知（3 USB 传统 + 1 海康 YOLO） |
-| `new_armor.yaml` | hikrobot | 新装甲骨架（YOLO11-pose；模型/尺寸未定，暂不可运行） |
+| 文件 | 相机 | 用途 | 使用入口 |
+|---|---|---|---|
+| `standard1.yaml` / `standard3.yaml` / `mvs.yaml` / `calibration.yaml` | hikrobot | 实机自瞄/标定主配置 | `traditional_debug` / `standard` / `standard_mpc` / 标定工具 |
+| `standard1_sim.yaml` / `calibration_sim.yaml` | hikrobot | 模拟模式（本次接入海康相机时生成） | `traditional_debug` / `auto_aim_debug_mpc` / `capture --simulate` |
+| `camera_auto_aim.yaml` | hikrobot | 相机+自瞄离线测试 | `camera_auto_aim_test` |
+| `camera.yaml` / `hero.yaml` | hikrobot | 相机测试/英雄 | `camera_test`（`hero` 为英雄车配置） |
+| `example.yaml` | 迈德威视 | 示例 | 手动指定给 `camera_test` |
+| `demo.yaml` | hikrobot | YOLO 回放测试 | `detector_video_test` |
+| `video_demo.yaml` | 视频文件 | 无硬件调试（自带 `simulate: true`） | `MAIN` |
+| `omni.yaml` | hikrobot + USB ×3 | 全向感知（3 USB 传统 + 1 海康 YOLO） | `omni_standard` |
+| `new_armor.yaml` | hikrobot | 新装甲骨架（YOLO11-pose；模型/尺寸未定，暂不可运行） | 暂无 |
 
 ---
 
@@ -328,8 +332,9 @@ omni_usb_yaw_rate_limit: 3.0                      # USB引导yaw限速(rad/s)
 omni_usb_lpf_alpha: 0.4                           # USB引导yaw一阶低通系数(0~1)
 ```
 
-旧版 `omni_usb_devices` / `omni_usb_yaw_offsets` 配置仍兼容；其中旧 yaw offset 按云台零位解释。
-当前 `configs/omni.yaml` 暂时保留旧格式，待相机安装并确认设备节点后再迁移。
+旧版 `omni_usb_devices` / `omni_usb_yaw_offsets` 仍兼容，但启动时会打弃用告警；
+其中旧 yaw offset 按云台零位解释。`configs/omni.yaml` 已迁移到成对格式，
+设备节点仍需按实机 udev 绑定关系核实。
 云台串口未连接时，可运行 `omni_standard configs/omni.yaml --simulate` 观察模拟控制日志；
 该选项不连接串口，也不会驱动实机。
 
@@ -377,6 +382,10 @@ yolov5_engine_path: assets/yolov5.engine # TensorRT 后端加载的引擎
   经 `TensorRTInfer` 反序列化后在 GPU 上推理，降低检测耗时。
 - `use_tensorrt: false`（机器人端 CPU）：加载 `0526.onnx`，
   经 OpenVINO Runtime 编译推理（`device: CPU`）。
+- 构建开关：`cmake -DQTL_ENABLE_TENSORRT=OFF ..` 时不编译 TensorRT 后端；
+  配置仍写 `use_tensorrt: true` 会告警并回退 OpenVINO。
+- 运行期失败：引擎缺失或与 GPU/TensorRT 版本不匹配时回退 OpenVINO 并记录 error，
+  不再退出进程（watchdog 不会陷入重启循环）。
 
 两种后端**共用同一套 letterbox 预处理与后处理解析**（
 `src/detector/yolos/yolov5.cpp`），输入/输出语义一致，仅推理引擎不同；
