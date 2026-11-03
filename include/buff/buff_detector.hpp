@@ -16,6 +16,8 @@ class Buff_Detector
 public:
     Buff_Detector(const std::string & config);
 
+    Track_status status() const { return status_; }
+
     std::optional<PowerRune> detect_24(cv::Mat & bgr_img);
 
     std::optional<PowerRune> detect(cv::Mat & bgr_img);

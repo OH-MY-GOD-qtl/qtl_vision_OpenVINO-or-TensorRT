@@ -71,6 +71,7 @@ void Buff_Detector::handle_lose()
     if (lose_ >= LOSE_MAX) {
         status_ = LOSE;
         last_powerrune_ = std::nullopt;
+        return;
     }
     status_ = TEM_LOSE;
 }
