@@ -27,6 +27,11 @@ struct DetectionResult
     DetectionSource source = DetectionSource::USB;  // 结果来源
     std::string camera;                             // 相机标识: usb0/usb1/usb2/hik
 
+    // 距离代理：装甲像素宽度 / 图像宽度，越大越近（USB 链路未做 PnP，不能用米制距离）
+    double size_score = 0.0;
+    // armors 中被选中的装甲下标（按敌方颜色过滤后的最大表观尺寸）
+    int selected_index = -1;
+
     // Assignment operator
     DetectionResult & operator=(const DetectionResult & other)
     {

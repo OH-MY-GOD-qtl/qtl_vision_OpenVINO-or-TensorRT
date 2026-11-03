@@ -49,6 +49,8 @@ int main(int argc, char * argv[])
     // ---- USB 设备和安装角从同一配置项读取，确保顺序一致 ----
     auto yaml = yaml_load(config_path);
     const auto usb_cameras = load_usb_camera_configs(yaml);
+    const double hik_lost_s =
+        yaml["omni_hik_lost_s"] ? yaml["omni_hik_lost_s"].as<double>() : 0.3;
 
     // ---- 海康精确链路 ----
     Gimbal gimbal(config_path, cli.has("simulate"));
@@ -71,6 +73,7 @@ int main(int argc, char * argv[])
     cv::Mat img;
     std::chrono::steady_clock::time_point t;
     auto last_mode = GimbalMode::IDLE;
+    auto last_hik_target_t = std::chrono::steady_clock::now() - 10s;
     int guide_log_count = 0;
 
     while (!exiter.exit()) {
@@ -93,6 +96,7 @@ int main(int argc, char * argv[])
         solver.set_R_gimbal2world(gimbal.q(t));
 
         if (mode != GimbalMode::AUTO_AIM) {
+            decider.reset_guide();
             gimbal.send(false, false, 0, 0, 0, 0, 0, 0, true);
             continue;
         }
@@ -106,31 +110,44 @@ int main(int argc, char * argv[])
         if (!targets.empty()) target = targets.front();
 
         auto plan = planner.plan(target, gs.bullet_speed);
-        bool is_empty = !target.has_value();
+        const bool is_empty = !target.has_value();
 
-        if (plan.control) {
-            // 电控只用了速度环：把位置环上移到视觉端（速度 = MPC 前馈 + 位置误差反馈）
-            constexpr double kp_yaw = 8.0;     // (rad/s)/rad
-            constexpr double kp_pitch = 12.0;  // (rad/s)/rad
-            double yaw_vel_cmd = plan.yaw_vel + kp_yaw * limit_rad(plan.yaw - gs.yaw);
-            double pitch_vel_cmd = plan.pitch_vel + kp_pitch * (plan.pitch - gs.pitch);
+        // 海康回退迟滞：连续空 hik_lost_s 才交给 USB，避免两套目标反复抢控制
+        const auto now = std::chrono::steady_clock::now();
+        if (!targets.empty()) last_hik_target_t = now;
+        const bool hik_active =
+            !targets.empty() || delta_time(now, last_hik_target_t) < hik_lost_s;
 
-            gimbal.send(
-                plan.control, plan.fire, plan.yaw, yaw_vel_cmd, plan.yaw_acc, plan.pitch,
-                pitch_vel_cmd, plan.pitch_acc, is_empty);
-        } else {
-            // 海康无目标 -> USB 方位引导（时间对齐 + 老化/限速/低通在 Decider 内完成）
-            auto now = std::chrono::steady_clock::now();
-            auto guide = decider.arbitrate_usb(usb_results, gimbal, now);
-            if (guide.valid) {
-                gimbal.send(true, false, guide.yaw, 0, 0, guide.pitch, 0, 0, false);
-                if (++guide_log_count % 30 == 0)
-                    logger()->info(
-                        "[omni] USB guide {} yaw={:.1f}deg age={:.3f}s", guide.camera,
-                        guide.yaw * 57.3, guide.age);
+        // 每轮都调用：hik_active 时内部会清空锁定/coast 状态
+        auto guide = decider.arbitrate_usb(usb_results, gimbal, now, hik_active);
+
+        if (hik_active) {
+            if (plan.control) {
+                // 电控只用了速度环：把位置环上移到视觉端（速度 = MPC 前馈 + 位置误差反馈）
+                constexpr double kp_yaw = 8.0;     // (rad/s)/rad
+                constexpr double kp_pitch = 12.0;  // (rad/s)/rad
+                double yaw_vel_cmd = plan.yaw_vel + kp_yaw * limit_rad(plan.yaw - gs.yaw);
+                double pitch_vel_cmd = plan.pitch_vel + kp_pitch * (plan.pitch - gs.pitch);
+
+                gimbal.send(
+                    plan.control, plan.fire, plan.yaw, yaw_vel_cmd, plan.yaw_acc, plan.pitch,
+                    pitch_vel_cmd, plan.pitch_acc, is_empty);
             } else {
                 gimbal.send(false, false, 0, 0, 0, 0, 0, 0, true);
             }
+        } else if (guide.valid) {
+            // 锁定/coast 都发 mode=1 + is_empty=false：视觉仍在控制 yaw，但不开火
+            gimbal.send(true, false, guide.yaw, 0, 0, guide.pitch, 0, 0, false);
+            if (++guide_log_count % 30 == 0) {
+                const char * phase =
+                    guide.phase == Decider::GuidePhase::COAST ? "coast" : "lock";
+                logger()->info(
+                    "[omni] USB guide {} {} yaw={:.1f}deg age={:.3f}s", phase, guide.camera,
+                    guide.yaw * 57.3, guide.age);
+            }
+        } else {
+            // 无锁定且 coast 超时/冷却中：停止控制
+            gimbal.send(false, false, 0, 0, 0, 0, 0, 0, true);
         }
     }
 

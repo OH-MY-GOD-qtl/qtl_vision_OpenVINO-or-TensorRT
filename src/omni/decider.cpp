@@ -40,6 +40,8 @@ Decider::Decider(const std::string & config_path)
     usb_yaw_rate_limit_ = opt("omni_usb_yaw_rate_limit", 3.0);
     usb_lpf_alpha_ = opt("omni_usb_lpf_alpha", 0.4);
     usb_lpf_alpha_ = std::max(0.0, std::min(1.0, usb_lpf_alpha_));
+    guide_coast_s_ = std::max(0.0, opt("omni_guide_coast_s", 1.5));
+    guide_cooldown_s_ = std::max(0.0, opt("omni_guide_cooldown_s", 0.5));
 
     logger()->info(
         "[Decider] omni: usb_yaw_offsets={} usb_fov={:.1f}x{:.1f} hik_fov={:.1f}x{:.1f} "
@@ -48,78 +50,145 @@ Decider::Decider(const std::string & config_path)
         pitch_preset_ * 57.3, usb_max_age_s_, usb_yaw_rate_limit_);
 }
 
+void Decider::reset_guide()
+{
+    has_guide_lock_ = false;
+    guide_camera_.clear();
+    last_valid_t_ = {};
+    cooldown_until_ = {};
+    has_last_yaw_ = false;
+    last_yaw_ = 0;
+    last_yaw_t_ = {};
+}
+
 Decider::Guide Decider::arbitrate_usb(
     const std::vector<DetectionResult> & results, Gimbal & gimbal,
-    std::chrono::steady_clock::time_point now)
+    std::chrono::steady_clock::time_point now, bool hik_active)
 {
-    const DetectionResult * best = nullptr;
-    double best_age = 0;
+    // 海康已接管：清空锁定/coast，下一次海康丢失时重新选最近目标
+    if (hik_active) {
+        reset_guide();
+        return Guide{};
+    }
 
+    // 每路只保留最新一条新鲜结果，避免旧帧尺寸参与比较
+    std::unordered_map<std::string, const DetectionResult *> latest;
     for (const auto & dr : results) {
         if (dr.source != DetectionSource::USB) continue;
-        if (dr.armors.empty()) continue;
+        if (dr.camera.empty() || dr.armors.empty()) continue;
+        if (dr.selected_index < 0 ||
+            dr.selected_index >= static_cast<int>(dr.armors.size()))
+            continue;
 
         double age = delta_time(now, dr.timestamp);
         if (age < 0) age = 0;
-        if (age > usb_max_age_s_) continue;  // 老化结果丢弃
+        if (age > usb_max_age_s_) continue;
 
-        // 选“最新”的；年龄接近时选更居中的（USB 无编号，无法按优先级排）
-        bool better = !best || age < best_age - 1e-3 ||
-                      (std::abs(age - best_age) <= 1e-3 &&
-                       std::abs(dr.delta_yaw) < std::abs(best->delta_yaw));
-        if (better) {
-            best = &dr;
-            best_age = age;
-        }
+        auto it = latest.find(dr.camera);
+        if (it == latest.end() || dr.timestamp > it->second->timestamp) latest[dr.camera] = &dr;
     }
 
-    Guide guide;
-    if (!best) {
-        has_last_yaw_ = false;  // 丢失目标后重新捕获时不做限速/低通，快速指向
+    if (!has_guide_lock_) {
+        if (now < cooldown_until_) return Guide{};
+
+        // 首次/重新锁定：表观尺寸最大者优先；同分时更新鲜、更居中者优先
+        const DetectionResult * best = nullptr;
+        for (const auto & [camera, dr] : latest) {
+            (void)camera;
+            bool better = !best || dr->size_score > best->size_score + 1e-9 ||
+                          (std::abs(dr->size_score - best->size_score) <= 1e-9 &&
+                           std::abs(dr->delta_yaw) < std::abs(best->delta_yaw));
+            if (better) best = dr;
+        }
+        if (!best) return Guide{};
+
+        has_guide_lock_ = true;
+        guide_camera_ = best->camera;
+    }
+
+    auto it = latest.find(guide_camera_);
+    if (it != latest.end()) {
+        const auto & dr = *it->second;
+        const double age = std::max(0.0, delta_time(now, dr.timestamp));
+        last_valid_t_ = dr.timestamp;
+
+        // 时间对齐：用“采集时刻”的云台姿态，而非当前姿态
+        const double yaw_at_capture = eulers(gimbal.q(dr.timestamp), 2, 1, 0)[0];
+
+        // 延迟补偿：按云台当前 yaw 角速度外推 age
+        double yaw_cmd =
+            limit_rad(yaw_at_capture + dr.delta_yaw + gimbal.state().yaw_vel * age);
+
+        if (has_last_yaw_) {
+            // 一阶低通
+            yaw_cmd = limit_rad(last_yaw_ + usb_lpf_alpha_ * limit_rad(yaw_cmd - last_yaw_));
+
+            // 限速（防切换相机时跳变）
+            double dt = delta_time(now, last_yaw_t_);
+            if (dt > 1e-4) {
+                double max_step = usb_yaw_rate_limit_ * dt;
+                double step = limit_rad(yaw_cmd - last_yaw_);
+                if (step > max_step)
+                    yaw_cmd = limit_rad(last_yaw_ + max_step);
+                else if (step < -max_step)
+                    yaw_cmd = limit_rad(last_yaw_ - max_step);
+            }
+        }
+
+        has_last_yaw_ = true;
+        last_yaw_ = yaw_cmd;
+        last_yaw_t_ = now;
+
+        Guide guide;
+        guide.phase = GuidePhase::LOCKED;
+        guide.valid = true;
+        guide.yaw = yaw_cmd;
+        guide.pitch = pitch_preset_;
+        guide.camera = guide_camera_;
+        guide.age = age;
         return guide;
     }
 
-    // 时间对齐：用“采集时刻”的云台姿态，而非当前姿态
-    double yaw_at_capture = eulers(gimbal.q(best->timestamp), 2, 1, 0)[0];
-
-    // 延迟补偿：按云台当前 yaw 角速度外推 age
-    double yaw_cmd =
-        limit_rad(yaw_at_capture + best->delta_yaw + gimbal.state().yaw_vel * best_age);
-
-    if (has_last_yaw_) {
-        // 一阶低通
-        yaw_cmd = limit_rad(last_yaw_ + usb_lpf_alpha_ * limit_rad(yaw_cmd - last_yaw_));
-
-        // 限速（防切换相机时跳变）
-        double dt = delta_time(now, last_yaw_t_);
-        if (dt > 1e-4) {
-            double max_step = usb_yaw_rate_limit_ * dt;
-            double step = limit_rad(yaw_cmd - last_yaw_);
-            if (step > max_step)
-                yaw_cmd = limit_rad(last_yaw_ + max_step);
-            else if (step < -max_step)
-                yaw_cmd = limit_rad(last_yaw_ - max_step);
-        }
+    // 锁定相机没有新鲜结果：coast，保持最后绝对方位继续转动
+    if (!has_last_yaw_) {
+        reset_guide();
+        return Guide{};
     }
 
-    has_last_yaw_ = true;
-    last_yaw_ = yaw_cmd;
-    last_yaw_t_ = now;
+    const double lost_s = std::max(0.0, delta_time(now, last_valid_t_));
+    if (lost_s > guide_coast_s_) {
+        reset_guide();
+        cooldown_until_ =
+            now + std::chrono::duration_cast<std::chrono::steady_clock::duration>(
+                      std::chrono::duration<double>(guide_cooldown_s_));
+        return Guide{};
+    }
 
+    Guide guide;
+    guide.phase = GuidePhase::COAST;
     guide.valid = true;
-    guide.yaw = yaw_cmd;
+    guide.yaw = last_yaw_;
     guide.pitch = pitch_preset_;
-    guide.camera = best->camera;
-    guide.age = best_age;
+    guide.camera = guide_camera_;
+    guide.age = lost_s;
     return guide;
+}
+
+Eigen::Vector2d Decider::delta_angle(const Armor & armor, const std::string & camera) const
+{
+    return delta_angle_from_center(armor.center_norm, camera);
 }
 
 Eigen::Vector2d Decider::delta_angle(
     const std::vector<Armor> & armors, const std::string & camera) const
 {
-    Eigen::Vector2d delta_angle = Eigen::Vector2d::Zero();
-    if (armors.empty()) return delta_angle;
+    if (armors.empty()) return Eigen::Vector2d::Zero();
+    return delta_angle(armors.front(), camera);
+}
 
+Eigen::Vector2d Decider::delta_angle_from_center(
+    const cv::Point2f & center, const std::string & camera) const
+{
     // 相机安装 yaw 偏移 + 各自 FOV（degree）
     double yaw_offset = 0.0;
     double fov_h = usb_fov_h_;
@@ -135,10 +204,18 @@ Eigen::Vector2d Decider::delta_angle(
             yaw_offset = usb_yaw_offsets_[idx];
     }
 
-    const auto & center = armors.front().center_norm;
+    Eigen::Vector2d delta_angle = Eigen::Vector2d::Zero();
     delta_angle[0] = yaw_offset + (fov_h / 2.0) - center.x * fov_h;
     delta_angle[1] = center.y * fov_v - fov_v / 2.0;
     return delta_angle;
+}
+
+void Decider::filter_enemy_color(std::vector<Armor> & armors) const
+{
+    armors.erase(
+        std::remove_if(
+            armors.begin(), armors.end(), [&](const Armor & a) { return a.color != enemy_color_; }),
+        armors.end());
 }
 
 bool Decider::armor_filter(std::vector<Armor> & armors) const

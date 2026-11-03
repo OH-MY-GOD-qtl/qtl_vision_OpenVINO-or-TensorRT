@@ -1,5 +1,6 @@
 #include "omni/perceptron.hpp"
 
+#include <algorithm>
 #include <chrono>
 #include <memory>
 #include <thread>
@@ -100,9 +101,29 @@ void Perceptron::search_thread(USBCamera * cam, Detector & detector, const std::
             }
 
             auto armors = detector.detect(img);
+            decider_.filter_enemy_color(armors);
             if (armors.empty()) continue;
 
-            auto delta_angle = decider_.delta_angle(armors, camera_key);
+            // 传统 Armor 的 type/name/box 未初始化，只能用 points 算表观宽度
+            auto armor_width = [](const Armor & armor) {
+                if (armor.points.size() != 4) return 0.0;
+                return std::max(
+                    cv::norm(armor.points[0] - armor.points[1]),
+                    cv::norm(armor.points[3] - armor.points[2]));
+            };
+
+            int selected_index = -1;
+            double best_width = 0.0;
+            for (int i = 0; i < static_cast<int>(armors.size()); ++i) {
+                const double width = armor_width(armors[i]);
+                if (width > best_width) {
+                    best_width = width;
+                    selected_index = i;
+                }
+            }
+            if (selected_index < 0 || img.cols <= 0) continue;
+
+            auto delta_angle = decider_.delta_angle(armors[selected_index], camera_key);
 
             DetectionResult dr;
             dr.armors = std::move(armors);
@@ -111,6 +132,8 @@ void Perceptron::search_thread(USBCamera * cam, Detector & detector, const std::
             dr.delta_pitch = delta_angle[1] / 57.3;
             dr.source = DetectionSource::USB;
             dr.camera = camera_key;
+            dr.selected_index = selected_index;
+            dr.size_score = best_width / static_cast<double>(img.cols);
             detection_queue_.push(dr);
         }
     } catch (const std::exception & e) {
