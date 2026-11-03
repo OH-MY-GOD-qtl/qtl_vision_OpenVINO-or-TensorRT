@@ -1,6 +1,7 @@
 // standard_mpc：YOLO 自瞄 + MPC 规划 + 串口云台，无显示窗口
 #include <atomic>
 #include <chrono>
+#include <mutex>
 #include <opencv2/opencv.hpp>
 #include <thread>
 
@@ -51,6 +52,8 @@ int main(int argc, char * argv[])
 
     std::atomic<GimbalMode> mode{GimbalMode::IDLE};
     auto last_mode{GimbalMode::IDLE};
+    // 冻结入口：只为消除模式切换瞬间的双写者窗口，不改变架构（见 issue #6）
+    std::mutex send_mutex;
 
     auto plan_thread = std::thread([&]() {
         auto t0 = std::chrono::steady_clock::now();
@@ -63,9 +66,13 @@ int main(int argc, char * argv[])
                 auto plan = planner.plan(target, gs.bullet_speed);
                 auto is_empty = target.has_value() ? false : true;
 
-                gimbal.send(
-                    plan.control, plan.fire, plan.yaw, plan.yaw_vel, plan.yaw_acc, plan.pitch,
-                    plan.pitch_vel, plan.pitch_acc, is_empty);
+                {
+                    std::lock_guard<std::mutex> lock(send_mutex);
+                    if (mode != GimbalMode::AUTO_AIM) continue;
+                    gimbal.send(
+                        plan.control, plan.fire, plan.yaw, plan.yaw_vel, plan.yaw_acc, plan.pitch,
+                        plan.pitch_vel, plan.pitch_acc, is_empty);
+                }
 
                 std::this_thread::sleep_for(10ms);
             } else
@@ -77,7 +84,10 @@ int main(int argc, char * argv[])
     std::chrono::steady_clock::time_point t;
 
     while (!exiter.exit()) {
-        mode = gimbal.mode();
+        {
+            std::lock_guard<std::mutex> lock(send_mutex);
+            mode = gimbal.mode();
+        }
 
         if (last_mode != mode) {
             logger()->info("Switch to {}", gimbal.str(mode));
@@ -99,8 +109,11 @@ int main(int argc, char * argv[])
                 target_queue.push(std::nullopt);
         }
 
-        else
-            gimbal.send(false, false, 0, 0, 0, 0, 0, 0);
+        else {
+            std::lock_guard<std::mutex> lock(send_mutex);
+            if (mode != GimbalMode::AUTO_AIM)
+                gimbal.send(false, false, 0, 0, 0, 0, 0, 0);
+        }
     }
 
     quit = true;
