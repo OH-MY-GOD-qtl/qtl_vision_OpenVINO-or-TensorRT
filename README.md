@@ -131,7 +131,7 @@ mkdir build && cd build
 cmake .. && make -j
 ```
 
-生成 32 个可执行文件：`apps/` 6 个、标定工具 5 个、测试 21 个。
+生成 33 个可执行文件：`apps/` 6 个、标定工具 5 个、测试 22 个。
 
 > 构建必需 OpenVINO；TensorRT/CUDA 仅在 `QTL_ENABLE_TENSORRT=ON`（默认）时必需。
 > TensorRT 仅 YOLOv5 链路用到，其余模型走 OpenVINO。
