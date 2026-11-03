@@ -1,6 +1,6 @@
 #include "omni/decider.hpp"
 
-#include <chrono>
+#include <chrono>                                         
 #include <cmath>
 #include <cstdio>
 #include <filesystem>
@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "comm/gimbal.hpp"
+#include "tools/thread_safe_queue.hpp"
 
 using namespace std::chrono_literals;
 
@@ -77,6 +78,16 @@ int main()
         Decider decider(config_path);
 
         auto now = std::chrono::steady_clock::now();
+
+        // 0) 队列往返必须保留新增字段（检测线程 -> Decider 的真实路径）
+        {
+            ThreadSafeQueue<DetectionResult, true> queue(4);
+            queue.push(make_result("usb0", 0.42, now));
+            DetectionResult popped;
+            queue.pop(popped);
+            require(popped.size_score == 0.42, "queue must preserve size_score");
+            require(popped.selected_index == 0, "queue must preserve selected_index");
+        }
 
         // 1) 首次锁定：表观尺寸最大的 usb1
         auto guide = decider.arbitrate_usb(

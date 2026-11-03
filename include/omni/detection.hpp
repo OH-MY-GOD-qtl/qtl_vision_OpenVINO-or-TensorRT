@@ -31,20 +31,6 @@ struct DetectionResult
     double size_score = 0.0;
     // armors 中被选中的装甲下标（按敌方颜色过滤后的最大表观尺寸）
     int selected_index = -1;
-
-    // Assignment operator
-    DetectionResult & operator=(const DetectionResult & other)
-    {
-        if (this != &other) {
-            armors = other.armors;
-            timestamp = other.timestamp;
-            delta_yaw = other.delta_yaw;
-            delta_pitch = other.delta_pitch;
-            source = other.source;
-            camera = other.camera;
-        }
-        return *this;
-    }
 };
 
 #endif
