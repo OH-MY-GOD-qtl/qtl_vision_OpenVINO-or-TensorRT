@@ -1,6 +1,7 @@
 #ifndef IO__USBCamera_HPP
 #define IO__USBCamera_HPP
 
+#include <atomic>
 #include <chrono>
 #include <iostream>
 #include <opencv2/opencv.hpp>
@@ -34,7 +35,7 @@ private:
     cv::Mat img_;
     std::string open_name_;
     int usb_frame_rate_;
-    int open_count_;
+    std::atomic<int> open_count_;  // 连续打开失败次数，成功取到帧后清零
     double image_width_, image_height_;
     bool quit_, ok_;
     std::thread capture_thread_;

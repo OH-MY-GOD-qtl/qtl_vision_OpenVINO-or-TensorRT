@@ -138,6 +138,9 @@ void USBCamera::open()
                 break;
             }
 
+            // 已恢复取流：重置连续失败计数，避免累计到上限后永久放弃
+            open_count_ = 0;
+
             auto timestamp = std::chrono::steady_clock::now();
             queue_.push({img, timestamp});
         }
