@@ -2,6 +2,7 @@
 
 #include <vector>
 
+#include "common/common.hpp"
 #include "tools/math_tools.hpp"
 #include "tools/trajectory.hpp"
 #include "tools/yaml.hpp"
@@ -39,9 +40,7 @@ Planner::Planner(const std::string & config_path)
 Plan Planner::plan(Target & target, double bullet_speed)
 {
     // 0. Check bullet speed
-    if (bullet_speed < 10 || bullet_speed > 25) {
-        bullet_speed = 22;
-    }
+    bullet_speed = sanitize_bullet_speed(bullet_speed, "Planner");
 
     // 1. Predict fly_time
     Eigen::Vector3d xyz;
@@ -261,7 +260,7 @@ Eigen::Vector4d Planner::predict_xyza(
     const Target & target, double bullet_speed, std::chrono::steady_clock::time_point t) const
 {
     // 与 plan() 的延迟/弹道假设保持一致，但按传入的帧时间戳 t 预测，避免与显示线程不同步
-    if (bullet_speed < 10 || bullet_speed > 25) bullet_speed = 22;
+    bullet_speed = sanitize_bullet_speed(bullet_speed, "Planner");
 
     Target tgt = target;  // 拷贝快照，避免修改跟踪状态
 

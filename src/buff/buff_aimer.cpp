@@ -1,5 +1,6 @@
 #include "buff/buff_aimer.hpp"
 
+#include "common/common.hpp"
 #include "tools/logger.hpp"
 #include "tools/math_tools.hpp"
 #include "tools/trajectory.hpp"
@@ -23,8 +24,7 @@ Command BuffAimer::aim(
     Command command = {false, false, 0, 0};
     if (target.is_unsolve()) return command;
 
-    // 如果子弹速度小于10，将其设为24
-    if (bullet_speed < 10) bullet_speed = 24;
+    bullet_speed = sanitize_bullet_speed(bullet_speed, "BuffAimer");
 
     auto now = std::chrono::steady_clock::now();
 

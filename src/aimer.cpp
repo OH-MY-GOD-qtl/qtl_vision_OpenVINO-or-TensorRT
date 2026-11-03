@@ -5,6 +5,7 @@
 #include <cmath>
 #include <vector>
 
+#include "common/common.hpp"
 #include "tools/logger.hpp"
 #include "tools/math_tools.hpp"
 #include "tools/trajectory.hpp"
@@ -38,7 +39,7 @@ Command Aimer::aim(
     double delay_time =
         target.ekf_x()[7] > decision_speed_ ? high_speed_delay_time_ : low_speed_delay_time_;
 
-    if (bullet_speed < 14) bullet_speed = 23;
+    bullet_speed = sanitize_bullet_speed(bullet_speed, "Aimer");
 
     // 考虑detecor和tracker所消耗的时间，此外假设aimer的用时可忽略不计
     auto future = timestamp;
