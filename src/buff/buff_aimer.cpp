@@ -32,8 +32,6 @@ Command BuffAimer::aim(
     auto future = to_now ? (detect_now_gap + predict_time_) : 0.1 + predict_time_;
     double yaw, pitch;
 
-    bool angle_changed =
-        std::abs(last_yaw_ - yaw) > 5 / 57.3 || std::abs(last_pitch_ - pitch) > 5 / 57.3;
     if (get_send_angle(target, future, bullet_speed, to_now, yaw, pitch)) {
         command.yaw = yaw;
         command.pitch = -pitch;  //世界坐标系下的pitch向上为负
@@ -64,89 +62,6 @@ Command BuffAimer::aim(
     }
 
     return command;
-}
-
-Plan BuffAimer::mpc_aim(
-    BuffTarget & target, std::chrono::steady_clock::time_point & timestamp, GimbalState gs,
-    bool to_now)
-{
-    Plan plan = {false, false, 0, 0, 0, 0, 0, 0, 0, 0};
-    if (target.is_unsolve()) return plan;
-
-    double bullet_speed;
-    // 如果子弹速度小于10，将其设为24
-    if (gs.bullet_speed < 10)
-        bullet_speed = 24;
-    else
-        bullet_speed = gs.bullet_speed;
-
-    auto now = std::chrono::steady_clock::now();
-
-    auto detect_now_gap = delta_time(now, timestamp);
-    auto future = to_now ? (detect_now_gap + predict_time_) : 0.1 + predict_time_;
-    double yaw, pitch;
-
-    bool angle_changed =
-        std::abs(last_yaw_ - yaw) > 5 / 57.3 || std::abs(last_pitch_ - pitch) > 5 / 57.3;
-    if (get_send_angle(target, future, bullet_speed, to_now, yaw, pitch)) {
-        plan.yaw = yaw;
-        plan.pitch = -pitch;  //世界坐标系下的pitch向上为负
-        if (mistake_count_ > 3) {
-            switch_fanblade_ = true;
-            mistake_count_ = 0;
-            plan.control = true;
-            first_in_aimer_ = true;
-        } else if (
-            std::abs(last_yaw_ - yaw) > 5 / 57.3 || std::abs(last_pitch_ - pitch) > 5 / 57.3) {
-            switch_fanblade_ = true;
-            mistake_count_++;
-            plan.control = false;
-
-            first_in_aimer_ = true;
-        } else {
-            switch_fanblade_ = false;
-            mistake_count_ = 0;
-            plan.control = true;
-        }
-        last_yaw_ = yaw;
-        last_pitch_ = pitch;
-
-        if (plan.control) {
-            if (first_in_aimer_) {
-                plan.yaw_vel = 0;
-                plan.yaw_acc = 0;
-                plan.pitch_vel = 0;
-                plan.pitch_acc = 0;
-                first_in_aimer_ = false;
-            } else {
-                auto dt = predict_time_;
-                double last_yaw_mpc, last_pitch_mpc;
-                get_send_angle(
-                    target, predict_time_ * -1, bullet_speed, to_now, last_yaw_mpc, last_pitch_mpc);
-                plan.yaw_vel = limit_rad(yaw - last_yaw_mpc) / (2 * dt);
-                // plan.yaw_vel = limit_min_max(plan.yaw_vel, -6.28, 6.28);
-                plan.yaw_acc =
-                    (limit_rad(yaw - gs.yaw) - limit_rad(gs.yaw - last_yaw_mpc)) / std::pow(dt, 2);
-                // plan.yaw_acc = limit_min_max(plan.yaw_acc, -50, 50);
-
-                plan.pitch_vel = limit_rad(-pitch + last_pitch_mpc) / (2 * dt);
-                // plan.pitch_vel = limit_min_max(plan.pitch_vel, -6.28, 6.28);
-                plan.pitch_acc =
-                    (-pitch - gs.pitch - (gs.pitch + last_pitch_mpc)) / std::pow(dt, 2);
-                // plan.pitch_acc = limit_min_max(plan.pitch_acc, -100, 100);
-            }
-        }
-    }
-
-    if (switch_fanblade_) {
-        plan.fire = false;
-        last_fire_t_ = now;
-    } else if (!switch_fanblade_ && delta_time(now, last_fire_t_) > fire_gap_time_) {
-        plan.fire = true;
-        last_fire_t_ = now;
-    }
-
-    return plan;
 }
 
 bool BuffAimer::get_send_angle(

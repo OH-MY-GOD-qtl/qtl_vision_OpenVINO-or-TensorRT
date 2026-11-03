@@ -11,8 +11,6 @@
 #include "buff/buff_target.hpp"
 #include "buff/buff_type.hpp"
 #include "comm/command.hpp"
-#include "comm/gimbal.hpp"
-#include "planner.hpp"
 
 class BuffAimer
 {
@@ -21,10 +19,6 @@ public:
 
     Command aim(
         BuffTarget & target, std::chrono::steady_clock::time_point & timestamp, double bullet_speed,
-        bool to_now = true);
-
-    Plan mpc_aim(
-        BuffTarget & target, std::chrono::steady_clock::time_point & timestamp, GimbalState gs,
         bool to_now = true);
 
     double angle;      ///
@@ -43,9 +37,6 @@ private:
 
     double last_yaw_ = 0;
     double last_pitch_ = 0;
-
-    // for mpc
-    bool first_in_aimer_ = true;
 
     std::chrono::steady_clock::time_point last_fire_t_;
 
