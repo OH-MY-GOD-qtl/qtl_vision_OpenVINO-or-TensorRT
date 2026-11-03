@@ -242,6 +242,7 @@ add_executable(gimbal_test tests/gimbal_test.cpp)
 add_executable(omni_config_test tests/omni_config_test.cpp)
 add_executable(planner_test tests/planner_test.cpp)
 add_executable(planner_test_offline tests/planner_test_offline.cpp)
+add_executable(ekf_test tests/ekf_test.cpp)
 
 foreach(t   auto_aim_test
             camera_detect_test
@@ -258,6 +259,7 @@ foreach(t   auto_aim_test
 endforeach()
 target_link_libraries(auto_buff_test ${TEST_BASE_LIBS} auto_aim auto_buff)
 target_link_libraries(omni_config_test ${TEST_BASE_LIBS} auto_aim omni)
+target_link_libraries(ekf_test ${TEST_BASE_LIBS})
 
 # 血量灯条识别：合成图断言 + 可选 ROS2 上报冒烟
 add_executable(blood_bar_test tests/blood_bar_test.cpp)
