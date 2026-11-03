@@ -295,6 +295,21 @@ ros2 topic echo /enemy_hp std_msgs/msg/String
 | USB × 3 | 传统视觉（灯条几何，`use_classifier=false` 不识别编号） | 全向搜索：只报「有无目标 + 方位」，引导 yaw 转向 |
 | 海康 × 1 | YOLO（TensorRT） | 主瞄准：走完整精确链路（PnP + EKF + MPC） |
 
+### 仲裁策略（海康优先 + USB 锁定 / coast）
+
+- 海康 tracker 有目标时绝对优先；连续空 `omni_hik_lost_s`（默认 0.3 s）才回退 USB。
+- 回退时按 `size_score = 装甲像素宽 / 图像宽` 选最近的一路 USB 并**锁定相机**；
+  锁定期间不比较其他相机、不切换目标。该分数是距离代理，不是米。
+- 锁定相机超过 `omni_usb_max_age_s`（默认 0.15 s）无新结果 → **coast**：
+  保持最后的目标绝对方位继续转，穿过 USB 与海康之间的盲区。
+- 海康出现目标立即接管；coast 超过 `omni_guide_coast_s`（默认 1.5 s）则停止，
+  冷却 `omni_guide_cooldown_s`（默认 0.5 s）后重新选最近目标。
+- 锁定/coast 发 `mode=1, is_empty=false`；无锁定且不在 coast 时发 `mode=0`。
+
+详见 `docs/adr/0003-omni-arbitration.md`。
+
+离线验证：`./build/omni_arbitration_test`（合成结果覆盖锁定、coast、超时与海康接管）。
+
 > 全向感知的 USB 传统搜索依赖灯条，**新装甲不适用**；新装甲目前只有 YOLO11
 > 主瞄准方案（迁移中）。
 
@@ -330,6 +345,9 @@ omni_pitch_preset: 0                              # 无海康目标时pitch预�
 omni_usb_max_age_s: 0.15                          # USB结果老化阈值(s)
 omni_usb_yaw_rate_limit: 3.0                      # USB引导yaw限速(rad/s)
 omni_usb_lpf_alpha: 0.4                           # USB引导yaw一阶低通系数(0~1)
+omni_guide_coast_s: 1.5                           # 锁定相机丢失后保持最后方位的上限(s)
+omni_guide_cooldown_s: 0.5                        # coast超时后的停止时长(s)
+omni_hik_lost_s: 0.3                              # 海康连续丢目标多久才回退USB(s)
 ```
 
 旧版 `omni_usb_devices` / `omni_usb_yaw_offsets` 仍兼容，但启动时会打弃用告警；
