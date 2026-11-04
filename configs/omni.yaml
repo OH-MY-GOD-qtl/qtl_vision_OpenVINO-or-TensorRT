@@ -28,7 +28,7 @@ roi:
 
 use_roi: false
 
-#####-----传统方法参数（USB 全向搜索用，仅灯条几何、不识别编号）-----#####
+#####-----传统方法参数（USB 全向搜索用：灯条几何 + 分类器识别编号）-----#####
 color_threshold: 40   # 颜色差阈值（分离通道：红敌R-B / 蓝敌B-R）
 brightness_threshold: 100 # 亮度阈值（灰度）
 max_angle_error: 45 # degree

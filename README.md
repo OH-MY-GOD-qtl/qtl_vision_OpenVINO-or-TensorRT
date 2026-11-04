@@ -292,7 +292,7 @@ ros2 topic echo /enemy_hp std_msgs/msg/String
 
 | 相机 | 检测路线 | 作用 |
 |---|---|---|
-| USB × 3 | 传统视觉（灯条几何，`use_classifier=false` 不识别编号） | 全向搜索：只报「有无目标 + 方位」，引导 yaw 转向 |
+| USB × 3 | 传统视觉 + 数字分类器（识别编号，不参与优先级） | 全向搜索：报「目标 + 方位 + 编号」，选目标仍按表观距离，引导 yaw 转向 |
 | 海康 × 1 | YOLO（TensorRT） | 主瞄准：走完整精确链路（PnP + EKF + MPC） |
 
 ### 仲裁策略（海康优先 + USB 锁定 / coast）
@@ -368,9 +368,8 @@ USB 设备名建议使用 `/dev/v4l/by-path/*-video-index0`：`videoN` 会随插
 云台串口未连接时，可运行 `omni_standard configs/omni.yaml --simulate` 观察模拟控制日志；
 该选项不连接串口，也不会驱动实机。
 
-> 注意：`use_classifier=false` 时 USB 装甲板 `name=not_armor`，无法按编号排优先级，
-> USB 选目标按「新鲜度 + 居中程度」。需要按编号选目标时把 `Detector` 的
-> `use_classifier` 置 `true`（代价：3 份分类器模型与推理）。
+> USB 链路已启用数字分类器，只用于识别编号/类型和调试显示；**选目标仍按表观距离**，
+> 编号不参与优先级。代价是 3 路各自加载一份分类器模型。
 
 ---
 

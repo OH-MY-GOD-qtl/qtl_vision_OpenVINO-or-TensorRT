@@ -16,8 +16,8 @@
 #include "omni/detection.hpp"
 #include "tools/thread_safe_queue.hpp"
 
-// 全向感知搜索层：3 路 USB 相机 + 传统检测（仅报“有无目标 + 方位”）。
-// 结果带采集时间戳，交由 Decider 做海康优先仲裁与时间对齐。
+// 全向感知搜索层：3 路 USB 相机 + 传统检测 + 数字分类器（报“目标 + 方位 + 编号”）。
+// 选目标仍按表观距离，编号不参与优先级；结果带采集时间戳，交由 Decider 做时间对齐。
 class Perceptron
 {
 public:

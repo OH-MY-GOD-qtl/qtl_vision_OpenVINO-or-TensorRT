@@ -12,10 +12,10 @@ Perceptron::Perceptron(
     const std::string & config_path)
 : detection_queue_(30), decider_(decider), stop_flag_(false)
 {
-    // 三路 USB 走传统检测、不加载分类器（只报“有无目标 + 方位”）
-    detector1_ = std::make_shared<Detector>(config_path, false, false);
-    detector2_ = std::make_shared<Detector>(config_path, false, false);
-    detector3_ = std::make_shared<Detector>(config_path, false, false);
+    // 三路 USB 走传统检测 + 数字分类器：识别编号/类型，但选目标仍按表观距离
+    detector1_ = std::make_shared<Detector>(config_path, false, true);
+    detector2_ = std::make_shared<Detector>(config_path, false, true);
+    detector3_ = std::make_shared<Detector>(config_path, false, true);
 
     // 相机标识 usb0/usb1/usb2 与 omni_usb_yaw_offsets 索引一一对应
     threads_.emplace_back([this, usbcam1] { search_thread(usbcam1, *detector1_, "usb0", 0); });
