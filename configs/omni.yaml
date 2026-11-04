@@ -97,6 +97,8 @@ mode: 1
 
 #####-----全向感知(omni)参数-----#####
 omni_usb_cameras:                                 # 设备与安装角成对配置，避免索引错配
+  # device 推荐 /dev/v4l/by-path/*-video-index0（同一物理口重插不变）；
+  # videoN 会随插拔顺序变化，仅作临时调试。
   - {device: video0, yaw_offset_from_hik: 30}
   - {device: video2, yaw_offset_from_hik: -30}
   - {device: video4, yaw_offset_from_hik: -180}

@@ -23,6 +23,9 @@ public:
         int timeout_ms = 100) override;
     std::string device_name;
 
+    // videoN -> /dev/videoN；绝对路径与 v4l/by-path 等相对路径保持可用
+    static std::string resolve_device_path(const std::string & device);
+
 private:
     struct CameraData
     {
@@ -34,16 +37,18 @@ private:
     cv::VideoCapture cap_;
     cv::Mat img_;
     std::string open_name_;
+    std::string resolved_device_path_;  // videoN 对应的 by-id/by-path 稳定路径
     int usb_frame_rate_;
     std::atomic<int> open_count_;  // 连续打开失败次数，成功取到帧后清零
     double image_width_, image_height_;
-    bool quit_, ok_;
+    std::atomic<bool> quit_{false};
+    std::atomic<bool> ok_{false};
     std::thread capture_thread_;
     std::thread daemon_thread_;
     ThreadSafeQueue<CameraData> queue_;
 
     void try_open();
-    void open();
+    bool open();
     void close();
 };
 

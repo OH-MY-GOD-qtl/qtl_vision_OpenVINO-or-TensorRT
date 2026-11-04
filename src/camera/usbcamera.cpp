@@ -1,5 +1,6 @@
 #include "camera/usbcamera.hpp"
 
+#include <filesystem>
 #include <stdexcept>
 
 #include "tools/logger.hpp"
@@ -7,39 +8,68 @@
 
 using namespace std::chrono_literals;
 
+namespace
+{
+// 把 /dev/videoN 映射到 /dev/v4l/by-id 或 by-path 的稳定别名。
+// 相机缺少序列号时优先 by-path（同一物理 USB 口重插后路径不变）。
+std::string find_stable_device_path(const std::string & device)
+{
+    if (device.empty()) return {};
+    const std::filesystem::path node = device.front() == '/' ? device : "/dev/" + device;
+    if (node.filename().string().rfind("video", 0) != 0) return {};
+
+    std::error_code ec;
+    const auto canonical_node = std::filesystem::canonical(node, ec);
+    if (ec) return {};
+
+    for (const char * dir : {"/dev/v4l/by-id", "/dev/v4l/by-path"}) {
+        if (!std::filesystem::exists(dir)) continue;
+        for (const auto & entry : std::filesystem::directory_iterator(dir, ec)) {
+            if (ec) break;
+            if (entry.path().filename().string().find("-video-index0") == std::string::npos)
+                continue;
+
+            std::error_code entry_ec;
+            if (std::filesystem::canonical(entry.path(), entry_ec) == canonical_node)
+                return entry.path().string();
+        }
+    }
+    return {};
+}
+}  // namespace
+
+std::string USBCamera::resolve_device_path(const std::string & device)
+{
+    if (device.rfind("/dev/", 0) == 0) return device;
+    if (!device.empty() && device.front() == '/') return device;
+    return "/dev/" + device;
+}
+
 USBCamera::USBCamera(const std::string & open_name, const std::string & config_path)
-: open_name_(open_name), quit_(false), ok_(false), queue_(1), open_count_(0)
+: open_name_(open_name), open_count_(0), queue_(1)
 {
     auto yaml = yaml_load(config_path);
     image_width_ = yaml_read<double>(yaml, "image_width");
     image_height_ = yaml_read<double>(yaml, "image_height");
     usb_frame_rate_ = yaml_read<double>(yaml, "usb_frame_rate");
+
+    // videoN 会随枚举顺序变化：启动时解析成 by-id/by-path，重插后继续用稳定路径
+    resolved_device_path_ = find_stable_device_path(open_name_);
+    if (resolved_device_path_.empty())
+        logger()->warn(
+            "[USBCamera] {} has no stable by-id/by-path alias; hotplug may not recover",
+            open_name_);
+    else
+        logger()->info("[USBCamera] {} -> {}", open_name_, resolved_device_path_);
+
     try_open();
 
-    // 守护线程
+    // 守护线程：相机缺失/拔插时持续重试，不永久放弃
     daemon_thread_ = std::thread{[this] {
-        // logger()->info("daemon thread start");
         while (!quit_) {
             std::this_thread::sleep_for(100ms);
 
             if (ok_) continue;
-
-            if (open_count_ > 20) {
-                logger()->warn("Give up to open {} USB camera", this->device_name);
-                quit_ = true;
-
-                {
-                    std::lock_guard<std::mutex> lock(cap_mutex_);
-                    close();  // 先关闭摄像头
-                }
-
-                if (capture_thread_.joinable()) {
-                    logger()->warn("Stopping capture thread");
-                    capture_thread_.join();
-                }
-
-                break;
-            }
 
             if (capture_thread_.joinable()) capture_thread_.join();
 
@@ -48,8 +78,12 @@ USBCamera::USBCamera(const std::string & open_name, const std::string & config_p
                 close();
             }
             try_open();
+
+            if (!ok_ && open_count_ % 50 == 0)
+                logger()->warn(
+                    "[USBCamera] {} unavailable, retrying ({} attempts)", open_name_,
+                    open_count_.load());
         }
-        // logger()->info("daemon thread exit");
     }};
 }
 
@@ -97,16 +131,20 @@ bool USBCamera::try_read(
     return true;
 }
 
-void USBCamera::open()
+bool USBCamera::open()
 {
     std::lock_guard<std::mutex> lock(cap_mutex_);
-    std::string true_device_name = "/dev/" + open_name_;
+    // 启动时相机可能还没插入：每次重试都尝试解析一次稳定别名
+    if (resolved_device_path_.empty()) resolved_device_path_ = find_stable_device_path(open_name_);
+
+    std::string true_device_name =
+        resolved_device_path_.empty() ? resolve_device_path(open_name_) : resolved_device_path_;
     cap_.open(true_device_name, cv::CAP_V4L);
     if (!cap_.isOpened()) {
-        logger()->warn("Failed to open USB camera");
-        return;
+        // 不在每次重试时刷 warn，由守护线程限频输出
+        return false;
     }
-    device_name = open_name_;
+    device_name = true_device_name;
     cap_.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G'));
     cap_.set(cv::CAP_PROP_FRAME_WIDTH, image_width_);
     cap_.set(cv::CAP_PROP_FRAME_HEIGHT, image_height_);
@@ -146,6 +184,7 @@ void USBCamera::open()
         }
         ok_ = false;
     }};
+    return true;
 }
 
 void USBCamera::try_open()
@@ -162,6 +201,7 @@ void USBCamera::close()
 {
     if (cap_.isOpened()) {
         cap_.release();
-        logger()->info("USB camera released.");
+        // 拔插重试期间避免每次 info 刷屏
+        logger()->debug("[USBCamera] {} released", device_name);
     }
 }

@@ -351,8 +351,12 @@ omni_hik_lost_s: 0.3                              # 海康连续丢目标多久�
 ```
 
 旧版 `omni_usb_devices` / `omni_usb_yaw_offsets` 仍兼容，但启动时会打弃用告警；
-其中旧 yaw offset 按云台零位解释。`configs/omni.yaml` 已迁移到成对格式，
-设备节点仍需按实机 udev 绑定关系核实。
+其中旧 yaw offset 按云台零位解释。`configs/omni.yaml` 已迁移到成对格式。
+
+USB 设备名建议使用 `/dev/v4l/by-path/*-video-index0`：`videoN` 会随插拔顺序变化。
+运行 `bash scripts/list_usb_cameras.sh` 查看当前映射与可直接粘贴的 YAML 项。
+`USBCamera` 启动时也会尝试把 `videoN` 自动解析到 by-id/by-path；相机拔掉后守护线程会
+持续重试，重插（同一物理口）后自动恢复，不再 2 秒后永久放弃。
 云台串口未连接时，可运行 `omni_standard configs/omni.yaml --simulate` 观察模拟控制日志；
 该选项不连接串口，也不会驱动实机。
 

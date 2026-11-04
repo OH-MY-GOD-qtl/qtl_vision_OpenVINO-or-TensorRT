@@ -248,6 +248,7 @@ add_executable(detector_video_test tests/detector_video_test.cpp)
 add_executable(gimbal_response_test tests/gimbal_response_test.cpp)
 add_executable(usbcamera_detect_test tests/usbcamera_detect_test.cpp)
 add_executable(usbcamera_test tests/usbcamera_test.cpp)
+add_executable(usbcamera_path_test tests/usbcamera_path_test.cpp)
 add_executable(handeye_test tests/handeye_test.cpp)
 add_executable(dm_test tests/dm_test.cpp)
 add_executable(camera_auto_aim_test tests/camera_auto_aim_test.cpp)
@@ -264,6 +265,7 @@ foreach(t   auto_aim_test
             camera_thread_test
             detector_video_test
             usbcamera_detect_test
+            usbcamera_path_test
             handeye_test
             camera_auto_aim_test
             gimbal_test
