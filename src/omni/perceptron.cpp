@@ -18,9 +18,9 @@ Perceptron::Perceptron(
     detector3_ = std::make_shared<Detector>(config_path, false, false);
 
     // 相机标识 usb0/usb1/usb2 与 omni_usb_yaw_offsets 索引一一对应
-    threads_.emplace_back([this, usbcam1] { search_thread(usbcam1, *detector1_, "usb0"); });
-    threads_.emplace_back([this, usbcam2] { search_thread(usbcam2, *detector2_, "usb1"); });
-    threads_.emplace_back([this, usbcam3] { search_thread(usbcam3, *detector3_, "usb2"); });
+    threads_.emplace_back([this, usbcam1] { search_thread(usbcam1, *detector1_, "usb0", 0); });
+    threads_.emplace_back([this, usbcam2] { search_thread(usbcam2, *detector2_, "usb1", 1); });
+    threads_.emplace_back([this, usbcam3] { search_thread(usbcam3, *detector3_, "usb2", 2); });
 
     logger()->info("Perceptron initialized (3 USB traditional search).");
 }
@@ -56,8 +56,15 @@ std::vector<DetectionResult> Perceptron::get_detection_queue()
     return result;
 }
 
+std::array<cv::Mat, 3> Perceptron::latest_frames() const
+{
+    std::lock_guard<std::mutex> lock(frames_mutex_);
+    return latest_frames_;
+}
+
 // USB 传统检测线程
-void Perceptron::search_thread(USBCamera * cam, Detector & detector, const std::string & camera_key)
+void Perceptron::search_thread(
+    USBCamera * cam, Detector & detector, const std::string & camera_key, int index)
 {
     if (!cam) {
         logger()->error("USB camera pointer is null ({})!", camera_key);
@@ -98,6 +105,11 @@ void Perceptron::search_thread(USBCamera * cam, Detector & detector, const std::
             if (img.empty()) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
                 continue;
+            }
+
+            {
+                std::lock_guard<std::mutex> lock(frames_mutex_);
+                latest_frames_[index] = img;
             }
 
             auto armors = detector.detect(img);

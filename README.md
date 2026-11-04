@@ -310,6 +310,14 @@ ros2 topic echo /enemy_hp std_msgs/msg/String
 
 离线验证：`./build/omni_arbitration_test`（合成结果覆盖锁定、coast、超时与海康接管）。
 
+调试画面（海康 + 三路 USB 拼接，标出锁定相机 / coast / size_score，按 `q` 退出）：
+
+```bash
+./build/omni_standard configs/omni.yaml --display
+# 无云台串口时：
+./build/omni_standard configs/omni.yaml --simulate --display
+```
+
 > 全向感知的 USB 传统搜索依赖灯条，**新装甲不适用**；新装甲目前只有 YOLO11
 > 主瞄准方案（迁移中）。
 

@@ -1,6 +1,7 @@
 #ifndef OMNIPERCEPTION__PERCEPTRON_HPP
 #define OMNIPERCEPTION__PERCEPTRON_HPP
 
+#include <array>
 #include <chrono>
 #include <condition_variable>
 #include <memory>
@@ -29,9 +30,13 @@ public:
     // 取走队列中全部结果（非阻塞）
     std::vector<DetectionResult> get_detection_queue();
 
+    // 调试显示用：三路 USB 的最新原始帧（无帧时为空）
+    std::array<cv::Mat, 3> latest_frames() const;
+
 private:
     // USB 传统检测线程：cam -> Detector(纯灯条几何) -> DetectionResult(USB)
-    void search_thread(USBCamera * cam, Detector & detector, const std::string & camera_key);
+    void search_thread(
+        USBCamera * cam, Detector & detector, const std::string & camera_key, int index);
 
     std::vector<std::thread> threads_;
     // 容量溢出时丢弃最旧结果，保证搜索层始终保留最新方位
@@ -47,6 +52,10 @@ private:
     bool stop_flag_;
     mutable std::mutex mutex_;
     std::condition_variable condition_;
+
+    // 调试显示帧快照（仅 --display 使用）
+    mutable std::mutex frames_mutex_;
+    std::array<cv::Mat, 3> latest_frames_;
 };
 
 #endif

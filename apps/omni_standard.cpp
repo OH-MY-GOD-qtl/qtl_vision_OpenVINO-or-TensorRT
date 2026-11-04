@@ -11,6 +11,7 @@
 #include <opencv2/opencv.hpp>
 #include <optional>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "camera/camera.hpp"
@@ -31,9 +32,82 @@
 const std::string keys =
     "{help h usage ? | | 输出命令行参数说明}"
     "{@config-path   | | yaml配置文件路径 }"
-    "{simulate       | | 只输出模拟控制，不连接云台串口}";
+    "{simulate       | | 只输出模拟控制，不连接云台串口}"
+    "{d display      | | 显示海康 + 三路 USB 调试画面}";
 
 using namespace std::chrono_literals;
+
+namespace
+{
+void draw_armor(cv::Mat & canvas, const Armor & armor, const cv::Scalar & color)
+{
+    if (armor.points.size() != 4) return;
+    std::vector<cv::Point> points;
+    points.reserve(4);
+    for (const auto & point : armor.points)
+        points.emplace_back(cvRound(point.x), cvRound(point.y));
+    cv::polylines(canvas, points, true, color, 2);
+}
+
+// 返回 true 表示用户按 q 退出
+bool show_debug_view(
+    const cv::Mat & hik_frame, const std::vector<Armor> & hik_armors,
+    const std::vector<DetectionResult> & usb_results, const std::array<cv::Mat, 3> & usb_frames,
+    const Decider::Guide & guide, bool hik_active)
+{
+    std::unordered_map<std::string, const DetectionResult *> latest_usb;
+    for (const auto & dr : usb_results) {
+        auto it = latest_usb.find(dr.camera);
+        if (it == latest_usb.end() || dr.timestamp > it->second->timestamp)
+            latest_usb[dr.camera] = &dr;
+    }
+
+    cv::Mat canvas(720, 1280, CV_8UC3, cv::Scalar(20, 20, 20));
+    auto put_tile = [&](int index, const cv::Mat & frame, const std::string & title,
+                        const std::string & status, const cv::Scalar & status_color) {
+        const int x = (index % 2) * 640;
+        const int y = (index / 2) * 360;
+        cv::Mat tile;
+        if (!frame.empty())
+            cv::resize(frame, tile, cv::Size(640, 360));
+        else
+            tile = cv::Mat(360, 640, CV_8UC3, cv::Scalar(0, 0, 0));
+        tile.copyTo(canvas(cv::Rect(x, y, 640, 360)));
+        cv::putText(
+            canvas, title, {x + 10, y + 28}, cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 0),
+            2);
+        cv::putText(
+            canvas, status, {x + 10, y + 56}, cv::FONT_HERSHEY_SIMPLEX, 0.6, status_color, 2);
+    };
+
+    cv::Mat hik_view = hik_frame.empty() ? cv::Mat() : hik_frame.clone();
+    if (!hik_view.empty())
+        for (const auto & armor : hik_armors) draw_armor(hik_view, armor, cv::Scalar(0, 255, 0));
+    put_tile(
+        0, hik_view, "hik", hik_active ? "HIK active" : "HIK empty",
+        hik_active ? cv::Scalar(0, 255, 0) : cv::Scalar(0, 165, 255));
+
+    for (int i = 0; i < 3; ++i) {
+        const std::string key = "usb" + std::to_string(i);
+        cv::Mat usb_view = usb_frames[i].empty() ? cv::Mat() : usb_frames[i].clone();
+        std::string status = usb_frames[i].empty() ? "no frame" : "no target";
+        auto it = latest_usb.find(key);
+        if (it != latest_usb.end()) {
+            const auto & dr = *it->second;
+            if (!usb_view.empty() && dr.selected_index >= 0 &&
+                dr.selected_index < static_cast<int>(dr.armors.size()))
+                draw_armor(usb_view, dr.armors[dr.selected_index], cv::Scalar(0, 255, 255));
+            status = "size " + std::to_string(dr.size_score).substr(0, 5);
+        }
+        if (guide.valid && guide.camera == key)
+            status += guide.phase == Decider::GuidePhase::COAST ? "  COAST" : "  LOCK";
+        put_tile(i + 1, usb_view, key, status, cv::Scalar(0, 255, 255));
+    }
+
+    cv::imshow("omni debug", canvas);
+    return cv::waitKey(1) == 'q';
+}
+}  // namespace
 
 int main(int argc, char * argv[])
 {
@@ -43,6 +117,7 @@ int main(int argc, char * argv[])
         cli.printMessage();
         return 0;
     }
+    const bool display = cli.has("display");
 
     Exiter exiter;
 
@@ -90,7 +165,15 @@ int main(int argc, char * argv[])
         // 2) USB 搜索层：每轮必 drain，防止队列堆积
         auto usb_results = perceptron.get_detection_queue();
 
-        if (!hik_ok || img.empty()) continue;
+        if (!hik_ok || img.empty()) {
+            if (display) {
+                const Decider::Guide no_guide;
+                if (show_debug_view(
+                        cv::Mat(), {}, usb_results, perceptron.latest_frames(), no_guide, false))
+                    break;
+            }
+            continue;
+        }
 
         auto gs = gimbal.state();
         solver.set_R_gimbal2world(gimbal.q(t));
@@ -149,8 +232,15 @@ int main(int argc, char * argv[])
             // 无锁定且 coast 超时/冷却中：停止控制
             gimbal.send(false, false, 0, 0, 0, 0, 0, 0, true);
         }
+
+        if (display) {
+            if (show_debug_view(
+                    img, armors, usb_results, perceptron.latest_frames(), guide, hik_active))
+                break;
+        }
     }
 
+    if (display) cv::destroyAllWindows();
     gimbal.send(false, false, 0, 0, 0, 0, 0, 0, true);
     logger()->info("[omni_standard] exit");
     return 0;
