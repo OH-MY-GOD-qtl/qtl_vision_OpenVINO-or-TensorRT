@@ -39,14 +39,15 @@ using namespace std::chrono_literals;
 
 namespace
 {
-void draw_armor(cv::Mat & canvas, const Armor & armor, const cv::Scalar & color)
+void draw_armor(
+    cv::Mat & canvas, const Armor & armor, const cv::Scalar & color, int thickness = 2)
 {
     if (armor.points.size() != 4) return;
     std::vector<cv::Point> points;
     points.reserve(4);
     for (const auto & point : armor.points)
         points.emplace_back(cvRound(point.x), cvRound(point.y));
-    cv::polylines(canvas, points, true, color, 2);
+    cv::polylines(canvas, points, true, color, thickness);
 }
 
 // 返回 true 表示用户按 q 退出
@@ -94,9 +95,16 @@ bool show_debug_view(
         auto it = latest_usb.find(key);
         if (it != latest_usb.end()) {
             const auto & dr = *it->second;
-            if (!usb_view.empty() && dr.selected_index >= 0 &&
-                dr.selected_index < static_cast<int>(dr.armors.size()))
-                draw_armor(usb_view, dr.armors[dr.selected_index], cv::Scalar(0, 255, 255));
+            if (!usb_view.empty()) {
+                for (int k = 0; k < static_cast<int>(dr.armors.size()); ++k) {
+                    if (k == dr.selected_index) continue;
+                    draw_armor(usb_view, dr.armors[k], cv::Scalar(160, 160, 160), 1);
+                }
+                if (dr.selected_index >= 0 &&
+                    dr.selected_index < static_cast<int>(dr.armors.size()))
+                    draw_armor(
+                        usb_view, dr.armors[dr.selected_index], cv::Scalar(0, 255, 255), 2);
+            }
             status = "size " + std::to_string(dr.size_score).substr(0, 5);
         }
         if (guide.valid && guide.camera == key)

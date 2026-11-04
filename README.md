@@ -14,7 +14,7 @@ RoboMaster 视觉系统（C++17）：源自 dx_vision（同济 SuperPower 25 赛
 - **自瞄**：传统视觉 / YOLO v5·v8·v11 检测 + EKF 跟踪 + PnP 位姿解算，弹道 Aimer 或 MPC 规划（现有模型面向旧装甲；新装甲迁移中）
 - **推理双后端**：YOLOv5 支持 OpenVINO（CPU，机器人端）与 TensorRT（GPU，本机），改 `use_tensorrt` 一键切换
 - **能量机关**：yolo11_buff 检测 + 解算 + 预测 + 瞄准
-- **全向感知**：3 路 USB 传统检测做方位搜索 + 1 路海康 YOLO 主瞄准，海康优先决策、安装角/FOV 可配置、按采集时间戳对齐
+- **全向感知**：3 路 USB YOLO 做方位搜索 + 1 路海康 YOLO 主瞄准，海康优先决策、安装角/FOV 可配置、按采集时间戳对齐
 - **工具链**：相机标定（内参 / 手眼 / 机器人基座系）、视频切帧、YOLO 冒烟、19+ 项测试
 
 ---
@@ -76,7 +76,7 @@ qtl_vision_OpenVINO-or-TensorRT/
 | `fire` | 弹道迭代瞄准 + 开火判定 |
 | `buff` | 能量机关：检测/解算/预测/瞄准（yolo11_buff） |
 | `blood_bar` | 血量灯条：检测点亮长度 → 三档血量，与同面装甲板宽度做尺度换算 |
-| `omni` | 全向感知：3 路 USB 传统检测（方位搜索）+ 海康优先仲裁（可配置安装角/FOV、时间对齐） |
+| `omni` | 全向感知：3 路 USB YOLO（方位搜索）+ 海康优先仲裁（可配置安装角/FOV、时间对齐） |
 
 ---
 
@@ -240,7 +240,7 @@ simulate: true                 # 模拟模式（见上）
 | `example.yaml` | 迈德威视 | 示例 | 手动指定给 `camera_test` |
 | `demo.yaml` | hikrobot | YOLO 回放测试 | `detector_video_test` |
 | `video_demo.yaml` | 视频文件 | 无硬件调试（自带 `simulate: true`） | `MAIN` |
-| `omni.yaml` | hikrobot + USB ×3 | 全向感知（3 USB 传统 + 1 海康 YOLO） | `omni_standard` |
+| `omni.yaml` | hikrobot + USB ×3 | 全向感知（3 USB YOLO + 1 海康 YOLO） | `omni_standard` |
 | `new_armor.yaml` | hikrobot | 新装甲骨架（YOLO11-pose；模型/尺寸未定，暂不可运行） | 暂无 |
 
 ---
@@ -292,7 +292,7 @@ ros2 topic echo /enemy_hp std_msgs/msg/String
 
 | 相机 | 检测路线 | 作用 |
 |---|---|---|
-| USB × 3 | 传统视觉 + 数字分类器（识别编号，不参与优先级） | 全向搜索：报「目标 + 方位 + 编号」，选目标仍按表观距离，引导 yaw 转向 |
+| USB × 3 | YOLO（与海康同模型，默认 OpenVINO；可回退传统检测） | 全向搜索：报「目标 + 方位 + 编号」，选目标仍按表观距离，引导 yaw 转向 |
 | 海康 × 1 | YOLO（TensorRT） | 主瞄准：走完整精确链路（PnP + EKF + MPC） |
 
 ### 仲裁策略（海康优先 + USB 锁定 / coast）
@@ -310,7 +310,7 @@ ros2 topic echo /enemy_hp std_msgs/msg/String
 
 离线验证：`./build/omni_arbitration_test`（合成结果覆盖锁定、coast、超时与海康接管）。
 
-调试画面（海康 + 三路 USB 拼接，标出锁定相机 / coast / size_score，按 `q` 退出）：
+调试画面（海康 + 三路 USB 拼接；USB 灰色框为所有 YOLO 检测，黄色为选中装甲，标出锁定相机 / coast / size_score，按 `q` 退出）：
 
 ```bash
 ./build/omni_standard configs/omni.yaml --display
@@ -318,8 +318,8 @@ ros2 topic echo /enemy_hp std_msgs/msg/String
 ./build/omni_standard configs/omni.yaml --simulate --display
 ```
 
-> 全向感知的 USB 传统搜索依赖灯条，**新装甲不适用**；新装甲目前只有 YOLO11
-> 主瞄准方案（迁移中）。
+> USB 链路默认使用 YOLO；当前模型仍是旧装甲。`omni_usb_detector: traditional`
+> 回退路径才依赖灯条，**新装甲不适用**。新装甲目前只有 YOLO11 主瞄准方案（迁移中）。
 
 **决策（海康优先）**：
 
@@ -344,6 +344,9 @@ omni_usb_cameras:
     yaw_offset_from_hik: -30  # 示例值
   - device: "video4"
     yaw_offset_from_hik: 180  # 示例值
+omni_usb_detector: yolo                            # yolo / traditional（回退对比）
+omni_usb_detect_fps: 15                            # 每路 USB 检测限频
+omni_usb_use_tensorrt: false                       # USB YOLO 默认 OpenVINO
 omni_usb_fov_h: 37.0                              # USB水平/垂直FOV(deg)
 omni_usb_fov_v: 40.9
 omni_hik_yaw_offset: 0                            # 海康相对yaw零位安装角(deg)
@@ -368,8 +371,10 @@ USB 设备名建议使用 `/dev/v4l/by-path/*-video-index0`：`videoN` 会随插
 云台串口未连接时，可运行 `omni_standard configs/omni.yaml --simulate` 观察模拟控制日志；
 该选项不连接串口，也不会驱动实机。
 
-> USB 链路已启用数字分类器，只用于识别编号/类型和调试显示；**选目标仍按表观距离**，
-> 编号不参与优先级。代价是 3 路各自加载一份分类器模型。
+> USB 链路默认使用 YOLO（`omni_usb_detector: yolo`），识别编号/类型；**选目标仍按表观距离**，
+> 编号不参与优先级。默认每路限频 `omni_usb_detect_fps=15`，USB 走 OpenVINO
+> （`omni_usb_use_tensorrt=false`），海康仍按顶层 `use_tensorrt` 走 TensorRT。
+> 需要对比时可把 `omni_usb_detector` 改为 `traditional`。
 
 ---
 

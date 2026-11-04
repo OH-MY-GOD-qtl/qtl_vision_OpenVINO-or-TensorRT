@@ -4,6 +4,7 @@
 #include <array>
 #include <chrono>
 #include <condition_variable>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <thread>
@@ -11,12 +12,11 @@
 
 #include "armor.hpp"
 #include "camera/usbcamera.hpp"
-#include "detector/detector.hpp"
 #include "omni/decider.hpp"
 #include "omni/detection.hpp"
 #include "tools/thread_safe_queue.hpp"
 
-// 全向感知搜索层：3 路 USB 相机 + 传统检测 + 数字分类器（报“目标 + 方位 + 编号”）。
+// 全向感知搜索层：3 路 USB 相机 + YOLO（可回退传统检测），报“目标 + 方位 + 编号”。
 // 选目标仍按表观距离，编号不参与优先级；结果带采集时间戳，交由 Decider 做时间对齐。
 class Perceptron
 {
@@ -34,18 +34,18 @@ public:
     std::array<cv::Mat, 3> latest_frames() const;
 
 private:
-    // USB 传统检测线程：cam -> Detector(纯灯条几何) -> DetectionResult(USB)
-    void search_thread(
-        USBCamera * cam, Detector & detector, const std::string & camera_key, int index);
+    using DetectFn = std::function<std::vector<Armor>(const cv::Mat &)>;
+
+    // USB 搜索线程：cam -> YOLO/传统检测 -> DetectionResult(USB)
+    void search_thread(USBCamera * cam, int index, const std::string & camera_key);
 
     std::vector<std::thread> threads_;
     // 容量溢出时丢弃最旧结果，保证搜索层始终保留最新方位
     ThreadSafeQueue<DetectionResult, true> detection_queue_;
 
-    // 每线程独立 Detector 实例（Detector 含帧级缓冲，非线程安全）
-    std::shared_ptr<Detector> detector1_;
-    std::shared_ptr<Detector> detector2_;
-    std::shared_ptr<Detector> detector3_;
+    // 每线程独立检测器实例（YOLO/Detector 都不是线程安全的）
+    std::array<DetectFn, 3> detectors_;
+    double detect_interval_s_ = 0.0;  // 0 表示不限制
 
     const Decider &
         decider_;  // 复用外部 Decider（安装角/FOV 单一来源；delta_angle 为 const，可并发调用）

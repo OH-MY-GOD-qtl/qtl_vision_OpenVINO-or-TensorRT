@@ -7,7 +7,8 @@
 #include "detector/yolos/yolov8.hpp"
 #include "tools/yaml.hpp"
 
-YOLO::YOLO(const std::string & config_path, bool debug)
+YOLO::YOLO(
+    const std::string & config_path, bool debug, std::optional<bool> use_tensorrt_override)
 {
     auto yaml = yaml_load(config_path);
     auto yolo_name = yaml_read<std::string>(yaml, "yolo_name");
@@ -21,7 +22,7 @@ YOLO::YOLO(const std::string & config_path, bool debug)
     }
 
     else if (yolo_name == "yolov5") {
-        yolo_ = std::make_unique<YOLOV5>(config_path, debug);
+        yolo_ = std::make_unique<YOLOV5>(config_path, debug, use_tensorrt_override);
     }
 
     else {

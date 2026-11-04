@@ -4,6 +4,7 @@
 #include <memory>
 #include <opencv2/opencv.hpp>
 #include <openvino/openvino.hpp>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -17,7 +18,9 @@
 class YOLOV5 : public YOLOBase
 {
 public:
-    YOLOV5(const std::string & config_path, bool debug);
+    YOLOV5(
+        const std::string & config_path, bool debug,
+        std::optional<bool> use_tensorrt_override = std::nullopt);
 
     std::vector<Armor> detect(const cv::Mat & bgr_img, int frame_count) override;
 

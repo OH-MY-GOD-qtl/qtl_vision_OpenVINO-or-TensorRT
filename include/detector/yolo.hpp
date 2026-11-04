@@ -3,6 +3,8 @@
 
 #include <opencv2/opencv.hpp>
 
+#include <optional>
+
 #include "armor.hpp"
 
 class YOLOBase
@@ -17,7 +19,10 @@ public:
 class YOLO
 {
 public:
-    YOLO(const std::string & config_path, bool debug = true);
+    // use_tensorrt_override：仅 YOLOv5 生效；用于让 USB 搜索链路强制走 OpenVINO
+    YOLO(
+        const std::string & config_path, bool debug = true,
+        std::optional<bool> use_tensorrt_override = std::nullopt);
 
     std::vector<Armor> detect(const cv::Mat & img, int frame_count = -1);
 

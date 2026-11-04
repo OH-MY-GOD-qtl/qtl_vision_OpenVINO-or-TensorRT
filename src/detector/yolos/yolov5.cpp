@@ -10,14 +10,17 @@
 #include "tools/logger.hpp"
 #include "tools/yaml.hpp"
 
-YOLOV5::YOLOV5(const std::string & config_path, bool debug)
-: debug_(debug), detector_(config_path, false)
+YOLOV5::YOLOV5(
+    const std::string & config_path, bool debug, std::optional<bool> use_tensorrt_override)
+: debug_(debug), detector_(config_path, false, false)
 {
     auto yaml = yaml_load(config_path);
 
     model_path_ = yaml_read<std::string>(yaml, "yolov5_model_path");
     device_ = yaml_read<std::string>(yaml, "device");
-    use_tensorrt_ = yaml["use_tensorrt"] ? yaml["use_tensorrt"].as<bool>() : false;
+    use_tensorrt_ = use_tensorrt_override
+                        ? *use_tensorrt_override
+                        : (yaml["use_tensorrt"] ? yaml["use_tensorrt"].as<bool>() : false);
     int x = 0, y = 0, width = 0, height = 0;
     x = yaml["roi"]["x"].as<int>();
     y = yaml["roi"]["y"].as<int>();

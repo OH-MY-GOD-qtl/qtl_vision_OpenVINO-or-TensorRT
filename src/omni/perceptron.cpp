@@ -5,24 +5,46 @@
 #include <memory>
 #include <thread>
 
+#include "detector/detector.hpp"
+#include "detector/yolo.hpp"
 #include "tools/logger.hpp"
+#include "tools/yaml.hpp"
 
 Perceptron::Perceptron(
     USBCamera * usbcam1, USBCamera * usbcam2, USBCamera * usbcam3, const Decider & decider,
     const std::string & config_path)
 : detection_queue_(30), decider_(decider), stop_flag_(false)
 {
-    // 三路 USB 走传统检测 + 数字分类器：识别编号/类型，但选目标仍按表观距离
-    detector1_ = std::make_shared<Detector>(config_path, false, true);
-    detector2_ = std::make_shared<Detector>(config_path, false, true);
-    detector3_ = std::make_shared<Detector>(config_path, false, true);
+    auto yaml = yaml_load(config_path);
+    const std::string detector_name =
+        yaml["omni_usb_detector"] ? yaml["omni_usb_detector"].as<std::string>() : "yolo";
+    const bool use_tensorrt =
+        yaml["omni_usb_use_tensorrt"] ? yaml["omni_usb_use_tensorrt"].as<bool>() : false;
+    const double detect_fps =
+        yaml["omni_usb_detect_fps"] ? yaml["omni_usb_detect_fps"].as<double>() : 15.0;
+    detect_interval_s_ = detect_fps > 0 ? 1.0 / detect_fps : 0.0;
+
+    if (detector_name == "traditional") {
+        for (auto & detector : detectors_) {
+            auto instance = std::make_shared<Detector>(config_path, false, false);
+            detector = [instance](const cv::Mat & img) { return instance->detect(img); };
+        }
+    } else {
+        for (auto & detector : detectors_) {
+            // USB 默认走 OpenVINO，即使海康配置 use_tensorrt=true
+            auto instance = std::make_shared<YOLO>(config_path, false, use_tensorrt);
+            detector = [instance](const cv::Mat & img) { return instance->detect(img); };
+        }
+    }
 
     // 相机标识 usb0/usb1/usb2 与 omni_usb_yaw_offsets 索引一一对应
-    threads_.emplace_back([this, usbcam1] { search_thread(usbcam1, *detector1_, "usb0", 0); });
-    threads_.emplace_back([this, usbcam2] { search_thread(usbcam2, *detector2_, "usb1", 1); });
-    threads_.emplace_back([this, usbcam3] { search_thread(usbcam3, *detector3_, "usb2", 2); });
+    threads_.emplace_back([this, usbcam1] { search_thread(usbcam1, 0, "usb0"); });
+    threads_.emplace_back([this, usbcam2] { search_thread(usbcam2, 1, "usb1"); });
+    threads_.emplace_back([this, usbcam3] { search_thread(usbcam3, 2, "usb2"); });
 
-    logger()->info("Perceptron initialized (3 USB traditional search).");
+    logger()->info(
+        "Perceptron initialized (3 USB {}, {:.0f} fps, tensorrt={}).", detector_name,
+        detect_fps, use_tensorrt);
 }
 
 Perceptron::~Perceptron()
@@ -62,9 +84,8 @@ std::array<cv::Mat, 3> Perceptron::latest_frames() const
     return latest_frames_;
 }
 
-// USB 传统检测线程
-void Perceptron::search_thread(
-    USBCamera * cam, Detector & detector, const std::string & camera_key, int index)
+// USB 搜索线程
+void Perceptron::search_thread(USBCamera * cam, int index, const std::string & camera_key)
 {
     if (!cam) {
         logger()->error("USB camera pointer is null ({})!", camera_key);
@@ -76,6 +97,7 @@ void Perceptron::search_thread(
     constexpr int read_timeout_ms = 100;
     int timeout_count = 0;
     bool unavailable = false;
+    std::chrono::steady_clock::time_point last_detect_t{};
 
     try {
         while (true) {
@@ -112,11 +134,17 @@ void Perceptron::search_thread(
                 latest_frames_[index] = img;
             }
 
-            auto armors = detector.detect(img);
+            const auto now = std::chrono::steady_clock::now();
+            if (detect_interval_s_ > 0 && last_detect_t != std::chrono::steady_clock::time_point{} &&
+                std::chrono::duration<double>(now - last_detect_t).count() < detect_interval_s_)
+                continue;
+            last_detect_t = now;
+
+            auto armors = detectors_[index](img);
             decider_.filter_enemy_color(armors);
             if (armors.empty()) continue;
 
-            // 传统 Armor 的 type/name/box 未初始化，只能用 points 算表观宽度
+            // 表观宽度统一用四点几何，YOLO/传统路径通用
             auto armor_width = [](const Armor & armor) {
                 if (armor.points.size() != 4) return 0.0;
                 return std::max(
