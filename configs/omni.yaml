@@ -41,8 +41,10 @@ max_rectangular_error: 25 # degree
 min_confidence: 0.8
 
 #####-----USB相机参数（3 路全向搜索）-----#####
-image_width: 640
-image_height: 360
+# 320x240（与 tests/usbcamera_test 一致）。切宽高比会改变实际视场，
+# omni_usb_fov_h / omni_usb_fov_v 需在该分辨率下重新标定。
+image_width: 320
+image_height: 240
 usb_frame_rate: 30
 
 #####-----tracker参数-----#####
@@ -104,8 +106,8 @@ omni_usb_cameras:                                 # 设备与安装角成对配�
   - {device: video0, yaw_offset_from_hik: 30}
   - {device: video2, yaw_offset_from_hik: -30}
   - {device: video4, yaw_offset_from_hik: -180}
-omni_usb_fov_h: 37.0                              # USB水平FOV(degree)
-omni_usb_fov_v: 40.9                              # USB垂直FOV(degree)
+omni_usb_fov_h: 37.0                              # USB水平FOV(degree，320x240 下需复核)
+omni_usb_fov_v: 40.9                              # USB垂直FOV(degree，320x240 下需复核)
 omni_hik_yaw_offset: 0                            # 海康相对yaw零位安装角(degree)
 omni_hik_fov_h: 54.2                              # 海康水平FOV(degree)
 omni_hik_fov_v: 44.5                              # 海康垂直FOV(degree)

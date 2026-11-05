@@ -4,6 +4,7 @@
 //  - 云台只有一个写入者（本主循环），不存在 200Hz 异步命令线程复用旧时间戳导致乱晃
 //  - 海康优先：海康锁定 -> 由 planner 精确输出；海康无目标 -> USB 引导 yaw + pitch 预设
 //  - USB 结果带采集时间戳，Decider 用 gimbal.q(采集时刻) 做时间对齐 + 老化/限速/低通
+#include <algorithm>
 #include <array>
 #include <atomic>
 #include <chrono>
@@ -68,11 +69,15 @@ bool show_debug_view(
                         const std::string & status, const cv::Scalar & status_color) {
         const int x = (index % 2) * 640;
         const int y = (index / 2) * 360;
-        cv::Mat tile;
-        if (!frame.empty())
-            cv::resize(frame, tile, cv::Size(640, 360));
-        else
-            tile = cv::Mat(360, 640, CV_8UC3, cv::Scalar(0, 0, 0));
+        // 按比例缩放并居中，避免 4:3 画面被拉成 16:9（USB 相机为 320x240）
+        cv::Mat tile(360, 640, CV_8UC3, cv::Scalar(0, 0, 0));
+        if (!frame.empty()) {
+            const double scale = std::min(640.0 / frame.cols, 360.0 / frame.rows);
+            cv::Mat scaled;
+            cv::resize(frame, scaled, cv::Size(), scale, scale, cv::INTER_LINEAR);
+            scaled.copyTo(tile(cv::Rect(
+                (640 - scaled.cols) / 2, (360 - scaled.rows) / 2, scaled.cols, scaled.rows)));
+        }
         tile.copyTo(canvas(cv::Rect(x, y, 640, 360)));
         cv::putText(
             canvas, title, {x + 10, y + 28}, cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 0),
