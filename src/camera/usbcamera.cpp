@@ -8,11 +8,17 @@
 
 using namespace std::chrono_literals;
 
-namespace
+std::string USBCamera::resolve_device_path(const std::string & device)
 {
+    if (device.rfind("/dev/", 0) == 0) return device;
+    if (!device.empty() && device.front() == '/') return device;
+    return "/dev/" + device;
+}
+
 // 把 /dev/videoN 映射到 /dev/v4l/by-id 或 by-path 的稳定别名。
-// 相机缺少序列号时优先 by-path（同一物理 USB 口重插后路径不变）。
-std::string find_stable_device_path(const std::string & device)
+// 相机缺少序列号时只有 by-path 可靠（同一物理 USB 口重插后路径不变）。
+std::string USBCamera::find_stable_device_path(
+    const std::string & device, const std::vector<std::string> & search_dirs)
 {
     if (device.empty()) return {};
     const std::filesystem::path node = device.front() == '/' ? device : "/dev/" + device;
@@ -22,7 +28,7 @@ std::string find_stable_device_path(const std::string & device)
     const auto canonical_node = std::filesystem::canonical(node, ec);
     if (ec) return {};
 
-    for (const char * dir : {"/dev/v4l/by-id", "/dev/v4l/by-path"}) {
+    for (const auto & dir : search_dirs) {
         if (!std::filesystem::exists(dir)) continue;
         for (const auto & entry : std::filesystem::directory_iterator(dir, ec)) {
             if (ec) break;
@@ -35,14 +41,6 @@ std::string find_stable_device_path(const std::string & device)
         }
     }
     return {};
-}
-}  // namespace
-
-std::string USBCamera::resolve_device_path(const std::string & device)
-{
-    if (device.rfind("/dev/", 0) == 0) return device;
-    if (!device.empty() && device.front() == '/') return device;
-    return "/dev/" + device;
 }
 
 USBCamera::USBCamera(const std::string & open_name, const std::string & config_path)
@@ -57,7 +55,7 @@ USBCamera::USBCamera(const std::string & open_name, const std::string & config_p
     resolved_device_path_ = find_stable_device_path(open_name_);
     if (resolved_device_path_.empty())
         logger()->warn(
-            "[USBCamera] {} has no stable by-id/by-path alias; hotplug may not recover",
+            "[USBCamera] {} has no stable by-id/by-path alias yet; will re-resolve on retry",
             open_name_);
     else
         logger()->info("[USBCamera] {} -> {}", open_name_, resolved_device_path_);
@@ -134,8 +132,18 @@ bool USBCamera::try_read(
 bool USBCamera::open()
 {
     std::lock_guard<std::mutex> lock(cap_mutex_);
-    // 启动时相机可能还没插入：每次重试都尝试解析一次稳定别名
-    if (resolved_device_path_.empty()) resolved_device_path_ = find_stable_device_path(open_name_);
+
+    // 稳定别名会随拔插失效（换了物理口、by-id 名字变化）：每次重试都重新解析一次。
+    // 一旦拿到过别名，别名消失期间**不回退**到 videoN —— 那个编号可能已属于另一台相机。
+    if (resolved_device_path_.empty() || !std::filesystem::exists(resolved_device_path_)) {
+        auto refreshed = find_stable_device_path(open_name_);
+        if (!refreshed.empty() && refreshed != resolved_device_path_) {
+            logger()->info("[USBCamera] {} -> {}", open_name_, refreshed);
+            resolved_device_path_ = refreshed;
+        }
+    }
+    if (!resolved_device_path_.empty() && !std::filesystem::exists(resolved_device_path_))
+        return false;  // 相机不在：等守护线程下一轮重试
 
     std::string true_device_name =
         resolved_device_path_.empty() ? resolve_device_path(open_name_) : resolved_device_path_;
