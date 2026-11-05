@@ -34,6 +34,9 @@ public:
         const std::vector<std::string> & search_dirs = {
             "/dev/v4l/by-id", "/dev/v4l/by-path"});
 
+    // 只有裸 videoN（/dev/videoN）需要解析稳定别名；by-id/by-path 等显式路径原样使用
+    static bool needs_alias_resolution(const std::string & device);
+
 private:
     struct CameraData
     {
@@ -46,6 +49,7 @@ private:
     cv::Mat img_;
     std::string open_name_;
     std::string resolved_device_path_;  // videoN 对应的 by-id/by-path 稳定路径（失效后会重解析）
+    bool has_stable_alias_ = false;     // 解析到过别名后，别名消失期间不回退 videoN
     int usb_frame_rate_;
     std::atomic<int> open_count_;  // 连续打开失败次数，成功取到帧后清零
     double image_width_, image_height_;

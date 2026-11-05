@@ -13,8 +13,7 @@
 class YOLOV8 : public YOLOBase
 {
 public:
-    // use_classifier=false 时不加载独立数字分类器（USB 搜索链路用）
-    YOLOV8(const std::string & config_path, bool debug, bool use_classifier = true);
+    YOLOV8(const std::string & config_path, bool debug);
 
     std::vector<Armor> detect(const cv::Mat & bgr_img, int frame_count) override;
 
@@ -26,7 +25,7 @@ private:
     Detector detector_;
 
     std::string device_, model_path_;
-    bool debug_, use_roi_, use_classifier_;
+    bool debug_, use_roi_;
 
     const int class_num_ = 2;
     const float nms_threshold_ = 0.3;

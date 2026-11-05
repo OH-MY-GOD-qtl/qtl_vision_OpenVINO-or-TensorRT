@@ -30,6 +30,16 @@ int main()
                 "/dev/v4l/by-id/usb-camera-0",
             "absolute /dev path must be preserved");
 
+        // 只有裸 videoN 才去查别名；by-id/by-path 显式路径必须原样使用
+        require(
+            USBCamera::needs_alias_resolution("video0") &&
+                USBCamera::needs_alias_resolution("/dev/video12"),
+            "bare videoN must need alias resolution");
+        require(
+            !USBCamera::needs_alias_resolution("/dev/v4l/by-path/port-1-video-index0") &&
+                !USBCamera::needs_alias_resolution("v4l/by-id/cam-video-index0"),
+            "explicit by-id/by-path must be used verbatim");
+
         // 别名查找：用注入目录模拟 /dev/v4l，覆盖「有别名 / 没别名 / 重插后改名」
         namespace fs = std::filesystem;
         const auto root = fs::temp_directory_path() / "usbcamera_path_test";

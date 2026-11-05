@@ -21,20 +21,30 @@ Perceptron::Perceptron(
         yaml["omni_usb_detect_fps"] ? yaml["omni_usb_detect_fps"].as<double>() : 15.0;
     detect_interval_s_ = detect_fps > 0 ? 1.0 / detect_fps : 0.0;
 
+    // 结果间隔比老化阈值还长时，Decider 会把每条结果都当过期丢掉（表现为永远锁不上）
+    const double max_age_s =
+        yaml["omni_usb_max_age_s"] ? yaml["omni_usb_max_age_s"].as<double>() : 0.15;
+    if (detect_interval_s_ > max_age_s)
+        logger()->warn(
+            "[omni] omni_usb_detect_fps={:.1f} -> {:.3f}s interval exceeds "
+            "omni_usb_max_age_s={:.3f}s; USB results will always be stale",
+            detect_fps, detect_interval_s_, max_age_s);
+
     // USB 搜索链路只需要检测：
     //   - 不加载独立数字分类器（编号由检测器的分类头直接给出）
     //   - 不做传统角点二次矫正（那是海康精确链路的行为）
     //   - 默认走 OpenVINO，即使海康配置 use_tensorrt=true
-    for (auto & detector : detectors_) {
-        detector = std::make_unique<YOLO>(
-            config_path, false, use_tensorrt, /*use_classifier=*/false,
-            /*use_traditional_override=*/false);
-    }
+    YOLOOptions options;
+    options.debug = false;
+    options.use_tensorrt = use_tensorrt;
+    options.use_traditional = false;
+    options.use_classifier = false;
+    for (auto & detector : detectors_) detector = std::make_unique<YOLO>(config_path, options);
 
-    // 相机标识 usb0/usb1/usb2 与 omni_usb_yaw_offsets 索引一一对应
-    threads_.emplace_back([this, usbcam1] { search_thread(usbcam1, 0, "usb0"); });
-    threads_.emplace_back([this, usbcam2] { search_thread(usbcam2, 1, "usb1"); });
-    threads_.emplace_back([this, usbcam3] { search_thread(usbcam3, 2, "usb2"); });
+    // 相机标识 usb0/usb1/usb2 与 omni_usb_cameras 索引一一对应，由 index 派生
+    threads_.emplace_back([this, usbcam1] { search_thread(usbcam1, 0); });
+    threads_.emplace_back([this, usbcam2] { search_thread(usbcam2, 1); });
+    threads_.emplace_back([this, usbcam3] { search_thread(usbcam3, 2); });
 
     logger()->info(
         "Perceptron initialized (3 USB YOLO, {:.0f} fps, tensorrt={}, classifier=off, "
@@ -80,8 +90,9 @@ std::array<cv::Mat, 3> Perceptron::latest_frames() const
 }
 
 // USB 搜索线程
-void Perceptron::search_thread(USBCamera * cam, int index, const std::string & camera_key)
+void Perceptron::search_thread(USBCamera * cam, int index)
 {
+    const std::string camera_key = "usb" + std::to_string(index);
     if (!cam) {
         logger()->error("USB camera pointer is null ({})!", camera_key);
         return;

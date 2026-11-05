@@ -175,7 +175,7 @@ cd qtl_vision_OpenVINO-or-TensorRT  # 进入项目根目录
 | `auto_aim_debug_mpc` | debug | `apps/auto_aim_debug_mpc.cpp` | YOLO+EKF+MPC 自瞄（重投影窗口） | YOLO | MPC Planner | 串口 Gimbal | `standard1(_sim).yaml` |
 | `standard` | supported | `apps/standard.cpp` | YOLO 自瞄（无窗口） | YOLO | 弹道 Aimer+Shooter | 裁判系统 CBoard（CAN） | `standard3.yaml` |
 | `standard_mpc` | frozen | `apps/standard_mpc.cpp` | YOLO+MPC 自瞄（无窗口） | YOLO | MPC Planner | 串口 Gimbal | `standard3.yaml` |
-| `omni_standard` | supported | `apps/omni_standard.cpp` | 全向感知自瞄（3×USB 搜索 + 海康主瞄准，无窗口） | YOLO + 传统 | MPC Planner | 串口 Gimbal | `omni.yaml` |
+| `omni_standard` | supported | `apps/omni_standard.cpp` | 全向感知自瞄（3×USB 搜索 + 海康主瞄准，无窗口） | YOLO | MPC Planner | 串口 Gimbal | `omni.yaml` |
 | `camera_auto_aim_test` | debug | `tests/camera_auto_aim_test.cpp` | 相机+自瞄离线测试（无通讯） | YOLO | 弹道 Aimer | — | `camera_auto_aim.yaml` |
 | `capture` | tool | `calibration/capture.cpp` | 采集标定图片（s 保存 / q 退出） | — | — | 串口 Gimbal | `calibration(_sim).yaml` |
 | `calibrate_camera` | tool | `calibration/calibrate_camera.cpp` | 计算内参（结果**只打印不写文件**） | — | — | — | `calibration(_sim).yaml` |
@@ -345,7 +345,7 @@ omni_usb_cameras:
   - device: "video4"
     yaw_offset_from_hik: 180  # 示例值
 omni_usb_detect_fps: 15                            # 每路 USB 检测限频
-omni_usb_use_tensorrt: false                       # USB YOLO 默认 OpenVINO
+omni_usb_use_tensorrt: false                       # 仅 YOLOv5 生效：USB 默认 OpenVINO
 omni_usb_fov_h: 37.0                              # USB水平/垂直FOV(deg)
 omni_usb_fov_v: 40.9
 omni_hik_yaw_offset: 0                            # 海康相对yaw零位安装角(deg)

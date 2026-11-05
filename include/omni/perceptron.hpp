@@ -36,7 +36,8 @@ public:
 
 private:
     // USB 搜索线程：cam -> YOLO 检测 -> DetectionResult(USB)
-    void search_thread(USBCamera * cam, int index, const std::string & camera_key);
+    // 相机标识 usb0/usb1/usb2 由 index 派生，不再手写第二份身份
+    void search_thread(USBCamera * cam, int index);
 
     std::vector<std::thread> threads_;
     // 容量溢出时丢弃最旧结果，保证搜索层始终保留最新方位
