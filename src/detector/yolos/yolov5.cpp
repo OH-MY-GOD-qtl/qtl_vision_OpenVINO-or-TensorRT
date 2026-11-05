@@ -11,7 +11,8 @@
 #include "tools/yaml.hpp"
 
 YOLOV5::YOLOV5(
-    const std::string & config_path, bool debug, std::optional<bool> use_tensorrt_override)
+    const std::string & config_path, bool debug, std::optional<bool> use_tensorrt_override,
+    std::optional<bool> use_traditional_override)
 : debug_(debug), detector_(config_path, false, false)
 {
     auto yaml = yaml_load(config_path);
@@ -27,7 +28,8 @@ YOLOV5::YOLOV5(
     width = yaml["roi"]["width"].as<int>();
     height = yaml["roi"]["height"].as<int>();
     use_roi_ = yaml_read<bool>(yaml, "use_roi");
-    use_traditional_ = yaml_read<bool>(yaml, "use_traditional");
+    use_traditional_ = use_traditional_override ? *use_traditional_override
+                                                : yaml_read<bool>(yaml, "use_traditional");
     roi_ = cv::Rect(x, y, width, height);
     offset_ = cv::Point2f(x, y);
 

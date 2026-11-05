@@ -8,21 +8,24 @@
 #include "tools/yaml.hpp"
 
 YOLO::YOLO(
-    const std::string & config_path, bool debug, std::optional<bool> use_tensorrt_override)
+    const std::string & config_path, bool debug, std::optional<bool> use_tensorrt_override,
+    bool use_classifier, std::optional<bool> use_traditional_override)
 {
     auto yaml = yaml_load(config_path);
     auto yolo_name = yaml_read<std::string>(yaml, "yolo_name");
 
     if (yolo_name == "yolov8") {
-        yolo_ = std::make_unique<YOLOV8>(config_path, debug);
+        yolo_ = std::make_unique<YOLOV8>(config_path, debug, use_classifier);
     }
 
     else if (yolo_name == "yolo11") {
+        // YOLO11 自带分类头，始终不加载独立数字分类器
         yolo_ = std::make_unique<YOLO11>(config_path, debug);
     }
 
     else if (yolo_name == "yolov5") {
-        yolo_ = std::make_unique<YOLOV5>(config_path, debug, use_tensorrt_override);
+        yolo_ = std::make_unique<YOLOV5>(
+            config_path, debug, use_tensorrt_override, use_traditional_override);
     }
 
     else {

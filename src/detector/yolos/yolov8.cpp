@@ -13,7 +13,10 @@
 #include "tools/logger.hpp"
 #include "tools/yaml.hpp"
 
-YOLOV8::YOLOV8(const std::string & config_path, bool debug) : detector_(config_path), debug_(debug)
+YOLOV8::YOLOV8(const std::string & config_path, bool debug, bool use_classifier)
+: detector_(config_path, false, use_classifier)
+, debug_(debug)
+, use_classifier_(use_classifier)
 {
     auto yaml = yaml_load(config_path);
 
@@ -164,8 +167,11 @@ std::vector<Armor> YOLOV8::parse(
 
     for (std::size_t i = 0; i < armors.size();) {
         auto & a = armors[i];
-        a.pattern = Detector::get_pattern_neural(bgr_img, a);
-        detector_.classify(a);
+        // 编号由网络类别头直接给出；没有分类器时跳过图案裁剪与二次分类
+        if (use_classifier_) {
+            a.pattern = Detector::get_pattern_neural(bgr_img, a);
+            detector_.classify(a);
+        }
 
         if (!detector_.check_name(a, false)) {
             armors.erase(armors.begin() + i);

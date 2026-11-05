@@ -8,7 +8,7 @@ enemy_color: "blue"
 
 #####-----神经网络参数-----#####
 yolo_name: yolov5
-classify_model: assets/tiny_resnet.onnx
+classify_model: assets/tiny_resnet.onnx   # 仅 yolov8 链路使用；yolov5/yolo11 自带分类头，不加载
 yolo11_model_path: assets/yolo11.xml
 yolov8_model_path: assets/yolov8.xml
 yolov5_model_path: assets/0526.onnx
@@ -16,8 +16,7 @@ yolov5_model_path: assets/0526.onnx
 use_tensorrt: true
 yolov5_engine_path: assets/yolov5.engine
 device: CPU
-min_confidence: 0.8
-use_traditional: true
+use_traditional: true                 # 海康 YOLO 链路的传统角点二次矫正；USB 搜索链路强制关闭
 
 #####-----ROI-----#####
 roi: 
@@ -28,7 +27,7 @@ roi:
 
 use_roi: false
 
-#####-----传统方法参数（omni_usb_detector=traditional 时使用）-----#####
+#####-----传统方法参数（海康 YOLO 链路内 Detector 的几何/颜色判定复用）-----#####
 color_threshold: 40   # 颜色差阈值（分离通道：红敌R-B / 蓝敌B-R）
 brightness_threshold: 100 # 亮度阈值（灰度）
 max_angle_error: 45 # degree
@@ -96,7 +95,7 @@ t_camera2gimbal: [0.13896449776991429, 0.0016645156598860274, 0.0456530298220751
 mode: 1
 
 #####-----全向感知(omni)参数-----#####
-omni_usb_detector: yolo                            # yolo / traditional（回退对比用）
+# USB 搜索链路固定为 YOLO 检测：不加载独立数字分类器，也不做传统角点矫正。
 omni_usb_detect_fps: 15                            # 每路 USB 检测限频，0 表示不限制
 omni_usb_use_tensorrt: false                       # USB YOLO 强制 OpenVINO，海康仍用上面的 use_tensorrt
 omni_usb_cameras:                                 # 设备与安装角成对配置，避免索引错配

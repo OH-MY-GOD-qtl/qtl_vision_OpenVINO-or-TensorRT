@@ -1,4 +1,4 @@
-// omni_standard：全向感知自瞄（3×USB 传统方位搜索 + 1×海康 YOLO 精确主瞄准），无显示窗口
+// omni_standard：全向感知自瞄（3×USB YOLO 方位搜索 + 1×海康 YOLO 精确主瞄准），无显示窗口
 //
 // 架构要点（与 omnidirectional_sensing 的异步方案的关键区别）：
 //  - 云台只有一个写入者（本主循环），不存在 200Hz 异步命令线程复用旧时间戳导致乱晃
@@ -144,7 +144,7 @@ int main(int argc, char * argv[])
     Planner planner(config_path);
     Decider decider(config_path);
 
-    // ---- 3 路 USB 方位搜索（传统检测，不加载分类器）----
+    // ---- 3 路 USB 方位搜索（YOLO 检测；不加载分类器、不做传统矫正）----
     std::array<std::unique_ptr<USBCamera>, 3> usb_cams;
     for (size_t i = 0; i < usb_cams.size() && i < usb_cameras.size(); ++i)
         usb_cams[i] = std::make_unique<USBCamera>(usb_cameras[i].device, config_path);

@@ -215,7 +215,7 @@ yolov5_model_path: assets/0526.onnx      # YOLOv5 OpenVINO 后端模型（深圳
 use_tensorrt: true             # YOLOv5 推理后端：true=TensorRT / false=OpenVINO
 yolov5_engine_path: assets/yolov5.engine # TensorRT 引擎（use_tensorrt=true 时生效）
 min_confidence: 0.8            # 检测置信度阈值
-use_traditional: true          # 传统视觉二次矫正（仅 YOLO 链路）
+use_traditional: true          # 传统视觉二次矫正（仅 YOLO 链路；USB 搜索链路强制关闭）
 use_roi: false                 # 是否启用 roi 区域
 color_threshold: 40            # 传统检测颜色差阈值（红敌R-B / 蓝敌B-R）
 brightness_threshold: 100      # 传统检测亮度阈值
@@ -292,7 +292,7 @@ ros2 topic echo /enemy_hp std_msgs/msg/String
 
 | 相机 | 检测路线 | 作用 |
 |---|---|---|
-| USB × 3 | YOLO（与海康同模型，默认 OpenVINO；可回退传统检测） | 全向搜索：报「目标 + 方位 + 编号」，选目标仍按表观距离，引导 yaw 转向 |
+| USB × 3 | YOLO（与海康同模型，默认 OpenVINO；不加载分类器、不做传统矫正） | 全向搜索：报「目标 + 方位 + 编号」，选目标仍按表观距离，引导 yaw 转向 |
 | 海康 × 1 | YOLO（TensorRT） | 主瞄准：走完整精确链路（PnP + EKF + MPC） |
 
 ### 仲裁策略（海康优先 + USB 锁定 / coast）
@@ -318,8 +318,8 @@ ros2 topic echo /enemy_hp std_msgs/msg/String
 ./build/omni_standard configs/omni.yaml --simulate --display
 ```
 
-> USB 链路默认使用 YOLO；当前模型仍是旧装甲。`omni_usb_detector: traditional`
-> 回退路径才依赖灯条，**新装甲不适用**。新装甲目前只有 YOLO11 主瞄准方案（迁移中）。
+> USB 链路固定使用 YOLO 检测；当前模型仍是旧装甲，**新装甲不适用**。
+> 新装甲目前只有 YOLO11 主瞄准方案（迁移中）。
 
 **决策（海康优先）**：
 
@@ -344,7 +344,6 @@ omni_usb_cameras:
     yaw_offset_from_hik: -30  # 示例值
   - device: "video4"
     yaw_offset_from_hik: 180  # 示例值
-omni_usb_detector: yolo                            # yolo / traditional（回退对比）
 omni_usb_detect_fps: 15                            # 每路 USB 检测限频
 omni_usb_use_tensorrt: false                       # USB YOLO 默认 OpenVINO
 omni_usb_fov_h: 37.0                              # USB水平/垂直FOV(deg)
@@ -371,10 +370,10 @@ USB 设备名建议使用 `/dev/v4l/by-path/*-video-index0`：`videoN` 会随插
 云台串口未连接时，可运行 `omni_standard configs/omni.yaml --simulate` 观察模拟控制日志；
 该选项不连接串口，也不会驱动实机。
 
-> USB 链路默认使用 YOLO（`omni_usb_detector: yolo`），识别编号/类型；**选目标仍按表观距离**，
-> 编号不参与优先级。默认每路限频 `omni_usb_detect_fps=15`，USB 走 OpenVINO
-> （`omni_usb_use_tensorrt=false`），海康仍按顶层 `use_tensorrt` 走 TensorRT。
-> 需要对比时可把 `omni_usb_detector` 改为 `traditional`。
+> USB 链路固定使用 YOLO 检测：**只做检测，不加载独立数字分类器**（编号由检测器的分类头给出），
+> 也不做传统角点二次矫正；**选目标仍按表观距离**，编号不参与优先级。默认每路限频
+> `omni_usb_detect_fps=15`，USB 走 OpenVINO（`omni_usb_use_tensorrt=false`）；
+> 海康仍按顶层 `use_tensorrt` / `use_traditional` 走 TensorRT 与传统角点矫正。
 
 ---
 

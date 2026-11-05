@@ -5,7 +5,6 @@
 #include <memory>
 #include <thread>
 
-#include "detector/detector.hpp"
 #include "detector/yolo.hpp"
 #include "tools/logger.hpp"
 #include "tools/yaml.hpp"
@@ -16,25 +15,20 @@ Perceptron::Perceptron(
 : detection_queue_(30), decider_(decider), stop_flag_(false)
 {
     auto yaml = yaml_load(config_path);
-    const std::string detector_name =
-        yaml["omni_usb_detector"] ? yaml["omni_usb_detector"].as<std::string>() : "yolo";
     const bool use_tensorrt =
         yaml["omni_usb_use_tensorrt"] ? yaml["omni_usb_use_tensorrt"].as<bool>() : false;
     const double detect_fps =
         yaml["omni_usb_detect_fps"] ? yaml["omni_usb_detect_fps"].as<double>() : 15.0;
     detect_interval_s_ = detect_fps > 0 ? 1.0 / detect_fps : 0.0;
 
-    if (detector_name == "traditional") {
-        for (auto & detector : detectors_) {
-            auto instance = std::make_shared<Detector>(config_path, false, false);
-            detector = [instance](const cv::Mat & img) { return instance->detect(img); };
-        }
-    } else {
-        for (auto & detector : detectors_) {
-            // USB 默认走 OpenVINO，即使海康配置 use_tensorrt=true
-            auto instance = std::make_shared<YOLO>(config_path, false, use_tensorrt);
-            detector = [instance](const cv::Mat & img) { return instance->detect(img); };
-        }
+    // USB 搜索链路只需要检测：
+    //   - 不加载独立数字分类器（编号由检测器的分类头直接给出）
+    //   - 不做传统角点二次矫正（那是海康精确链路的行为）
+    //   - 默认走 OpenVINO，即使海康配置 use_tensorrt=true
+    for (auto & detector : detectors_) {
+        detector = std::make_unique<YOLO>(
+            config_path, false, use_tensorrt, /*use_classifier=*/false,
+            /*use_traditional_override=*/false);
     }
 
     // 相机标识 usb0/usb1/usb2 与 omni_usb_yaw_offsets 索引一一对应
@@ -43,7 +37,8 @@ Perceptron::Perceptron(
     threads_.emplace_back([this, usbcam3] { search_thread(usbcam3, 2, "usb2"); });
 
     logger()->info(
-        "Perceptron initialized (3 USB {}, {:.0f} fps, tensorrt={}).", detector_name,
+        "Perceptron initialized (3 USB YOLO, {:.0f} fps, tensorrt={}, classifier=off, "
+        "traditional=off).",
         detect_fps, use_tensorrt);
 }
 
@@ -140,7 +135,7 @@ void Perceptron::search_thread(USBCamera * cam, int index, const std::string & c
                 continue;
             last_detect_t = now;
 
-            auto armors = detectors_[index](img);
+            auto armors = detectors_[index]->detect(img);
             decider_.filter_enemy_color(armors);
             if (armors.empty()) continue;
 

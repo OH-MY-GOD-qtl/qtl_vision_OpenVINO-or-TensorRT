@@ -20,7 +20,8 @@ class YOLOV5 : public YOLOBase
 public:
     YOLOV5(
         const std::string & config_path, bool debug,
-        std::optional<bool> use_tensorrt_override = std::nullopt);
+        std::optional<bool> use_tensorrt_override = std::nullopt,
+        std::optional<bool> use_traditional_override = std::nullopt);
 
     std::vector<Armor> detect(const cv::Mat & bgr_img, int frame_count) override;
 
