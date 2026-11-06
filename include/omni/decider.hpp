@@ -99,6 +99,10 @@ private:
     double last_yaw_ = 0;
     std::chrono::steady_clock::time_point last_yaw_t_;
 
+    // 每路最近一条 USB 结果（跨调用保留）：检测被限频到 15 fps，而主循环更快，
+    // 不能把“这一批里没有”当成“没有结果”，否则状态会以检测帧率在 LOCKED/COAST 间跳。
+    std::unordered_map<std::string, DetectionResult> last_results_;
+
     Eigen::Vector2d delta_angle_from_center(
         const cv::Point2f & center, const std::string & camera) const;
 

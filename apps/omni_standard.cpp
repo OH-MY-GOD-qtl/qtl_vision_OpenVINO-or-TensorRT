@@ -54,16 +54,10 @@ void draw_armor(
 // 返回 true 表示用户按 q 退出
 bool show_debug_view(
     const cv::Mat & hik_frame, const std::vector<Armor> & hik_armors,
-    const std::vector<DetectionResult> & usb_results, const std::array<cv::Mat, 3> & usb_frames,
-    const Decider::Guide & guide, bool hik_active, double detect_gain)
+    const std::unordered_map<std::string, DetectionResult> & latest_usb,
+    const std::array<cv::Mat, 3> & usb_frames, const Decider::Guide & guide, bool hik_active,
+    double detect_gain)
 {
-    std::unordered_map<std::string, const DetectionResult *> latest_usb;
-    for (const auto & dr : usb_results) {
-        auto it = latest_usb.find(dr.camera);
-        if (it == latest_usb.end() || dr.timestamp > it->second->timestamp)
-            latest_usb[dr.camera] = &dr;
-    }
-
     cv::Mat canvas(720, 1280, CV_8UC3, cv::Scalar(20, 20, 20));
     auto put_tile = [&](int index, const cv::Mat & frame, const std::string & title,
                         const std::string & status, const cv::Scalar & status_color) {
@@ -98,8 +92,10 @@ bool show_debug_view(
         cv::Mat usb_view = usb_frames[i].empty() ? cv::Mat() : usb_frames[i].clone();
         std::string status = usb_frames[i].empty() ? "no frame" : "no target";
         auto it = latest_usb.find(key);
-        if (it != latest_usb.end()) {
-            const auto & dr = *it->second;
+        // 结果比 0.5 s 还旧就不画框，避免相机停流后旧框一直挂在画面上
+        if (it != latest_usb.end() &&
+            delta_time(std::chrono::steady_clock::now(), it->second.timestamp) <= 0.5) {
+            const auto & dr = it->second;
             if (!usb_view.empty()) {
                 for (int k = 0; k < static_cast<int>(dr.armors.size()); ++k) {
                     if (k == dr.selected_index) continue;
@@ -166,6 +162,9 @@ int main(int argc, char * argv[])
     auto last_mode = GimbalMode::IDLE;
     auto last_hik_target_t = std::chrono::steady_clock::now() - 10s;
     int guide_log_count = 0;
+    // 调试显示用：每路最近一条结果（跨轮保留）。检测限频 15 fps、主循环更快，
+    // 只用本批结果会让框以检测帧率闪烁。
+    std::unordered_map<std::string, DetectionResult> usb_latest;
 
     while (!exiter.exit()) {
         auto mode = gimbal.mode();
@@ -180,12 +179,17 @@ int main(int argc, char * argv[])
 
         // 2) USB 搜索层：每轮必 drain，防止队列堆积
         auto usb_results = perceptron.get_detection_queue();
+        for (const auto & dr : usb_results) {
+            if (dr.camera.empty()) continue;
+            auto & slot = usb_latest[dr.camera];
+            if (slot.timestamp <= dr.timestamp) slot = dr;
+        }
 
         if (!hik_ok || img.empty()) {
             if (display) {
                 const Decider::Guide no_guide;
                 if (show_debug_view(
-                        cv::Mat(), {}, usb_results, perceptron.latest_frames(), no_guide, false,
+                        cv::Mat(), {}, usb_latest, perceptron.latest_frames(), no_guide, false,
                         perceptron.detect_gain()))
                     break;
             }
@@ -252,7 +256,7 @@ int main(int argc, char * argv[])
 
         if (display) {
             if (show_debug_view(
-                    img, armors, usb_results, perceptron.latest_frames(), guide, hik_active,
+                    img, armors, usb_latest, perceptron.latest_frames(), guide, hik_active,
                     perceptron.detect_gain()))
                 break;
         }

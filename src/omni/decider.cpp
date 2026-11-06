@@ -59,6 +59,7 @@ void Decider::reset_guide()
     has_last_yaw_ = false;
     last_yaw_ = 0;
     last_yaw_t_ = {};
+    last_results_.clear();
 }
 
 Decider::Guide Decider::arbitrate_usb(
@@ -71,8 +72,8 @@ Decider::Guide Decider::arbitrate_usb(
         return Guide{};
     }
 
-    // 每路只保留最新一条新鲜结果，避免旧帧尺寸参与比较
-    std::unordered_map<std::string, const DetectionResult *> latest;
+    // 先把本批结果并入每路缓存（只保留更新的），再按年龄筛新鲜度。
+    // 检测被限频到 15 fps，主循环快得多；只看本批会把“这轮没新帧”误判成“丢目标”。
     for (const auto & dr : results) {
         if (dr.source != DetectionSource::USB) continue;
         if (dr.camera.empty() || dr.armors.empty()) continue;
@@ -80,12 +81,16 @@ Decider::Guide Decider::arbitrate_usb(
             dr.selected_index >= static_cast<int>(dr.armors.size()))
             continue;
 
+        auto & slot = last_results_[dr.camera];
+        if (slot.timestamp <= dr.timestamp) slot = dr;
+    }
+
+    std::unordered_map<std::string, const DetectionResult *> latest;
+    for (const auto & [camera, dr] : last_results_) {
         double age = delta_time(now, dr.timestamp);
         if (age < 0) age = 0;
         if (age > usb_max_age_s_) continue;
-
-        auto it = latest.find(dr.camera);
-        if (it == latest.end() || dr.timestamp > it->second->timestamp) latest[dr.camera] = &dr;
+        latest[camera] = &dr;
     }
 
     if (!has_guide_lock_) {

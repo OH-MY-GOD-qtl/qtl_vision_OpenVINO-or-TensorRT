@@ -103,6 +103,16 @@ int main()
             {make_result("usb0", 0.50, now), make_result("usb1", 0.30, now)}, gimbal, now, false);
         require(guide.camera == "usb1", "must not switch camera while locked");
 
+        // 2.5) 这一批没有新结果时不能掉回 COAST：
+        //      检测被限频到 15 fps，而主循环更快，必须靠缓存里的上一条结果维持 LOCKED
+        now += 10ms;
+        guide = decider.arbitrate_usb({}, gimbal, now, false);
+        require(guide.valid, "empty batch within max_age must keep controlling");
+        require(
+            guide.phase == Decider::GuidePhase::LOCKED,
+            "empty batch within max_age must stay LOCKED");
+        require(guide.camera == "usb1", "empty batch must keep the locked camera");
+
         // 3) 锁定相机超过 max_age：进入 coast，保持最后绝对方位
         now += 200ms;
         guide = decider.arbitrate_usb({make_result("usb0", 0.50, now)}, gimbal, now, false);

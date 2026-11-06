@@ -310,7 +310,8 @@ ros2 topic echo /enemy_hp std_msgs/msg/String
 
 离线验证：`./build/omni_arbitration_test`（合成结果覆盖锁定、coast、超时与海康接管）。
 
-调试画面（海康 + 三路 USB 拼接；USB 灰色框为所有 YOLO 检测，黄色为选中装甲，标出锁定相机 / coast / size_score，按 `q` 退出）：
+调试画面（海康 + 三路 USB 拼接；海康绿色框为精确链路检测，USB 灰色框为全部检测、黄色为选中装甲，
+标出 gain / 锁定相机 / coast / size_score，按 `q` 退出）：
 
 ```bash
 ./build/omni_standard configs/omni.yaml --display
