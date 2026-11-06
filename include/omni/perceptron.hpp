@@ -46,6 +46,7 @@ private:
     // 每线程独立 YOLO 实例（YOLO 不是线程安全的，不能跨线程共享）
     std::array<std::unique_ptr<YOLO>, 3> detectors_;
     double detect_interval_s_ = 0.0;  // 0 表示不限制
+    double detect_gain_ = 1.0;        // 送检前亮度缩放，1.0 表示不处理
 
     const Decider &
         decider_;  // 复用外部 Decider（安装角/FOV 单一来源；delta_angle 为 const，可并发调用）

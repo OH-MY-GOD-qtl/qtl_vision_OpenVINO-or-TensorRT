@@ -21,6 +21,14 @@ Perceptron::Perceptron(
         yaml["omni_usb_detect_fps"] ? yaml["omni_usb_detect_fps"].as<double>() : 15.0;
     detect_interval_s_ = detect_fps > 0 ? 1.0 / detect_fps : 0.0;
 
+    // 送检前亮度缩放：相机无曝光控件时的软件兜底，只影响检测，不影响调试显示
+    const double detect_gain =
+        yaml["omni_usb_detect_gain"] ? yaml["omni_usb_detect_gain"].as<double>() : 1.0;
+    detect_gain_ = (detect_gain > 0.0 && detect_gain <= 1.0) ? detect_gain : 1.0;
+    if (detect_gain_ != detect_gain)
+        logger()->warn(
+            "[omni] omni_usb_detect_gain={} out of (0, 1]; falling back to 1.0", detect_gain);
+
     // 结果间隔比老化阈值还长时，Decider 会把每条结果都当过期丢掉（表现为永远锁不上）
     const double max_age_s =
         yaml["omni_usb_max_age_s"] ? yaml["omni_usb_max_age_s"].as<double>() : 0.15;
@@ -48,8 +56,8 @@ Perceptron::Perceptron(
 
     logger()->info(
         "Perceptron initialized (3 USB YOLO, {:.0f} fps, tensorrt={}, classifier=off, "
-        "traditional=off).",
-        detect_fps, use_tensorrt);
+        "traditional=off, detect_gain={:.2f}).",
+        detect_fps, use_tensorrt, detect_gain_);
 }
 
 Perceptron::~Perceptron()
@@ -146,7 +154,14 @@ void Perceptron::search_thread(USBCamera * cam, int index)
                 continue;
             last_detect_t = now;
 
-            auto armors = detectors_[index]->detect(img);
+            // 过曝时压暗送检图像；latest_frames_ 仍是原始帧，--display 看到的不是压暗后的画面
+            cv::Mat detect_img;
+            if (detect_gain_ < 0.999)
+                img.convertTo(detect_img, -1, detect_gain_, 0);
+            else
+                detect_img = img;
+
+            auto armors = detectors_[index]->detect(detect_img);
             decider_.filter_enemy_color(armors);
             if (armors.empty()) continue;
 
