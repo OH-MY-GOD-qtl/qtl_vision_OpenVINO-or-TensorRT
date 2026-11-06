@@ -31,8 +31,11 @@ public:
     // 取走队列中全部结果（非阻塞）
     std::vector<DetectionResult> get_detection_queue();
 
-    // 调试显示用：三路 USB 的最新原始帧（无帧时为空）
+    // 调试显示用：三路 USB 的最新送检帧（已应用 omni_usb_detect_gain；无帧时为空）
     std::array<cv::Mat, 3> latest_frames() const;
+
+    // 当前送检亮度缩放，供调试画面标注
+    double detect_gain() const { return detect_gain_; }
 
 private:
     // USB 搜索线程：cam -> YOLO 检测 -> DetectionResult(USB)

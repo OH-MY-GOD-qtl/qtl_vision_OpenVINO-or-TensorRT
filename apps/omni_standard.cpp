@@ -55,7 +55,7 @@ void draw_armor(
 bool show_debug_view(
     const cv::Mat & hik_frame, const std::vector<Armor> & hik_armors,
     const std::vector<DetectionResult> & usb_results, const std::array<cv::Mat, 3> & usb_frames,
-    const Decider::Guide & guide, bool hik_active)
+    const Decider::Guide & guide, bool hik_active, double detect_gain)
 {
     std::unordered_map<std::string, const DetectionResult *> latest_usb;
     for (const auto & dr : usb_results) {
@@ -114,7 +114,10 @@ bool show_debug_view(
         }
         if (guide.valid && guide.camera == key)
             status += guide.phase == Decider::GuidePhase::COAST ? "  COAST" : "  LOCK";
-        put_tile(i + 1, usb_view, key, status, cv::Scalar(0, 255, 255));
+        // 显示的就是送检图（已压暗），标题标出 gain 方便判断开关是否生效
+        const std::string title =
+            key + "  gain " + std::to_string(detect_gain).substr(0, 4);
+        put_tile(i + 1, usb_view, title, status, cv::Scalar(0, 255, 255));
     }
 
     cv::imshow("omni debug", canvas);
@@ -182,7 +185,8 @@ int main(int argc, char * argv[])
             if (display) {
                 const Decider::Guide no_guide;
                 if (show_debug_view(
-                        cv::Mat(), {}, usb_results, perceptron.latest_frames(), no_guide, false))
+                        cv::Mat(), {}, usb_results, perceptron.latest_frames(), no_guide, false,
+                        perceptron.detect_gain()))
                     break;
             }
             continue;
@@ -248,7 +252,8 @@ int main(int argc, char * argv[])
 
         if (display) {
             if (show_debug_view(
-                    img, armors, usb_results, perceptron.latest_frames(), guide, hik_active))
+                    img, armors, usb_results, perceptron.latest_frames(), guide, hik_active,
+                    perceptron.detect_gain()))
                 break;
         }
     }

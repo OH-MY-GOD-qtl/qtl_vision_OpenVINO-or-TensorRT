@@ -143,9 +143,16 @@ void Perceptron::search_thread(USBCamera * cam, int index)
                 continue;
             }
 
+            // 送检图像：过曝时先压暗。调试显示也用它，保证看到的就是检测器看到的画面
+            cv::Mat detect_img;
+            if (detect_gain_ < 0.999)
+                img.convertTo(detect_img, -1, detect_gain_, 0);
+            else
+                detect_img = img;
+
             {
                 std::lock_guard<std::mutex> lock(frames_mutex_);
-                latest_frames_[index] = img;
+                latest_frames_[index] = detect_img;
             }
 
             const auto now = std::chrono::steady_clock::now();
@@ -153,13 +160,6 @@ void Perceptron::search_thread(USBCamera * cam, int index)
                 std::chrono::duration<double>(now - last_detect_t).count() < detect_interval_s_)
                 continue;
             last_detect_t = now;
-
-            // 过曝时压暗送检图像；latest_frames_ 仍是原始帧，--display 看到的不是压暗后的画面
-            cv::Mat detect_img;
-            if (detect_gain_ < 0.999)
-                img.convertTo(detect_img, -1, detect_gain_, 0);
-            else
-                detect_img = img;
 
             auto armors = detectors_[index]->detect(detect_img);
             decider_.filter_enemy_color(armors);
