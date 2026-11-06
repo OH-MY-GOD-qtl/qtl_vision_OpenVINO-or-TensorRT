@@ -161,17 +161,20 @@ int main(int argc, char * argv[])
     std::chrono::steady_clock::time_point t;
     auto last_mode = GimbalMode::IDLE;
     auto last_hik_target_t = std::chrono::steady_clock::now() - 10s;
+    auto last_hik_frame_t = std::chrono::steady_clock::now() - 10s;
     auto last_hik_warn_t = std::chrono::steady_clock::now() - 10s;
     int guide_log_count = 0;
     // 调试显示用：每路最近一条结果（跨轮保留）。检测被限频，主循环更快，
     // 只用本批结果会让框以检测帧率闪烁。
     std::unordered_map<std::string, DetectionResult> usb_latest;
 
+    auto stop_gimbal = [&] { gimbal.send(false, false, 0, 0, 0, 0, 0, 0, true); };
+
     // USB 引导指令：锁定/coast 都发 mode=1 + is_empty=false（视觉控 yaw、不开火）。
     // guide 无效时只发停止，不 reset_guide——内部可能正处于冷却，清掉会让它立刻重新锁定。
     auto apply_guide = [&](const Decider::Guide & guide) {
         if (!guide.valid) {
-            gimbal.send(false, false, 0, 0, 0, 0, 0, 0, true);
+            stop_gimbal();
             return;
         }
 
@@ -194,6 +197,7 @@ int main(int argc, char * argv[])
         // 1) 海康精确链路：同步读取 + 帧时间戳对齐（q(t) 为该帧采集时刻的姿态）
         //    用带超时的读取：海康掉线/未出图时不再永久阻塞，Ctrl+C 仍可退出
         bool hik_ok = hik.try_read(img, t, 100);
+        if (hik_ok && !img.empty()) last_hik_frame_t = std::chrono::steady_clock::now();
 
         // 2) USB 搜索层：每轮必 drain，防止队列堆积
         auto usb_results = perceptron.get_detection_queue();
@@ -210,16 +214,21 @@ int main(int argc, char * argv[])
             // 与“海康有画面但没目标”区分开，掉线是硬件/链路问题
             if (delta_time(now, last_hik_warn_t) > 2.0) {
                 last_hik_warn_t = now;
-                logger()->warn("[omni] Hik unavailable (no frame), USB guide only");
+                logger()->warn("[omni] Hik unavailable (no frame)");
             }
 
+            // 刚掉帧时只发停止：给海康 omni_hik_lost_s 的恢复窗口，
+            // 避免偶发丢帧就在精确链路与 USB 引导之间来回切。
+            const bool hik_recent = delta_time(now, last_hik_frame_t) < hik_lost_s;
             Decider::Guide guide;
-            if (mode == GimbalMode::AUTO_AIM) {
+            if (mode != GimbalMode::AUTO_AIM) {
+                decider.reset_guide();
+                stop_gimbal();
+            } else if (hik_recent) {
+                stop_gimbal();
+            } else {
                 guide = decider.arbitrate_usb(usb_results, gimbal, now, /*hik_active=*/false);
                 apply_guide(guide);
-            } else {
-                decider.reset_guide();
-                gimbal.send(false, false, 0, 0, 0, 0, 0, 0, true);
             }
 
             if (display) {
@@ -236,7 +245,7 @@ int main(int argc, char * argv[])
 
         if (mode != GimbalMode::AUTO_AIM) {
             decider.reset_guide();
-            gimbal.send(false, false, 0, 0, 0, 0, 0, 0, true);
+            stop_gimbal();
             continue;
         }
 
@@ -272,7 +281,7 @@ int main(int argc, char * argv[])
                     plan.control, plan.fire, plan.yaw, yaw_vel_cmd, plan.yaw_acc, plan.pitch,
                     pitch_vel_cmd, plan.pitch_acc, is_empty);
             } else {
-                gimbal.send(false, false, 0, 0, 0, 0, 0, 0, true);
+                stop_gimbal();
             }
         } else {
             apply_guide(guide);
@@ -287,7 +296,7 @@ int main(int argc, char * argv[])
     }
 
     if (display) cv::destroyAllWindows();
-    gimbal.send(false, false, 0, 0, 0, 0, 0, 0, true);
+    stop_gimbal();
     logger()->info("[omni_standard] exit");
     return 0;
 }
