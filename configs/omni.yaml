@@ -99,7 +99,7 @@ mode: 1
 #####-----全向感知(omni)参数-----#####
 # USB 搜索链路固定为 YOLO 检测：不加载独立数字分类器，也不做传统角点矫正。
 omni_usb_detect_fps: 30                            # 每路 USB 检测限频，0 表示不限制
-omni_usb_detect_gain: 0.4                          # 送检前亮度缩放（1.0=不处理）；只影响检测，--display 仍是原始画面
+omni_usb_detect_gain: 0.5                          # 送检前亮度缩放（1.0=不处理）；--display 显示的就是压暗后的送检图
 omni_usb_use_tensorrt: false                       # 仅 YOLOv5 生效：USB 强制 OpenVINO，海康仍用上面的 use_tensorrt
 omni_usb_cameras:                                 # 设备与安装角成对配置，避免索引错配
   # device 推荐 /dev/v4l/by-path/*-video-index0（同一物理口重插不变）；

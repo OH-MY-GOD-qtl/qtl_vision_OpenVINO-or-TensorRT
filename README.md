@@ -346,7 +346,7 @@ omni_usb_cameras:
   - device: "video4"
     yaw_offset_from_hik: 180  # 示例值
 omni_usb_detect_fps: 15                            # 每路 USB 检测限频
-omni_usb_detect_gain: 1.0                          # 送检前亮度缩放（1.0=不处理），只影响检测
+omni_usb_detect_gain: 1.0                          # 送检前亮度缩放（1.0=不处理）；--display 显示送检图
 omni_usb_use_tensorrt: false                       # 仅 YOLOv5 生效：USB 默认 OpenVINO
 omni_usb_fov_h: 37.0                              # USB水平/垂直FOV(deg)
 omni_usb_fov_v: 40.9
