@@ -161,6 +161,7 @@ int main(int argc, char * argv[])
     std::chrono::steady_clock::time_point t;
     auto last_mode = GimbalMode::IDLE;
     auto last_hik_target_t = std::chrono::steady_clock::now() - 10s;
+    auto last_hik_warn_t = std::chrono::steady_clock::now() - 10s;
     int guide_log_count = 0;
     // 调试显示用：每路最近一条结果（跨轮保留）。检测被限频，主循环更快，
     // 只用本批结果会让框以检测帧率闪烁。
@@ -205,9 +206,15 @@ int main(int argc, char * argv[])
         if (!hik_ok || img.empty()) {
             // 海康相机不可用：三路 USB 仍在检测，按“海康无目标”降级为 USB 引导。
             // 不能直接 continue——那会让云台收不到任何指令，保持上一条带速度前馈的控制。
+            const auto now = std::chrono::steady_clock::now();
+            // 与“海康有画面但没目标”区分开，掉线是硬件/链路问题
+            if (delta_time(now, last_hik_warn_t) > 2.0) {
+                last_hik_warn_t = now;
+                logger()->warn("[omni] Hik unavailable (no frame), USB guide only");
+            }
+
             Decider::Guide guide;
             if (mode == GimbalMode::AUTO_AIM) {
-                const auto now = std::chrono::steady_clock::now();
                 guide = decider.arbitrate_usb(usb_results, gimbal, now, /*hik_active=*/false);
                 apply_guide(guide);
             } else {
