@@ -178,7 +178,7 @@ bool USBCamera::open()
 
     // V4L 可能静默给出最接近的分辨率，这里打印实际协商结果，避免配了 320x240 实际却是别的尺寸
     logger()->info(
-        "[USBCamera] {} opened: {}x{} @ {:.1f} fps (requested {}x{} @ {:.0f})", device_name,
+        "[USBCamera] {} opened: {}x{} @ {:.1f} fps (requested {}x{} @ {})", device_name,
         static_cast<int>(cap_.get(cv::CAP_PROP_FRAME_WIDTH)),
         static_cast<int>(cap_.get(cv::CAP_PROP_FRAME_HEIGHT)), cap_.get(cv::CAP_PROP_FPS),
         static_cast<int>(image_width_), static_cast<int>(image_height_), usb_frame_rate_);
