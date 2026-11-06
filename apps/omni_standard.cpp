@@ -162,9 +162,26 @@ int main(int argc, char * argv[])
     auto last_mode = GimbalMode::IDLE;
     auto last_hik_target_t = std::chrono::steady_clock::now() - 10s;
     int guide_log_count = 0;
-    // 调试显示用：每路最近一条结果（跨轮保留）。检测限频 15 fps、主循环更快，
+    // 调试显示用：每路最近一条结果（跨轮保留）。检测被限频，主循环更快，
     // 只用本批结果会让框以检测帧率闪烁。
     std::unordered_map<std::string, DetectionResult> usb_latest;
+
+    // USB 引导指令：锁定/coast 都发 mode=1 + is_empty=false（视觉控 yaw、不开火）。
+    // guide 无效时只发停止，不 reset_guide——内部可能正处于冷却，清掉会让它立刻重新锁定。
+    auto apply_guide = [&](const Decider::Guide & guide) {
+        if (!guide.valid) {
+            gimbal.send(false, false, 0, 0, 0, 0, 0, 0, true);
+            return;
+        }
+
+        gimbal.send(true, false, guide.yaw, 0, 0, guide.pitch, 0, 0, false);
+        if (++guide_log_count % 30 == 0) {
+            const char * phase = guide.phase == Decider::GuidePhase::COAST ? "coast" : "lock";
+            logger()->info(
+                "[omni] USB guide {} {} yaw={:.1f}deg age={:.3f}s", phase, guide.camera,
+                guide.yaw * 57.3, guide.age);
+        }
+    };
 
     while (!exiter.exit()) {
         auto mode = gimbal.mode();
@@ -186,10 +203,21 @@ int main(int argc, char * argv[])
         }
 
         if (!hik_ok || img.empty()) {
+            // 海康相机不可用：三路 USB 仍在检测，按“海康无目标”降级为 USB 引导。
+            // 不能直接 continue——那会让云台收不到任何指令，保持上一条带速度前馈的控制。
+            Decider::Guide guide;
+            if (mode == GimbalMode::AUTO_AIM) {
+                const auto now = std::chrono::steady_clock::now();
+                guide = decider.arbitrate_usb(usb_results, gimbal, now, /*hik_active=*/false);
+                apply_guide(guide);
+            } else {
+                decider.reset_guide();
+                gimbal.send(false, false, 0, 0, 0, 0, 0, 0, true);
+            }
+
             if (display) {
-                const Decider::Guide no_guide;
                 if (show_debug_view(
-                        cv::Mat(), {}, usb_latest, perceptron.latest_frames(), no_guide, false,
+                        cv::Mat(), {}, usb_latest, perceptron.latest_frames(), guide, false,
                         perceptron.detect_gain()))
                     break;
             }
@@ -239,19 +267,8 @@ int main(int argc, char * argv[])
             } else {
                 gimbal.send(false, false, 0, 0, 0, 0, 0, 0, true);
             }
-        } else if (guide.valid) {
-            // 锁定/coast 都发 mode=1 + is_empty=false：视觉仍在控制 yaw，但不开火
-            gimbal.send(true, false, guide.yaw, 0, 0, guide.pitch, 0, 0, false);
-            if (++guide_log_count % 30 == 0) {
-                const char * phase =
-                    guide.phase == Decider::GuidePhase::COAST ? "coast" : "lock";
-                logger()->info(
-                    "[omni] USB guide {} {} yaw={:.1f}deg age={:.3f}s", phase, guide.camera,
-                    guide.yaw * 57.3, guide.age);
-            }
         } else {
-            // 无锁定且 coast 超时/冷却中：停止控制
-            gimbal.send(false, false, 0, 0, 0, 0, 0, 0, true);
+            apply_guide(guide);
         }
 
         if (display) {
