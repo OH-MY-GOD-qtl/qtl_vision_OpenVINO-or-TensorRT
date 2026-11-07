@@ -298,6 +298,7 @@ ros2 topic echo /enemy_hp std_msgs/msg/String
 ### 仲裁策略（海康优先 + USB 锁定 / coast）
 
 - 海康 tracker 有目标时绝对优先；连续空 `omni_hik_lost_s`（默认 0.3 s）才回退 USB。
+  海康相机无帧时同样等这个窗口（窗口内只发停止），避免偶发丢帧在两套链路间切换。
 - 回退时按 `size_score = 装甲像素宽 / 图像宽` 选最近的一路 USB 并**锁定相机**；
   锁定期间不比较其他相机、不切换目标。该分数是距离代理，不是米。
 - 锁定相机超过 `omni_usb_max_age_s`（默认 0.15 s）无新结果 → **coast**：

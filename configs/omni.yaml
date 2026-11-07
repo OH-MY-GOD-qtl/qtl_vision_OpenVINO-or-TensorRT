@@ -118,7 +118,7 @@ omni_usb_yaw_rate_limit: 3.0                      # USB引导yaw限速(rad/s)
 omni_usb_lpf_alpha: 0.4                           # USB引导yaw一阶低通系数(0~1)
 omni_guide_coast_s: 1.5                           # 锁定相机丢失后保持最后方位的上限(s)
 omni_guide_cooldown_s: 0.5                        # coast超时后的停止时长(s)
-omni_hik_lost_s: 0.3                              # 海康连续丢目标多久才回退USB(s)
+omni_hik_lost_s: 0.3                              # 海康连续丢目标/丢帧多久才回退USB(s)
 
 #####-----gimbal参数-----#####
 simulate: false

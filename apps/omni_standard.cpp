@@ -25,6 +25,7 @@
 #include "planner.hpp"
 #include "solver.hpp"
 #include "tools/exiter.hpp"
+#include "tools/img_tools.hpp"
 #include "tools/logger.hpp"
 #include "tools/math_tools.hpp"
 #include "tools/yaml.hpp"
@@ -49,6 +50,22 @@ void draw_armor(
     for (const auto & point : armor.points)
         points.emplace_back(cvRound(point.x), cvRound(point.y));
     cv::polylines(canvas, points, true, color, thickness);
+}
+
+void draw_target_projection(
+    cv::Mat & image, const Target & target, const Solver & solver, const Planner & planner,
+    double bullet_speed, std::chrono::steady_clock::time_point timestamp)
+{
+    for (const Eigen::Vector4d & xyza : target.armor_xyza_list()) {
+        auto points =
+            solver.reproject_armor(xyza.head(3), xyza[3], target.armor_type, target.name);
+        draw_points(image, points, {0, 255, 0});
+    }
+
+    auto aim_xyza = planner.predict_xyza(target, bullet_speed, timestamp);
+    auto aim_points =
+        solver.reproject_armor(aim_xyza.head(3), aim_xyza[3], target.armor_type, target.name);
+    draw_points(image, aim_points, {0, 0, 255});
 }
 
 // 返回 true 表示用户按 q 退出
@@ -160,15 +177,21 @@ int main(int argc, char * argv[])
     cv::Mat img;
     std::chrono::steady_clock::time_point t;
     auto last_mode = GimbalMode::IDLE;
-    auto last_hik_target_t = std::chrono::steady_clock::now() - 10s;
-    auto last_hik_frame_t = std::chrono::steady_clock::now() - 10s;
-    auto last_hik_warn_t = std::chrono::steady_clock::now() - 10s;
+    const auto long_ago = std::chrono::steady_clock::now() - 10s;
+    auto last_hik_target_t = long_ago;
+    auto last_hik_frame_t = long_ago;
+    auto last_hik_warn_t = long_ago;
+    bool was_hik_active = false;
     int guide_log_count = 0;
     // 调试显示用：每路最近一条结果（跨轮保留）。检测被限频，主循环更快，
     // 只用本批结果会让框以检测帧率闪烁。
     std::unordered_map<std::string, DetectionResult> usb_latest;
 
     auto stop_gimbal = [&] { gimbal.send(false, false, 0, 0, 0, 0, 0, 0, true); };
+    auto reset_and_stop = [&] {
+        decider.reset_guide();
+        stop_gimbal();
+    };
 
     // USB 引导指令：锁定/coast 都发 mode=1 + is_empty=false（视觉控 yaw、不开火）。
     // guide 无效时只发停止，不 reset_guide——内部可能正处于冷却，清掉会让它立刻重新锁定。
@@ -219,12 +242,11 @@ int main(int argc, char * argv[])
 
             // 刚掉帧时只发停止：给海康 omni_hik_lost_s 的恢复窗口，
             // 避免偶发丢帧就在精确链路与 USB 引导之间来回切。
-            const bool hik_recent = delta_time(now, last_hik_frame_t) < hik_lost_s;
+            const bool hik_frame_recent = delta_time(now, last_hik_frame_t) < hik_lost_s;
             Decider::Guide guide;
             if (mode != GimbalMode::AUTO_AIM) {
-                decider.reset_guide();
-                stop_gimbal();
-            } else if (hik_recent) {
+                reset_and_stop();
+            } else if (hik_frame_recent) {
                 stop_gimbal();
             } else {
                 guide = decider.arbitrate_usb(usb_results, gimbal, now, /*hik_active=*/false);
@@ -244,8 +266,7 @@ int main(int argc, char * argv[])
         solver.set_R_gimbal2world(gimbal.q(t));
 
         if (mode != GimbalMode::AUTO_AIM) {
-            decider.reset_guide();
-            stop_gimbal();
+            reset_and_stop();
             continue;
         }
 
@@ -259,12 +280,18 @@ int main(int argc, char * argv[])
 
         auto plan = planner.plan(target, gs.bullet_speed);
         const bool is_empty = !target.has_value();
+        if (display && !targets.empty())
+            draw_target_projection(img, targets.front(), solver, planner, gs.bullet_speed, t);
 
         // 海康回退迟滞：连续空 hik_lost_s 才交给 USB，避免两套目标反复抢控制
         const auto now = std::chrono::steady_clock::now();
         if (!targets.empty()) last_hik_target_t = now;
         const bool hik_active =
             !targets.empty() || delta_time(now, last_hik_target_t) < hik_lost_s;
+        if (hik_active != was_hik_active) {
+            was_hik_active = hik_active;
+            logger()->info("[omni] Hik target {}", hik_active ? "acquired" : "lost");
+        }
 
         // 每轮都调用：hik_active 时内部会清空锁定/coast 状态
         auto guide = decider.arbitrate_usb(usb_results, gimbal, now, hik_active);
