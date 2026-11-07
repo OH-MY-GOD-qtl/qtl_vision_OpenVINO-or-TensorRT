@@ -6,9 +6,11 @@
 
 using namespace std::chrono_literals;
 
-HikRobot::HikRobot(double exposure_ms, double gain, const std::string & vid_pid)
+HikRobot::HikRobot(
+    double exposure_ms, double gain, const std::string & vid_pid, double timestamp_latency_ms)
 : exposure_us_(exposure_ms * 1e3),
   gain_(gain),
+  timestamp_latency_ms_(timestamp_latency_ms),
   queue_(1),
   daemon_quit_(false),
   handle_(nullptr),
@@ -120,6 +122,7 @@ void HikRobot::capture_start()
 
         MV_FRAME_OUT raw;
         MV_CC_PIXEL_CONVERT_PARAM cvt_param;
+        bool timestamp_logged = false;
 
         while (!capture_quit_) {
             std::this_thread::sleep_for(1ms);
@@ -133,9 +136,31 @@ void HikRobot::capture_start()
                 break;
             }
 
+            const auto & frame_info = raw.stFrameInfo;
+
+            // 时间戳对齐：帧内容是曝光区间 [t0, t0+exposure] 的积分，姿态应取曝光中点 t0+exposure/2。
+            // MV_CC_GetImageBuffer 在整帧传输完成后才返回，晚于曝光中点 (exposure/2 + 读出 + 传输)，
+            // 所以用帧信息里的真实曝光时间回退一半，再回退配置的固定读出/传输延迟。
             auto timestamp = std::chrono::steady_clock::now();
+            // fExposureTime 单位为 us（与 ExposureTime 特性一致）。与配置值差一个数量级以上
+            // 说明该机型没填这个字段或单位不同，退回配置值，避免补偿量被放大/缩小 1000 倍。
+            const double raw_exposure_us = static_cast<double>(frame_info.fExposureTime);
+            const bool exposure_sane = raw_exposure_us > 0.0 &&
+                                       raw_exposure_us > exposure_us_ * 0.1 &&
+                                       raw_exposure_us < exposure_us_ * 10.0;
+            const double frame_exposure_us = exposure_sane ? raw_exposure_us : exposure_us_;
+            const double compensate_ms = frame_exposure_us * 0.5e-3 + timestamp_latency_ms_;
+            timestamp -= std::chrono::microseconds(static_cast<long long>(compensate_ms * 1e3));
+            if (!timestamp_logged) {
+                timestamp_logged = true;
+                logger()->info(
+                    "[HikRobot] frame timestamp = dequeue - {:.3f} ms (frame exposure {:.1f} us, "
+                    "config {:.1f} us, latency {:.3f} ms)",
+                    compensate_ms, raw_exposure_us, exposure_us_, timestamp_latency_ms_);
+            }
+
             cv::Mat img(
-                cv::Size(raw.stFrameInfo.nWidth, raw.stFrameInfo.nHeight), CV_8U, raw.pBufAddr);
+                cv::Size(frame_info.nWidth, frame_info.nHeight), CV_8U, raw.pBufAddr);
 
             cvt_param.nWidth = raw.stFrameInfo.nWidth;
             cvt_param.nHeight = raw.stFrameInfo.nHeight;
@@ -149,7 +174,6 @@ void HikRobot::capture_start()
             cvt_param.enDstPixelType = PixelType_Gvsp_BGR8_Packed;
 
             // ret = MV_CC_ConvertPixelType(handle_, &cvt_param);
-            const auto & frame_info = raw.stFrameInfo;
             auto pixel_type = frame_info.enPixelType;
             cv::Mat dst_image;
             const static std::unordered_map<MvGvspPixelType, cv::ColorConversionCodes> type_map = {

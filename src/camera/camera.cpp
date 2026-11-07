@@ -23,7 +23,11 @@ Camera::Camera(const std::string & config_path)
     else if (camera_name == "hikrobot") {
         auto gain = yaml_read<double>(yaml, "gain");
         auto vid_pid = yaml_read<std::string>(yaml, "vid_pid");
-        camera_ = std::make_unique<HikRobot>(exposure_ms, gain, vid_pid);
+        // exposure/2 的曝光中点补偿由 HikRobot 内部按帧信息自动完成；
+        // 这里只补曝光中点之后剩下的传感器读出 + USB 传输固定延迟。
+        const double timestamp_latency_ms =
+            yaml["hik_timestamp_latency_ms"] ? yaml["hik_timestamp_latency_ms"].as<double>() : 0.0;
+        camera_ = std::make_unique<HikRobot>(exposure_ms, gain, vid_pid, timestamp_latency_ms);
     }
 
     else if (camera_name == "usb") {

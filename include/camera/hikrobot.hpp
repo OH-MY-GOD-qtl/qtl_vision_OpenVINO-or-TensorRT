@@ -14,7 +14,11 @@
 class HikRobot : public CameraBase
 {
 public:
-    HikRobot(double exposure_ms, double gain, const std::string & vid_pid);
+    // timestamp_latency_ms：曝光中点之后仍未抵消的固定延迟（传感器读出 + USB 传输）。
+    // 曝光中点补偿（exposure/2）在采集线程内按帧信息自动完成，不需要配置。
+    HikRobot(
+        double exposure_ms, double gain, const std::string & vid_pid,
+        double timestamp_latency_ms = 0.0);
     ~HikRobot() override;
     void read(cv::Mat & img, std::chrono::steady_clock::time_point & timestamp) override;
     // 带超时的读取：timeout_ms 内无新帧返回 false（不阻塞），供主循环避免掉线时卡死
@@ -31,6 +35,7 @@ private:
 
     double exposure_us_;
     double gain_;
+    double timestamp_latency_ms_;
 
     std::thread daemon_thread_;
     std::atomic<bool> daemon_quit_;
