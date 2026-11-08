@@ -45,7 +45,7 @@ public:
     std::map<std::string, double> data;  //卡方检验数据
     std::deque<int> recent_nis_failures{0};
     size_t window_size = 100;
-    double last_nis;
+    double last_nis = 0.0;  // 最近一次先验 NIS
 
 private:
     Eigen::MatrixXd I;
@@ -54,6 +54,10 @@ private:
     int nees_count_ = 0;
     int nis_count_ = 0;
     int total_count_ = 0;
+
+    // 残差方差与 NIS 的指数滑动平均（约 50 帧时间常数），仅用于在线标定 R
+    Eigen::VectorXd residual_var_;
+    double nis_mean_ = 0.0;
 };
 
 #endif  // TOOLS__EXTENDED_KALMAN_FILTER_HPP

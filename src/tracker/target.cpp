@@ -11,17 +11,17 @@ Target::Target(
     Eigen::VectorXd P0_dig)
 : name(armor.name),
   armor_type(armor.type),
+  priority(armor.priority),
   jumped(false),
   last_id(0),
-  update_count_(0),
   armor_num_(armor_num),
-  t_(t),
+  switch_count_(0),
+  update_count_(0),
   is_switch_(false),
   is_converged_(false),
-  switch_count_(0)
+  t_(t)
 {
     auto r = radius;
-    priority = armor.priority;
     const Eigen::VectorXd & xyz = armor.xyz_in_world;
     const Eigen::VectorXd & ypr = armor.ypr_in_world;
 
@@ -36,7 +36,7 @@ Target::Target(
     // l: r2 - r1
     // h: z2 - z1
     Eigen::VectorXd x0{{center_x, 0, center_y, 0, center_z, 0, ypr[0], 0, r, 0, 0}};  //初始化预测量
-    Eigen::MatrixXd P0 = P0_dig.asDiagonal();
+    Eigen::MatrixXd P0 = EKF_NOISE_SCALE * P0_dig.asDiagonal();
 
     // 防止夹角求和出现异常值
     auto x_add = [](const Eigen::VectorXd & a, const Eigen::VectorXd & b) -> Eigen::VectorXd {
@@ -48,7 +48,17 @@ Target::Target(
     ekf_ = ExtendedKalmanFilter(x0, P0, x_add);  //初始化滤波器（预测量、预测量协方差）
 }
 
-Target::Target(double x, double vyaw, double radius, double h) : armor_num_(4)
+Target::Target(double x, double vyaw, double radius, double h)
+: name(ArmorName::not_armor),
+  armor_type(ArmorType::small),
+  priority(ArmorPriority::fifth),
+  jumped(false),
+  last_id(0),
+  armor_num_(4),
+  switch_count_(0),
+  update_count_(0),
+  is_switch_(false),
+  is_converged_(false)
 {
     Eigen::VectorXd x0{{x, 0, 0, 0, 0, 0, 0, vyaw, radius, 0, h}};
     Eigen::VectorXd P0_dig{{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}};
@@ -94,11 +104,11 @@ void Target::predict(double dt)
     // https://github.com/rlabbe/Kalman-and-Bayesian-Filters-in-Python/blob/master/07-Kalman-Filter-Math.ipynb
     double v1, v2;
     if (name == ArmorName::outpost) {
-        v1 = 10;   // 前哨站加速度方差
-        v2 = 0.1;  // 前哨站角加速度方差
+        v1 = 10 * EKF_NOISE_SCALE;   // 前哨站加速度方差
+        v2 = 0.1 * EKF_NOISE_SCALE;  // 前哨站角加速度方差
     } else {
-        v1 = 100;  // 加速度方差
-        v2 = 400;  // 角加速度方差
+        v1 = 100 * EKF_NOISE_SCALE;  // 加速度方差
+        v2 = 400 * EKF_NOISE_SCALE;  // 角加速度方差
     }
     auto a = dt * dt * dt * dt / 4;
     auto b = dt * dt * dt / 2;
@@ -195,7 +205,7 @@ void Target::update_ypda(const Armor & armor, int id)
          log(std::abs(armor.ypd_in_world[2]) + 1) / 200 + 9e-2}};
 
     //测量过程噪声偏差的方差(R向量转换为对角矩阵)
-    Eigen::MatrixXd R = R_dig.asDiagonal();
+    Eigen::MatrixXd R = EKF_NOISE_SCALE * R_dig.asDiagonal();
 
     // 定义非线性转换函数h: x -> z
     auto h = [&](const Eigen::VectorXd & x) -> Eigen::Vector4d {
@@ -317,3 +327,5 @@ Eigen::Matrix<double, 4, 11> Target::h_jacobian(const Eigen::VectorXd & x, int i
 }
 
 bool Target::checkinit() { return isinit; }
+
+int Target::update_count() const { return update_count_; }

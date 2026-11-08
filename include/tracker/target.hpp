@@ -11,6 +11,11 @@
 #include "armor.hpp"
 #include "tools/extended_kalman_filter.hpp"
 
+// 滤波噪声标定系数：P0、Q、R 必须同比例缩放。
+// 三者同比例缩放时 K = P Hᵀ (H P Hᵀ + R)⁻¹ 在每一步都不变，
+// 滤波输出完全一致，只把协方差拉到与实际创新同一量级，使 NIS 恢复卡方意义。
+constexpr double EKF_NOISE_SCALE = 1e-2;
+
 class Target
 {
 public:
@@ -41,6 +46,9 @@ public:
     bool isinit = false;
 
     bool checkinit();
+
+    // 调试用：该 Target 建立以来收到的量测更新次数
+    int update_count() const;
 
 private:
     int armor_num_;
