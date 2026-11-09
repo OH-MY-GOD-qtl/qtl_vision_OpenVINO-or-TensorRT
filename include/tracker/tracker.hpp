@@ -40,6 +40,7 @@ private:
     int outpost_max_temp_lost_count_;
     int normal_temp_lost_count_;
     int switching_max_temp_lost_count_;  // switching 状态丢失上限，缺省 200（保持旧行为）
+    bool drop_on_bad_converge_;          // NIS 收敛门，缺省 false（保持 7765b04 行为）
     std::string state_, pre_state_;
     Target target_;
     std::chrono::steady_clock::time_point last_timestamp_;

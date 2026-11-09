@@ -29,6 +29,12 @@ Tracker::Tracker(const std::string & config_path, Solver & solver)
         yaml["switching_max_temp_lost_count"] ? yaml["switching_max_temp_lost_count"].as<int>()
                                                : 200;
 
+    // 7765b04 的 NIS 用后验残差计算，数值极小，这个门实际上从未触发。
+    // 改成先验 NIS 后判据才真正生效，会频繁丢目标；先默认关闭保持旧行为，
+    // 待实机日志确定阈值后再打开。
+    drop_on_bad_converge_ =
+        yaml["ekf_drop_on_bad_converge"] ? yaml["ekf_drop_on_bad_converge"].as<bool>() : false;
+
     // 从配置文件读取相机矩阵并计算图像中心坐标
     auto camera_matrix_data = yaml_read<std::vector<double>>(yaml, "camera_matrix");
     double cx = camera_matrix_data[2];  // 相机矩阵的第3个元素为图像中心x坐标
@@ -94,8 +100,10 @@ std::vector<Target> Tracker::track(
         return {};
     }
 
-    // 收敛效果检测：
-    if (std::accumulate(
+    // 收敛效果检测（默认关闭，见构造函数的说明）：
+    if (
+        drop_on_bad_converge_ &&
+        std::accumulate(
             target_.ekf().recent_nis_failures.begin(), target_.ekf().recent_nis_failures.end(),
             0) >= (0.4 * target_.ekf().window_size)) {
         logger()->debug("[Target] Bad Converge Found!");
