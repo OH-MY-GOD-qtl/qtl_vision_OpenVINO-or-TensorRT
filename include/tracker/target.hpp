@@ -50,6 +50,9 @@ public:
     // 调试用：该 Target 建立以来收到的量测更新次数
     int update_count() const;
 
+    // 量测中断时作废连续超限证据
+    void reset_nis_streak();
+
 private:
     int armor_num_;
     int switch_count_;

@@ -329,3 +329,5 @@ Eigen::Matrix<double, 4, 11> Target::h_jacobian(const Eigen::VectorXd & x, int i
 bool Target::checkinit() { return isinit; }
 
 int Target::update_count() const { return update_count_; }
+
+void Target::reset_nis_streak() { ekf_.reset_nis_streak(); }

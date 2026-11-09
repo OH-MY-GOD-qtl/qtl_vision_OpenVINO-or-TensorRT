@@ -41,6 +41,12 @@ min_confidence: 0.8
 min_detect_count: 5
 max_temp_lost_count: 15
 outpost_max_temp_lost_count: 75
+# NIS 收敛门：预热期（更新次数）之后连续超限才丢目标。
+# 注意：NIS 反映的是运动模型拟合度，目标机动时会持续超限，
+# 开启后容易把正常跟踪判成丢失，默认关闭。
+ekf_drop_on_bad_converge: false
+ekf_bad_converge_warmup: 30
+ekf_bad_converge_streak: 20
 
 #####-----aimer参数-----#####
 yaw_offset: -1 # degree -2.5

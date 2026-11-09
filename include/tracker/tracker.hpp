@@ -40,7 +40,9 @@ private:
     int outpost_max_temp_lost_count_;
     int normal_temp_lost_count_;
     int switching_max_temp_lost_count_;  // switching 状态丢失上限，缺省 200（保持旧行为）
-    bool drop_on_bad_converge_;          // NIS 收敛门，缺省 false（保持 7765b04 行为）
+    bool drop_on_bad_converge_;          // NIS 收敛门总开关
+    int bad_converge_warmup_;            // 预热期（更新次数），此期间不判收敛
+    int bad_converge_streak_;            // 连续超限帧数达到该值才判丢目标
     std::string state_, pre_state_;
     Target target_;
     std::chrono::steady_clock::time_point last_timestamp_;

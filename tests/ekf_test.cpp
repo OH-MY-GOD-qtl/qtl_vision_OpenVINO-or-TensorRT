@@ -1,6 +1,7 @@
 #include "tools/extended_kalman_filter.hpp"
 
 #include <Eigen/Dense>
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <random>
@@ -169,6 +170,88 @@ void test_scale_invariance()
     }
 }
 
+// 连续超限计数：用于收敛门的判据，必须能累加、也能被一次正常更新打断
+void test_fail_streak()
+{
+    const int n = 4;
+    Eigen::MatrixXd H = Eigen::MatrixXd::Identity(n, n);
+    Eigen::MatrixXd R = Eigen::MatrixXd::Identity(n, n);
+    Eigen::MatrixXd P0 = Eigen::MatrixXd::Identity(n, n) * 100.0;
+    ExtendedKalmanFilter ekf(Eigen::VectorXd::Zero(n), P0);
+
+    for (int i = 0; i < 5; i++) {
+        ekf.x = Eigen::VectorXd::Zero(n);
+        ekf.P = P0;
+        ekf.update(Eigen::VectorXd::Constant(n, 100.0), H, R);
+    }
+    require(ekf.nis_fail_streak() == 5, "consecutive NIS failures must accumulate");
+
+    ekf.x = Eigen::VectorXd::Zero(n);
+    ekf.P = P0;
+    ekf.update(Eigen::VectorXd::Zero(n), H, R);
+    require(ekf.nis_fail_streak() == 0, "a passing update must reset the streak");
+}
+
+// 模型自洽时，连续超限不应达到收敛门阈值（20），否则正常跟踪会被误丢
+void test_fail_streak_bounded_on_consistent_filter()
+{
+    const int n = 4;
+    const int samples = 500;
+    Eigen::MatrixXd H = Eigen::MatrixXd::Identity(n, n);
+    Eigen::MatrixXd R = Eigen::MatrixXd::Identity(n, n);
+    Eigen::MatrixXd P0 = Eigen::MatrixXd::Identity(n, n) * 100.0;
+
+    ExtendedKalmanFilter ekf(Eigen::VectorXd::Zero(n), P0);
+
+    std::mt19937 rng(20261109);
+    std::normal_distribution<double> noise(0.0, 1.0);
+
+    int max_streak = 0;
+    for (int i = 0; i < samples; i++) {
+        ekf.x = Eigen::VectorXd::Zero(n);
+        ekf.P = P0;
+
+        Eigen::VectorXd z(n);
+        for (int j = 0; j < n; j++) z[j] = 10.0 * noise(rng) + noise(rng);
+
+        ekf.update(z, H, R);
+        max_streak = std::max(max_streak, ekf.nis_fail_streak());
+    }
+
+    require(max_streak < 20, "a consistent filter must not reach the convergence gate streak");
+}
+
+// 收敛门判据：关闭、预热期、连续次数三个条件
+void test_gate_predicate()
+{
+    require(!bad_converge_tripped(false, 1000, 1000, 30, 20), "disabled gate must never trip");
+    require(!bad_converge_tripped(true, 29, 1000, 30, 20), "warm-up must suppress the gate");
+    require(!bad_converge_tripped(true, 30, 19, 30, 20), "streak below threshold must not trip");
+    require(bad_converge_tripped(true, 30, 20, 30, 20), "warm-up met and streak reached must trip");
+    require(bad_converge_tripped(true, 1000, 20, 30, 20), "long-lived target must trip");
+    require(!bad_converge_tripped(true, 1000, 0, 0, 1), "a clean filter must never trip");
+}
+
+// 量测中断后旧证据必须作废
+void test_streak_reset()
+{
+    const int n = 4;
+    Eigen::MatrixXd H = Eigen::MatrixXd::Identity(n, n);
+    Eigen::MatrixXd R = Eigen::MatrixXd::Identity(n, n);
+    Eigen::MatrixXd P0 = Eigen::MatrixXd::Identity(n, n) * 100.0;
+    ExtendedKalmanFilter ekf(Eigen::VectorXd::Zero(n), P0);
+
+    for (int i = 0; i < 5; i++) {
+        ekf.x = Eigen::VectorXd::Zero(n);
+        ekf.P = P0;
+        ekf.update(Eigen::VectorXd::Constant(n, 100.0), H, R);
+    }
+    require(ekf.nis_fail_streak() == 5, "streak must accumulate before reset");
+
+    ekf.reset_nis_streak();
+    require(ekf.nis_fail_streak() == 0, "explicit reset must clear the streak");
+}
+
 int main()
 {
     try {
@@ -177,6 +260,10 @@ int main()
         test_fail_flags_reset();
         test_nis_statistical_consistency();
         test_scale_invariance();
+        test_fail_streak();
+        test_fail_streak_bounded_on_consistent_filter();
+        test_gate_predicate();
+        test_streak_reset();
 
         std::puts("ekf_test passed");
         return 0;

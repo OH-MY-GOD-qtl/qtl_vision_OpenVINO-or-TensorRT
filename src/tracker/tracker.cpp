@@ -29,11 +29,20 @@ Tracker::Tracker(const std::string & config_path, Solver & solver)
         yaml["switching_max_temp_lost_count"] ? yaml["switching_max_temp_lost_count"].as<int>()
                                                : 200;
 
-    // 7765b04 的 NIS 用后验残差计算，数值极小，这个门实际上从未触发。
-    // 改成先验 NIS 后判据才真正生效，会频繁丢目标；先默认关闭保持旧行为，
-    // 待实机日志确定阈值后再打开。
+    // NIS 收敛门：只在目标收敛之后统计，且要求连续超限。
+    // 7765b04 的 NIS 用后验残差计算，数值极小，这个门实际上从未触发；
+    // 改成先验 NIS 后判据才真正生效。
+    // 但 NIS 衡量的是「运动模型拟合度」而非「是否跟丢」：目标加速时模型失配，
+    // NIS 会持续超限，而跟踪本身是正常的。因此默认关闭，避免把机动判成丢目标。
     drop_on_bad_converge_ =
         yaml["ekf_drop_on_bad_converge"] ? yaml["ekf_drop_on_bad_converge"].as<bool>() : false;
+    bad_converge_warmup_ =
+        yaml["ekf_bad_converge_warmup"] ? yaml["ekf_bad_converge_warmup"].as<int>() : 30;
+    bad_converge_streak_ =
+        yaml["ekf_bad_converge_streak"] ? yaml["ekf_bad_converge_streak"].as<int>() : 20;
+    // 配置兜底：streak<=0 会让判据恒真，warmup<0 没有意义
+    bad_converge_warmup_ = std::max(0, bad_converge_warmup_);
+    bad_converge_streak_ = std::max(1, bad_converge_streak_);
 
     // 从配置文件读取相机矩阵并计算图像中心坐标
     auto camera_matrix_data = yaml_read<std::vector<double>>(yaml, "camera_matrix");
@@ -100,13 +109,14 @@ std::vector<Target> Tracker::track(
         return {};
     }
 
-    // 收敛效果检测（默认关闭，见构造函数的说明）：
+    // 收敛效果检测：预热期之后连续超限才判坏，避免被初始化收敛段污染
     if (
-        drop_on_bad_converge_ &&
-        std::accumulate(
-            target_.ekf().recent_nis_failures.begin(), target_.ekf().recent_nis_failures.end(),
-            0) >= (0.4 * target_.ekf().window_size)) {
-        logger()->debug("[Target] Bad Converge Found!");
+        bad_converge_tripped(
+            drop_on_bad_converge_, target_.update_count(), target_.ekf().nis_fail_streak(),
+            bad_converge_warmup_, bad_converge_streak_)) {
+        logger()->debug(
+            "[Target] Bad Converge Found! streak={} updates={} nis={:.2f}",
+            target_.ekf().nis_fail_streak(), target_.update_count(), target_.ekf().last_nis);
         state_ = "lost";
         return {};
     }
@@ -264,8 +274,12 @@ bool Tracker::set_target(std::vector<Armor> & armors, std::chrono::steady_clock:
                       (armor.name == ArmorName::three || armor.name == ArmorName::four ||
                        armor.name == ArmorName::five);
 
+    // 状态下标：0 x, 1 vx, 2 y, 3 vy, 4 z, 5 vz, 6 相位, 7 角速度, 8 半径, 9 半径差, 10 高度差
+    // r/l/h 是物理常数，Q 里过程噪声为 0，只靠量测推动。初始方差给 1（σ=1 m）时，
+    // 单装甲板可视、目标不旋转的情况下 r 不可观测，会被噪声推到 0.05 以下触发 diverged。
+    // 收到 1e-2（σ=0.1 m），与前哨站/基地一致。
     if (is_balance) {
-        Eigen::VectorXd P0_dig{{1, 64, 1, 64, 1, 64, 0.4, 100, 1, 1, 1}};
+        Eigen::VectorXd P0_dig{{1, 64, 1, 64, 1, 64, 0.4, 100, 1e-2, 1e-2, 1}};
         target_ = Target(armor, t, 0.2, 2, P0_dig);
     }
 
@@ -280,7 +294,7 @@ bool Tracker::set_target(std::vector<Armor> & armors, std::chrono::steady_clock:
     }
 
     else {
-        Eigen::VectorXd P0_dig{{1, 64, 1, 64, 1, 64, 0.4, 100, 1, 1, 1}};
+        Eigen::VectorXd P0_dig{{1, 64, 1, 64, 1, 64, 0.4, 100, 1e-2, 1e-2, 1}};
         target_ = Target(armor, t, 0.2, 4, P0_dig);
     }
 
@@ -299,7 +313,11 @@ bool Tracker::update_target(std::vector<Armor> & armors, std::chrono::steady_clo
         min_x = armor.center.x < min_x ? armor.center.x : min_x;
     }
 
-    if (found_count == 0) return false;
+    if (found_count == 0) {
+        // 本帧没有可用量测：旧的连续超限证据不应跨中断继续累计
+        target_.reset_nis_streak();
+        return false;
+    }
 
     for (auto & armor : armors) {
         if (armor.name != target_.name || armor.type != target_.armor_type

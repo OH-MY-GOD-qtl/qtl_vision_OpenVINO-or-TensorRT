@@ -33,6 +33,7 @@ ExtendedKalmanFilter::ExtendedKalmanFilter(
     data["nis_fail"] = 0.0;
     data["nees_fail"] = 0.0;
     data["recent_nis_failures"] = 0.0;
+    data["nis_fail_streak"] = 0.0;
     data["nis_mean"] = 0.0;
     data["r_var_yaw"] = 0.0;
     data["r_var_pitch"] = 0.0;
@@ -117,6 +118,9 @@ Eigen::VectorXd ExtendedKalmanFilter::update(
 
     data["nis_fail"] = nis > nis_threshold ? 1.0 : 0.0;
     data["nees_fail"] = nees > nees_threshold ? 1.0 : 0.0;
+
+    nis_fail_streak_ = data["nis_fail"] > 0.0 ? nis_fail_streak_ + 1 : 0;
+    data["nis_fail_streak"] = nis_fail_streak_;
 
     if (data["nis_fail"] > 0.0) nis_count_++;
     if (data["nees_fail"] > 0.0) nees_count_++;
