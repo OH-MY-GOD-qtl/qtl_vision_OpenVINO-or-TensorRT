@@ -14,4 +14,4 @@ enum Color
 };
 const std::vector<std::string> COLORS = {"red", "blue", "extinguish", "purple"};
 
-#endif  // COMMON__COLOR_HPP
+#endif // COMMON__COLOR_HPP

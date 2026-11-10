@@ -6,23 +6,25 @@
 
 namespace
 {
-// 卡方分布 95% 上分位：自由度 1..6 取表值，更大自由度用 Wilson-Hilferty 近似
-double chi2_95(int dof)
-{
-    static constexpr double table[] = {0.0, 3.841, 5.991, 7.815, 9.488, 11.070, 12.592};
-    if (dof <= 0) return 0.0;
-    if (dof <= 6) return table[dof];
+    // 卡方分布 95% 上分位：自由度 1..6 取表值，更大自由度用 Wilson-Hilferty 近似
+    double chi2_95(int dof)
+    {
+        static constexpr double table[] = {0.0, 3.841, 5.991, 7.815, 9.488, 11.070, 12.592};
+        if (dof <= 0)
+            return 0.0;
+        if (dof <= 6)
+            return table[dof];
 
-    const double k = static_cast<double>(dof);
-    const double t = 1.0 - 2.0 / (9.0 * k) + 1.6448536269514722 * std::sqrt(2.0 / (9.0 * k));
-    return k * t * t * t;
-}
-}  // namespace
+        const double k = static_cast<double>(dof);
+        const double t = 1.0 - 2.0 / (9.0 * k) + 1.6448536269514722 * std::sqrt(2.0 / (9.0 * k));
+        return k * t * t * t;
+    }
+} // namespace
 
 ExtendedKalmanFilter::ExtendedKalmanFilter(
-    const Eigen::VectorXd & x0, const Eigen::MatrixXd & P0,
+    const Eigen::VectorXd &x0, const Eigen::MatrixXd &P0,
     std::function<Eigen::VectorXd(const Eigen::VectorXd &, const Eigen::VectorXd &)> x_add)
-: x(x0), P(P0), I(Eigen::MatrixXd::Identity(x0.rows(), x0.rows())), x_add(x_add)
+    : x(x0), P(P0), I(Eigen::MatrixXd::Identity(x0.rows(), x0.rows())), x_add(x_add)
 {
     data["residual_yaw"] = 0.0;
     data["residual_pitch"] = 0.0;
@@ -46,13 +48,14 @@ ExtendedKalmanFilter::ExtendedKalmanFilter(
 }
 
 Eigen::VectorXd ExtendedKalmanFilter::predict(
-    const Eigen::Ref<const Eigen::MatrixXd> & F, const Eigen::Ref<const Eigen::MatrixXd> & Q)
+    const Eigen::Ref<const Eigen::MatrixXd> &F, const Eigen::Ref<const Eigen::MatrixXd> &Q)
 {
-    return predict(F, Q, [&](const Eigen::VectorXd & x) { return F * x; });
+    return predict(F, Q, [&](const Eigen::VectorXd &x)
+                   { return F * x; });
 }
 
 Eigen::VectorXd ExtendedKalmanFilter::predict(
-    const Eigen::Ref<const Eigen::MatrixXd> & F, const Eigen::Ref<const Eigen::MatrixXd> & Q,
+    const Eigen::Ref<const Eigen::MatrixXd> &F, const Eigen::Ref<const Eigen::MatrixXd> &Q,
     std::function<Eigen::VectorXd(const Eigen::VectorXd &)> f)
 {
     P = F * P * F.transpose() + Q;
@@ -61,16 +64,17 @@ Eigen::VectorXd ExtendedKalmanFilter::predict(
 }
 
 Eigen::VectorXd ExtendedKalmanFilter::update(
-    const Eigen::Ref<const Eigen::VectorXd> & z, const Eigen::Ref<const Eigen::MatrixXd> & H,
-    const Eigen::Ref<const Eigen::MatrixXd> & R,
+    const Eigen::Ref<const Eigen::VectorXd> &z, const Eigen::Ref<const Eigen::MatrixXd> &H,
+    const Eigen::Ref<const Eigen::MatrixXd> &R,
     std::function<Eigen::VectorXd(const Eigen::VectorXd &, const Eigen::VectorXd &)> z_subtract)
 {
-    return update(z, H, R, [&](const Eigen::VectorXd & x) { return H * x; }, z_subtract);
+    return update(z, H, R, [&](const Eigen::VectorXd &x)
+                  { return H * x; }, z_subtract);
 }
 
 Eigen::VectorXd ExtendedKalmanFilter::update(
-    const Eigen::Ref<const Eigen::VectorXd> & z, const Eigen::Ref<const Eigen::MatrixXd> & H,
-    const Eigen::Ref<const Eigen::MatrixXd> & R,
+    const Eigen::Ref<const Eigen::VectorXd> &z, const Eigen::Ref<const Eigen::MatrixXd> &H,
+    const Eigen::Ref<const Eigen::MatrixXd> &R,
     std::function<Eigen::VectorXd(const Eigen::VectorXd &)> h,
     std::function<Eigen::VectorXd(const Eigen::VectorXd &, const Eigen::VectorXd &)> z_subtract)
 {
@@ -96,7 +100,8 @@ Eigen::VectorXd ExtendedKalmanFilter::update(
 
     // 残差方差与 NIS 的指数滑动平均，仅用于在线标定 R
     constexpr double alpha = 0.02;
-    if (residual_var_.rows() != residual.rows()) {
+    if (residual_var_.rows() != residual.rows())
+    {
         residual_var_ = Eigen::VectorXd::Zero(residual.rows());
     }
     residual_var_ = (1.0 - alpha) * residual_var_ + alpha * residual.cwiseProduct(residual);
@@ -108,9 +113,11 @@ Eigen::VectorXd ExtendedKalmanFilter::update(
     // 注：真正的 NEES 需要真值，这里只有“修正幅度 / 先验协方差”，仅作调试量
     const Eigen::VectorXd delta = x - x_prior;
     double nees = 0.0;
-    if (delta.squaredNorm() > 0.0) {
+    if (delta.squaredNorm() > 0.0)
+    {
         const Eigen::VectorXd solved = P_prior.ldlt().solve(delta);
-        if (solved.allFinite()) nees = delta.dot(solved);
+        if (solved.allFinite())
+            nees = delta.dot(solved);
     }
 
     const double nis_threshold = chi2_95(static_cast<int>(residual.rows()));
@@ -122,14 +129,17 @@ Eigen::VectorXd ExtendedKalmanFilter::update(
     nis_fail_streak_ = data["nis_fail"] > 0.0 ? nis_fail_streak_ + 1 : 0;
     data["nis_fail_streak"] = nis_fail_streak_;
 
-    if (data["nis_fail"] > 0.0) nis_count_++;
-    if (data["nees_fail"] > 0.0) nees_count_++;
+    if (data["nis_fail"] > 0.0)
+        nis_count_++;
+    if (data["nees_fail"] > 0.0)
+        nees_count_++;
     total_count_++;
     last_nis = nis;
 
     recent_nis_failures.push_back(nis > nis_threshold ? 1 : 0);
 
-    if (recent_nis_failures.size() > window_size) {
+    if (recent_nis_failures.size() > window_size)
+    {
         recent_nis_failures.pop_front();
     }
 
@@ -147,7 +157,8 @@ Eigen::VectorXd ExtendedKalmanFilter::update(
     data["recent_nis_failures"] = recent_rate;
 
     // R 的在线估计，供标定使用
-    auto pick = [](const Eigen::VectorXd & v, int i) { return i < v.rows() ? v[i] : 0.0; };
+    auto pick = [](const Eigen::VectorXd &v, int i)
+    { return i < v.rows() ? v[i] : 0.0; };
     data["r_var_yaw"] = pick(residual_var_, 0);
     data["r_var_pitch"] = pick(residual_var_, 1);
     data["r_var_distance"] = pick(residual_var_, 2);

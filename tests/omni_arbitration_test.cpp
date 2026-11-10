@@ -1,6 +1,6 @@
 #include "omni/decider.hpp"
 
-#include <chrono>                                         
+#include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <filesystem>
@@ -16,41 +16,42 @@ using namespace std::chrono_literals;
 
 namespace
 {
-void require(bool condition, const std::string & message)
-{
-    if (!condition) throw std::runtime_error(message);
-}
+    void require(bool condition, const std::string &message)
+    {
+        if (!condition)
+            throw std::runtime_error(message);
+    }
 
-Armor make_armor(float cx, float cy, float width)
-{
-    std::vector<cv::Point2f> points = {
-        {cx - width / 2, cy - 20}, {cx + width / 2, cy - 20},
-        {cx + width / 2, cy + 20}, {cx - width / 2, cy + 20}};
-    Armor armor(0, 0.9f, cv::Rect(cv::Point(cx - width / 2, cy - 20), cv::Size(width, 40)), points);
-    armor.center_norm = {cx / 640.0f, cy / 360.0f};
-    return armor;
-}
+    Armor make_armor(float cx, float cy, float width)
+    {
+        std::vector<cv::Point2f> points = {
+            {cx - width / 2, cy - 20}, {cx + width / 2, cy - 20}, {cx + width / 2, cy + 20}, {cx - width / 2, cy + 20}};
+        Armor armor(0, 0.9f, cv::Rect(cv::Point(cx - width / 2, cy - 20), cv::Size(width, 40)), points);
+        armor.center_norm = {cx / 640.0f, cy / 360.0f};
+        return armor;
+    }
 
-DetectionResult make_result(
-    const std::string & camera, double size_score, std::chrono::steady_clock::time_point t,
-    double delta_yaw = 0.0)
-{
-    DetectionResult result;
-    result.armors.push_back(make_armor(320, 180, 60));
-    result.timestamp = t;
-    result.delta_yaw = delta_yaw;
-    result.delta_pitch = 0.0;
-    result.source = DetectionSource::USB;
-    result.camera = camera;
-    result.selected_index = 0;
-    result.size_score = size_score;
-    return result;
-}
-}  // namespace
+    DetectionResult make_result(
+        const std::string &camera, double size_score, std::chrono::steady_clock::time_point t,
+        double delta_yaw = 0.0)
+    {
+        DetectionResult result;
+        result.armors.push_back(make_armor(320, 180, 60));
+        result.timestamp = t;
+        result.delta_yaw = delta_yaw;
+        result.delta_pitch = 0.0;
+        result.source = DetectionSource::USB;
+        result.camera = camera;
+        result.selected_index = 0;
+        result.size_score = size_score;
+        return result;
+    }
+} // namespace
 
 int main()
 {
-    try {
+    try
+    {
         const auto config_path =
             (std::filesystem::temp_directory_path() /
              ("omni_arbitration_test_" +
@@ -153,7 +154,9 @@ int main()
         std::filesystem::remove(config_path);
         std::puts("omni_arbitration_test passed");
         return 0;
-    } catch (const std::exception & e) {
+    }
+    catch (const std::exception &e)
+    {
         std::fprintf(stderr, "omni_arbitration_test failed: %s\n", e.what());
         return 1;
     }

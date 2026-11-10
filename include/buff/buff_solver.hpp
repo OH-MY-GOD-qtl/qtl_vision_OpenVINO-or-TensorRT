@@ -3,7 +3,7 @@
 
 #include <yaml-cpp/yaml.h>
 
-#include <Eigen/Dense>  // 必须在opencv2/core/eigen.hpp上面
+#include <Eigen/Dense> // 必须在opencv2/core/eigen.hpp上面
 #include <opencv2/core/eigen.hpp>
 #include <optional>
 
@@ -11,24 +11,24 @@
 #include "tools/math_tools.hpp"
 
 // 旋转角度
-const double THETA = 2.0 * CV_PI / 5.0;  // 2/5π
+const double THETA = 2.0 * CV_PI / 5.0; // 2/5π
 
 class BuffSolver
 {
 public:
-    explicit BuffSolver(const std::string & config_path);
+    explicit BuffSolver(const std::string &config_path);
 
     Eigen::Matrix3d R_gimbal2world() const;
 
-    void set_R_gimbal2world(const Eigen::Quaterniond & q);
+    void set_R_gimbal2world(const Eigen::Quaterniond &q);
 
-    void solve(std::optional<PowerRune> & ps) const;
+    void solve(std::optional<PowerRune> &ps) const;
 
     // 调试用
     cv::Point2f point_buff2pixel(cv::Point3f x);
 
     std::vector<cv::Point2f> reproject_buff(
-        const Eigen::Vector3d & xyz_in_world, double yaw, double row) const;
+        const Eigen::Vector3d &xyz_in_world, double yaw, double row) const;
 
 private:
     cv::Mat camera_matrix_;
@@ -54,12 +54,12 @@ private:
         cv::Point3f(0, 0, 827e-3), cv::Point3f(0, 127e-3, 700e-3),
         cv::Point3f(0, 0, 573e-3), cv::Point3f(0, -127e-3, 700e-3),
         cv::Point3f(0, 0, 700e-3), cv::Point3f(0, 0, 220e-3),
-        cv::Point3f(0, 0, 0)};  // 单位：米
+        cv::Point3f(0, 0, 0)}; // 单位：米
 
     // 函数：生成绕x轴旋转的旋转矩阵
     cv::Matx33f rotation_matrix(double angle) const;
 
     // 函数：旋转点并填充到 OBJECT_POINTS 中
-    void compute_rotated_points(std::vector<std::vector<cv::Point3f>> & object_points);
+    void compute_rotated_points(std::vector<std::vector<cv::Point3f>> &object_points);
 };
-#endif  // AUTO_AIM__SOLVER_HPP
+#endif // AUTO_AIM__SOLVER_HPP

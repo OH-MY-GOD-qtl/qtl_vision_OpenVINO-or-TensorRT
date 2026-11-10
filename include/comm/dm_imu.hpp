@@ -38,7 +38,7 @@ struct __attribute__((packed)) IMU_Receive_Frame
     uint8_t FrameHeader3;
     uint8_t flag3;
     uint8_t slave_id3;
-    uint8_t reg_euler;  //r-p-y
+    uint8_t reg_euler; // r-p-y
     uint32_t roll_u32;
     uint32_t pitch_u32;
     uint32_t yaw_u32;
@@ -84,7 +84,7 @@ private:
     IMUData data_ahead_, data_behind_;
 
     std::atomic<bool> stop_thread_{false};
-    IMU_Receive_Frame receive_data{};  //receive data frame
+    IMU_Receive_Frame receive_data{}; // receive data frame
     IMU_Data data{};
 };
 

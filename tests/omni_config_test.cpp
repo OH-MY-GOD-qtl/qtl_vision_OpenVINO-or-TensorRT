@@ -13,9 +13,10 @@
 #include "omni/decider.hpp"
 #include "omni/usb_camera_config.hpp"
 
-void require(bool condition, const std::string & message)
+void require(bool condition, const std::string &message)
 {
-    if (!condition) throw std::runtime_error(message);
+    if (!condition)
+        throw std::runtime_error(message);
 }
 
 int main()
@@ -105,10 +106,11 @@ omni_hik_yaw_offset: 10
         "Legacy offsets must remain relative to the gimbal yaw origin");
 
     // 现役配置必须使用成对映射，避免设备名与安装角按索引错配
-    if (std::filesystem::exists("configs/omni.yaml")) {
+    if (std::filesystem::exists("configs/omni.yaml"))
+    {
         const auto active = load_usb_camera_configs(YAML::LoadFile("configs/omni.yaml"));
         require(active.size() == 3, "configs/omni.yaml must define three USB cameras");
-        for (const auto & camera : active)
+        for (const auto &camera : active)
             require(
                 camera.yaw_offset_relative_to_hik,
                 "configs/omni.yaml must use yaw_offset_from_hik");

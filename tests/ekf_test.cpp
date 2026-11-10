@@ -10,19 +10,21 @@
 
 namespace
 {
-void require(bool condition, const std::string & message)
-{
-    if (!condition) throw std::runtime_error(message);
-}
-
-void require_near(double actual, double expected, double tol, const std::string & message)
-{
-    if (!(std::abs(actual - expected) <= tol)) {
-        throw std::runtime_error(
-            message + ": actual=" + std::to_string(actual) + " expected=" + std::to_string(expected));
+    void require(bool condition, const std::string &message)
+    {
+        if (!condition)
+            throw std::runtime_error(message);
     }
-}
-}  // namespace
+
+    void require_near(double actual, double expected, double tol, const std::string &message)
+    {
+        if (!(std::abs(actual - expected) <= tol))
+        {
+            throw std::runtime_error(
+                message + ": actual=" + std::to_string(actual) + " expected=" + std::to_string(expected));
+        }
+    }
+} // namespace
 
 // 3 维量测：residual 只有 3 个元素，不得读取 residual[3]
 void test_residual_indexing()
@@ -65,7 +67,7 @@ void test_nis_uses_prior()
     Eigen::MatrixXd R = Eigen::MatrixXd::Identity(n, n);
 
     Eigen::VectorXd z(n);
-    z << 1.5, 2.5, 3.5, 4.5;  // 先验残差 0.5，S = 3I => NIS = 4 * 0.25 / 3
+    z << 1.5, 2.5, 3.5, 4.5; // 先验残差 0.5，S = 3I => NIS = 4 * 0.25 / 3
 
     ekf.update(z, H, R);
 
@@ -110,17 +112,20 @@ void test_nis_statistical_consistency()
 
     double sum = 0.0;
     int exceed = 0;
-    for (int i = 0; i < samples; i++) {
+    for (int i = 0; i < samples; i++)
+    {
         ekf.x = Eigen::VectorXd::Zero(n);
         ekf.P = P0;
 
         // 先验均值误差 ~ N(0, P0)，量测噪声 ~ N(0, R)，则创新 ~ N(0, H P0 Hᵀ + R)
         Eigen::VectorXd z(n);
-        for (int j = 0; j < n; j++) z[j] = 10.0 * noise(rng) + noise(rng);
+        for (int j = 0; j < n; j++)
+            z[j] = 10.0 * noise(rng) + noise(rng);
 
         ekf.update(z, H, R);
         sum += ekf.last_nis;
-        if (ekf.last_nis > 9.488) exceed++;  // dof=4 的 95% 上分位
+        if (ekf.last_nis > 9.488)
+            exceed++; // dof=4 的 95% 上分位
     }
 
     const double mean = sum / samples;
@@ -150,12 +155,14 @@ void test_scale_invariance()
     std::mt19937 rng(7);
     std::normal_distribution<double> noise(0.0, 1.0);
 
-    for (int i = 0; i < 100; i++) {
+    for (int i = 0; i < 100; i++)
+    {
         ref.predict(F, Q);
         scaled.predict(F, k * Q);
 
         Eigen::VectorXd z(n);
-        for (int j = 0; j < n; j++) z[j] = x0[j] + noise(rng);
+        for (int j = 0; j < n; j++)
+            z[j] = x0[j] + noise(rng);
 
         ref.update(z, H, R);
         scaled.update(z, H, k * R);
@@ -179,7 +186,8 @@ void test_fail_streak()
     Eigen::MatrixXd P0 = Eigen::MatrixXd::Identity(n, n) * 100.0;
     ExtendedKalmanFilter ekf(Eigen::VectorXd::Zero(n), P0);
 
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 5; i++)
+    {
         ekf.x = Eigen::VectorXd::Zero(n);
         ekf.P = P0;
         ekf.update(Eigen::VectorXd::Constant(n, 100.0), H, R);
@@ -207,12 +215,14 @@ void test_fail_streak_bounded_on_consistent_filter()
     std::normal_distribution<double> noise(0.0, 1.0);
 
     int max_streak = 0;
-    for (int i = 0; i < samples; i++) {
+    for (int i = 0; i < samples; i++)
+    {
         ekf.x = Eigen::VectorXd::Zero(n);
         ekf.P = P0;
 
         Eigen::VectorXd z(n);
-        for (int j = 0; j < n; j++) z[j] = 10.0 * noise(rng) + noise(rng);
+        for (int j = 0; j < n; j++)
+            z[j] = 10.0 * noise(rng) + noise(rng);
 
         ekf.update(z, H, R);
         max_streak = std::max(max_streak, ekf.nis_fail_streak());
@@ -241,7 +251,8 @@ void test_streak_reset()
     Eigen::MatrixXd P0 = Eigen::MatrixXd::Identity(n, n) * 100.0;
     ExtendedKalmanFilter ekf(Eigen::VectorXd::Zero(n), P0);
 
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 5; i++)
+    {
         ekf.x = Eigen::VectorXd::Zero(n);
         ekf.P = P0;
         ekf.update(Eigen::VectorXd::Constant(n, 100.0), H, R);
@@ -254,7 +265,8 @@ void test_streak_reset()
 
 int main()
 {
-    try {
+    try
+    {
         test_residual_indexing();
         test_nis_uses_prior();
         test_fail_flags_reset();
@@ -267,7 +279,9 @@ int main()
 
         std::puts("ekf_test passed");
         return 0;
-    } catch (const std::exception & e) {
+    }
+    catch (const std::exception &e)
+    {
         std::fprintf(stderr, "ekf_test failed: %s\n", e.what());
         return 1;
     }

@@ -23,21 +23,21 @@ public:
     ArmorType armor_type;
     ArmorPriority priority;
     bool jumped;
-    int last_id;  // debug only
+    int last_id; // debug only
 
     Target() = default;
     Target(
-        const Armor & armor, std::chrono::steady_clock::time_point t, double radius, int armor_num,
+        const Armor &armor, std::chrono::steady_clock::time_point t, double radius, int armor_num,
         Eigen::VectorXd P0_dig);
     Target(double x, double vyaw, double radius, double h);
 
     void predict(std::chrono::steady_clock::time_point t);
     void predict(double dt);
-    void update(const Armor & armor);
+    void update(const Armor &armor);
 
-    const Eigen::VectorXd & ekf_x() const;
-    const ExtendedKalmanFilter & ekf() const;
-    const std::vector<Eigen::Vector4d> & armor_xyza_list() const;
+    const Eigen::VectorXd &ekf_x() const;
+    const ExtendedKalmanFilter &ekf() const;
+    const std::vector<Eigen::Vector4d> &armor_xyza_list() const;
 
     bool diverged() const;
 
@@ -66,10 +66,10 @@ private:
     // 帧间复用缓冲：避免 armor_xyza_list/h_jacobian 每次调用堆分配
     mutable std::vector<Eigen::Vector4d> armor_xyza_cache_;
 
-    void update_ypda(const Armor & armor, int id);  // yaw pitch distance angle
+    void update_ypda(const Armor &armor, int id); // yaw pitch distance angle
 
-    Eigen::Vector3d h_armor_xyz(const Eigen::VectorXd & x, int id) const;
-    Eigen::Matrix<double, 4, 11> h_jacobian(const Eigen::VectorXd & x, int id) const;
+    Eigen::Vector3d h_armor_xyz(const Eigen::VectorXd &x, int id) const;
+    Eigen::Matrix<double, 4, 11> h_jacobian(const Eigen::VectorXd &x, int id) const;
 };
 
-#endif  // AUTO_AIM__TARGET_HPP
+#endif // AUTO_AIM__TARGET_HPP

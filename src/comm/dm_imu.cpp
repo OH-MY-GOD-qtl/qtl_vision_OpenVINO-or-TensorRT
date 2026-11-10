@@ -24,32 +24,36 @@ DM_IMU::DM_IMU() : queue_(5000)
 DM_IMU::~DM_IMU()
 {
     stop_thread_ = true;
-    if (rec_thread_.joinable()) {
+    if (rec_thread_.joinable())
+    {
         rec_thread_.join();
     }
-    if (serial_.isOpen()) {
+    if (serial_.isOpen())
+    {
         serial_.close();
     }
 }
 
 void DM_IMU::init_serial()
 {
-    try {
+    try
+    {
         serial_.setPort("/dev/ttyACM0");
         serial_.setBaudrate(921600);
         serial_.setFlowcontrol(serial::flowcontrol_none);
-        serial_.setParity(serial::parity_none);  //default is parity_none
+        serial_.setParity(serial::parity_none); // default is parity_none
         serial_.setStopbits(serial::stopbits_one);
         serial_.setBytesize(serial::eightbits);
         serial::Timeout time_out = serial::Timeout::simpleTimeout(20);
         serial_.setTimeout(time_out);
         serial_.open();
-        usleep(1000000);  //1s
+        usleep(1000000); // 1s
 
         logger()->info("[DM_IMU] serial port opened");
     }
 
-    catch (serial::IOException & e) {
+    catch (serial::IOException &e)
+    {
         logger()->warn("[DM_IMU] failed to open serial port ");
         exit(0);
     }
@@ -57,8 +61,10 @@ void DM_IMU::init_serial()
 
 void DM_IMU::get_imu_data_thread()
 {
-    while (!stop_thread_) {
-        if (!serial_.isOpen()) {
+    while (!stop_thread_)
+    {
+        if (!serial_.isOpen())
+        {
             logger()->warn("In get_imu_data_thread,imu serial port unopen");
         }
 
@@ -70,17 +76,20 @@ void DM_IMU::get_imu_data_thread()
         {
             serial_.read((uint8_t *)(&receive_data.accx_u32), 57 - 4);
 
-            if (get_crc16((uint8_t *)(&receive_data.FrameHeader1), 16) == receive_data.crc1) {
+            if (get_crc16((uint8_t *)(&receive_data.FrameHeader1), 16) == receive_data.crc1)
+            {
                 data.accx = *((float *)(&receive_data.accx_u32));
                 data.accy = *((float *)(&receive_data.accy_u32));
                 data.accz = *((float *)(&receive_data.accz_u32));
             }
-            if (get_crc16((uint8_t *)(&receive_data.FrameHeader2), 16) == receive_data.crc2) {
+            if (get_crc16((uint8_t *)(&receive_data.FrameHeader2), 16) == receive_data.crc2)
+            {
                 data.gyrox = *((float *)(&receive_data.gyrox_u32));
                 data.gyroy = *((float *)(&receive_data.gyroy_u32));
                 data.gyroz = *((float *)(&receive_data.gyroz_u32));
             }
-            if (get_crc16((uint8_t *)(&receive_data.FrameHeader3), 16) == receive_data.crc3) {
+            if (get_crc16((uint8_t *)(&receive_data.FrameHeader3), 16) == receive_data.crc3)
+            {
                 data.roll = *((float *)(&receive_data.roll_u32));
                 data.pitch = *((float *)(&receive_data.pitch_u32));
                 data.yaw = *((float *)(&receive_data.yaw_u32));
@@ -95,7 +104,9 @@ void DM_IMU::get_imu_data_thread()
                 Eigen::AngleAxisd(data.roll * M_PI / 180, Eigen::Vector3d::UnitX());
             q.normalize();
             queue_.push({q, timestamp});
-        } else {
+        }
+        else
+        {
             logger()->info("[DM_IMU] failed to get correct data");
         }
     }
@@ -103,11 +114,14 @@ void DM_IMU::get_imu_data_thread()
 
 Eigen::Quaterniond DM_IMU::imu_at(std::chrono::steady_clock::time_point timestamp)
 {
-    if (data_behind_.timestamp < timestamp) data_ahead_ = data_behind_;
+    if (data_behind_.timestamp < timestamp)
+        data_ahead_ = data_behind_;
 
-    while (true) {
+    while (true)
+    {
         queue_.pop(data_behind_);
-        if (data_behind_.timestamp > timestamp) break;
+        if (data_behind_.timestamp > timestamp)
+            break;
         data_ahead_ = data_behind_;
     }
 

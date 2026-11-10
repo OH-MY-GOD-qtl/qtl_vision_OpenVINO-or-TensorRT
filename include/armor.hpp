@@ -28,8 +28,8 @@ enum ArmorName
     base,
     not_armor
 };
-const std::vector<std::string> ARMOR_NAMES = {"one",    "two",     "three", "four",     "five",
-                                              "sentry", "outpost", "base",  "not_armor"};
+const std::vector<std::string> ARMOR_NAMES = {"one", "two", "three", "four", "five",
+                                              "sentry", "outpost", "base", "not_armor"};
 
 enum ArmorPriority
 {
@@ -59,14 +59,14 @@ const std::vector<std::tuple<Color, ArmorName, ArmorType>> armor_properties = {
 struct Armor
 {
     Color color;
-    Lightbar left, right;     //used to be const
-    cv::Point2f center;       // 不是对角线交点，不能作为实际中心！
-    cv::Point2f center_norm;  // 归一化坐标
+    Lightbar left, right;    // used to be const
+    cv::Point2f center;      // 不是对角线交点，不能作为实际中心！
+    cv::Point2f center_norm; // 归一化坐标
     std::vector<cv::Point2f> points;
 
-    double ratio;              // 两灯条的中点连线与长灯条的长度之比
-    double side_ratio;         // 长灯条与短灯条的长度之比
-    double rectangular_error;  // 灯条和中点连线所成夹角与π/2的差值
+    double ratio;             // 两灯条的中点连线与长灯条的长度之比
+    double side_ratio;        // 长灯条与短灯条的长度之比
+    double rectangular_error; // 灯条和中点连线所成夹角与π/2的差值
 
     ArmorType type;
     ArmorName name;
@@ -79,27 +79,27 @@ struct Armor
     double confidence;
     bool duplicated;
 
-    Eigen::Vector3d xyz_in_gimbal;  // 单位：m
-    Eigen::Vector3d xyz_in_world;   // 单位：m
-    Eigen::Vector3d ypr_in_gimbal;  // 单位：rad
-    Eigen::Vector3d ypr_in_world;   // 单位：rad
-    Eigen::Vector3d ypd_in_world;   // 球坐标系
+    Eigen::Vector3d xyz_in_gimbal; // 单位：m
+    Eigen::Vector3d xyz_in_world;  // 单位：m
+    Eigen::Vector3d ypr_in_gimbal; // 单位：rad
+    Eigen::Vector3d ypr_in_world;  // 单位：rad
+    Eigen::Vector3d ypd_in_world;  // 球坐标系
 
-    double yaw_raw;  // rad
+    double yaw_raw; // rad
 
-    Armor(const Lightbar & left, const Lightbar & right);
+    Armor(const Lightbar &left, const Lightbar &right);
     Armor(
-        int class_id, float confidence, const cv::Rect & box,
+        int class_id, float confidence, const cv::Rect &box,
         std::vector<cv::Point2f> armor_keypoints);
     Armor(
-        int class_id, float confidence, const cv::Rect & box,
+        int class_id, float confidence, const cv::Rect &box,
         std::vector<cv::Point2f> armor_keypoints, cv::Point2f offset);
     Armor(
-        int color_id, int num_id, float confidence, const cv::Rect & box,
+        int color_id, int num_id, float confidence, const cv::Rect &box,
         std::vector<cv::Point2f> armor_keypoints);
     Armor(
-        int color_id, int num_id, float confidence, const cv::Rect & box,
+        int color_id, int num_id, float confidence, const cv::Rect &box,
         std::vector<cv::Point2f> armor_keypoints, cv::Point2f offset);
 };
 
-#endif  // AUTO_AIM__ARMOR_HPP
+#endif // AUTO_AIM__ARMOR_HPP

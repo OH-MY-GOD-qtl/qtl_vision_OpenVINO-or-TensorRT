@@ -21,36 +21,36 @@ Eigen::Vector3d eulers(Eigen::Matrix3d R, int axis0, int axis1, int axis2, bool 
 
 // 欧拉角转旋转矩阵
 // zyx:先绕z轴旋转，再绕y轴旋转，最后绕x轴旋转
-Eigen::Matrix3d rotation_matrix(const Eigen::Vector3d & ypr);
+Eigen::Matrix3d rotation_matrix(const Eigen::Vector3d &ypr);
 
 // 直角坐标系转球坐标系
 // ypd为yaw、pitch、distance的缩写
-Eigen::Vector3d xyz2ypd(const Eigen::Vector3d & xyz);
+Eigen::Vector3d xyz2ypd(const Eigen::Vector3d &xyz);
 
 // 直角坐标系转球坐标系转换函数对xyz的雅可比矩阵（3x3 固定尺寸，避免堆分配）
-Eigen::Matrix3d xyz2ypd_jacobian(const Eigen::Vector3d & xyz);
+Eigen::Matrix3d xyz2ypd_jacobian(const Eigen::Vector3d &xyz);
 
 // 球坐标系转直角坐标系
-Eigen::Vector3d ypd2xyz(const Eigen::Vector3d & ypd);
+Eigen::Vector3d ypd2xyz(const Eigen::Vector3d &ypd);
 
 // 球坐标系转直角坐标系转换函数对xyz的雅可比矩阵（3x3 固定尺寸）
-Eigen::Matrix3d ypd2xyz_jacobian(const Eigen::Vector3d & ypd);
+Eigen::Matrix3d ypd2xyz_jacobian(const Eigen::Vector3d &ypd);
 
 // 计算时间差a - b，单位：s
 double delta_time(
-    const std::chrono::steady_clock::time_point & a,
-    const std::chrono::steady_clock::time_point & b);
+    const std::chrono::steady_clock::time_point &a,
+    const std::chrono::steady_clock::time_point &b);
 
 // 向量夹角 总是返回 0 ~ pi 来自SJTU
-double get_abs_angle(const Eigen::Vector2d & vec1, const Eigen::Vector2d & vec2);
+double get_abs_angle(const Eigen::Vector2d &vec1, const Eigen::Vector2d &vec2);
 
 // 返回输入值的平方
 template <typename T>
-T square(T const & a)
+T square(T const &a)
 {
     return a * a;
 };
 
 double limit_min_max(double input, double min, double max);
 
-#endif  // TOOLS__MATH_TOOLS_HPP
+#endif // TOOLS__MATH_TOOLS_HPP

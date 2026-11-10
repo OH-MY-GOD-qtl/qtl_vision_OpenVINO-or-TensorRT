@@ -4,14 +4,13 @@
 #include <cmath>
 #include <numeric>
 
-Lightbar::Lightbar(const cv::RotatedRect & rotated_rect, std::size_t id)
-: id(id), rotated_rect(rotated_rect)
+Lightbar::Lightbar(const cv::RotatedRect &rotated_rect, std::size_t id)
+    : id(id), rotated_rect(rotated_rect)
 {
     std::vector<cv::Point2f> corners(4);
     rotated_rect.points(&corners[0]);
-    std::sort(corners.begin(), corners.end(), [](const cv::Point2f & a, const cv::Point2f & b) {
-        return a.y < b.y;
-    });
+    std::sort(corners.begin(), corners.end(), [](const cv::Point2f &a, const cv::Point2f &b)
+              { return a.y < b.y; });
 
     center = rotated_rect.center;
     top = (corners[0] + corners[1]) / 2;
@@ -29,15 +28,17 @@ Lightbar::Lightbar(const cv::RotatedRect & rotated_rect, std::size_t id)
 }
 
 std::vector<Lightbar> extract_lightbars(
-    const cv::Mat & bgr_img, const std::vector<std::vector<cv::Point>> & contours,
-    const LightbarParams & params)
+    const cv::Mat &bgr_img, const std::vector<std::vector<cv::Point>> &contours,
+    const LightbarParams &params)
 {
     std::size_t lightbar_id = 0;
     std::vector<Lightbar> lightbars;
-    for (const auto & contour : contours) {
+    for (const auto &contour : contours)
+    {
         auto lightbar = Lightbar(cv::minAreaRect(contour), lightbar_id);
 
-        if (!check_lightbar_geometry(lightbar, params)) continue;
+        if (!check_lightbar_geometry(lightbar, params))
+            continue;
 
         lightbar.color = get_lightbar_color(bgr_img, contour);
         lightbars.emplace_back(lightbar);
@@ -46,7 +47,7 @@ std::vector<Lightbar> extract_lightbars(
     return lightbars;
 }
 
-bool check_lightbar_geometry(const Lightbar & lightbar, const LightbarParams & params)
+bool check_lightbar_geometry(const Lightbar &lightbar, const LightbarParams &params)
 {
     auto angle_ok = lightbar.angle_error < params.max_angle_error;
     auto ratio_ok =
@@ -55,13 +56,14 @@ bool check_lightbar_geometry(const Lightbar & lightbar, const LightbarParams & p
     return angle_ok && ratio_ok && length_ok;
 }
 
-Color get_lightbar_color(const cv::Mat & bgr_img, const std::vector<cv::Point> & contour)
+Color get_lightbar_color(const cv::Mat &bgr_img, const std::vector<cv::Point> &contour)
 {
     int red_sum = 0, blue_sum = 0;
 
     // 直接按行指针访问，避免每个点两次 at<> 的偏移计算开销（统计结果与原实现一致）
-    for (const auto & point : contour) {
-        const auto * px = bgr_img.ptr<cv::Vec3b>(point.y) + point.x;
+    for (const auto &point : contour)
+    {
+        const auto *px = bgr_img.ptr<cv::Vec3b>(point.y) + point.x;
         red_sum += (*px)[2];
         blue_sum += (*px)[0];
     }
@@ -69,13 +71,13 @@ Color get_lightbar_color(const cv::Mat & bgr_img, const std::vector<cv::Point> &
     return blue_sum > red_sum ? Color::blue : Color::red;
 }
 
-void correct_lightbar_points(Lightbar & lightbar, const cv::Mat & gray_img)
+void correct_lightbar_points(Lightbar &lightbar, const cv::Mat &gray_img)
 {
     // 配置参数
-    constexpr float MAX_BRIGHTNESS = 25;  // 归一化最大亮度值
-    constexpr float ROI_SCALE = 0.07;     // ROI扩展比例
-    constexpr float SEARCH_START = 0.4;   // 搜索起始位置比例（原0.8/2）
-    constexpr float SEARCH_END = 0.6;     // 搜索结束位置比例（原1.2/2）
+    constexpr float MAX_BRIGHTNESS = 25; // 归一化最大亮度值
+    constexpr float ROI_SCALE = 0.07;    // ROI扩展比例
+    constexpr float SEARCH_START = 0.4;  // 搜索起始位置比例（原0.8/2）
+    constexpr float SEARCH_END = 0.6;    // 搜索结束位置比例（原1.2/2）
 
     // 扩展并裁剪ROI
     cv::Rect roi_box = lightbar.rotated_rect.boundingRect();
@@ -100,11 +102,14 @@ void correct_lightbar_points(Lightbar & lightbar, const cv::Mat & gray_img)
 
     // 生成稀疏点云（优化性能）
     std::vector<cv::Point2f> points;
-    for (int i = 0; i < roi.rows; ++i) {
-        for (int j = 0; j < roi.cols; ++j) {
+    for (int i = 0; i < roi.rows; ++i)
+    {
+        for (int j = 0; j < roi.cols; ++j)
+        {
             const float weight = roi.at<float>(i, j);
-            if (weight > 1e-3) {            // 忽略极小值提升性能
-                points.emplace_back(j, i);  // 坐标相对于ROI区域
+            if (weight > 1e-3)
+            {                              // 忽略极小值提升性能
+                points.emplace_back(j, i); // 坐标相对于ROI区域
             }
         }
     }
@@ -113,9 +118,11 @@ void correct_lightbar_points(Lightbar & lightbar, const cv::Mat & gray_img)
     cv::PCA pca(cv::Mat(points).reshape(1), cv::Mat(), cv::PCA::DATA_AS_ROW);
     cv::Point2f axis(pca.eigenvectors.at<float>(0, 0), pca.eigenvectors.at<float>(0, 1));
     axis /= cv::norm(axis);
-    if (axis.y > 0) axis = -axis;  // 统一方向
+    if (axis.y > 0)
+        axis = -axis; // 统一方向
 
-    const auto find_corner = [&](int direction) -> cv::Point2f {
+    const auto find_corner = [&](int direction) -> cv::Point2f
+    {
         const float dx = axis.x * direction;
         const float dy = axis.y * direction;
         const float search_length = lightbar.length * (SEARCH_END - SEARCH_START);
@@ -124,7 +131,8 @@ void correct_lightbar_points(Lightbar & lightbar, const cv::Mat & gray_img)
 
         // 横向采样多个候选线
         const int half_width = (lightbar.width - 2) / 2;
-        for (int i_offset = -half_width; i_offset <= half_width; ++i_offset) {
+        for (int i_offset = -half_width; i_offset <= half_width; ++i_offset)
+        {
             // 计算搜索起点
             cv::Point2f start_point(
                 centroid.x + lightbar.length * SEARCH_START * dx + i_offset,
@@ -135,12 +143,14 @@ void correct_lightbar_points(Lightbar & lightbar, const cv::Mat & gray_img)
             float max_diff = 0;
             bool found = false;
 
-            for (float step = 0; step < search_length; ++step) {
+            for (float step = 0; step < search_length; ++step)
+            {
                 const cv::Point2f cur_point(start_point.x + dx * step, start_point.y + dy * step);
 
                 // 边界检查
                 if (cur_point.x < 0 || cur_point.x >= gray_img.cols || cur_point.y < 0 ||
-                    cur_point.y >= gray_img.rows) {
+                    cur_point.y >= gray_img.rows)
+                {
                     break;
                 }
 
@@ -150,14 +160,16 @@ void correct_lightbar_points(Lightbar & lightbar, const cv::Mat & gray_img)
                 const auto cur_val = gray_img.at<uchar>(cv::Point2i(cur_point));
                 const float diff = prev_val - cur_val;
 
-                if (diff > max_diff && prev_val > mean_val) {
+                if (diff > max_diff && prev_val > mean_val)
+                {
                     max_diff = diff;
-                    corner = cur_point - cv::Point2f(dx, dy);  // 跳变发生在上一位置
+                    corner = cur_point - cv::Point2f(dx, dy); // 跳变发生在上一位置
                     found = true;
                 }
             }
 
-            if (found) {
+            if (found)
+            {
                 candidates.push_back(corner);
             }
         }

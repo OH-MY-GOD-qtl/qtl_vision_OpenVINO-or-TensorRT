@@ -11,9 +11,9 @@
 #include "tools/yaml.hpp"
 
 YOLOV5::YOLOV5(
-    const std::string & config_path, bool debug, std::optional<bool> use_tensorrt_override,
+    const std::string &config_path, bool debug, std::optional<bool> use_tensorrt_override,
     std::optional<bool> use_traditional_override)
-: debug_(debug), detector_(config_path, false, false)
+    : debug_(debug), detector_(config_path, false, false)
 {
     auto yaml = yaml_load(config_path);
 
@@ -36,14 +36,17 @@ YOLOV5::YOLOV5(
     // 预分配 letterbox 输入缓冲（两后端共用）
     input_ = cv::Mat(640, 640, CV_8UC3, cv::Scalar(0, 0, 0));
 
-    if (use_tensorrt_) {
+    if (use_tensorrt_)
+    {
 #ifdef QTL_ENABLE_TENSORRT
         // ---- TensorRT 后端 ----
         std::string engine_path = yaml_read<std::string>(yaml, "yolov5_engine_path");
         trt_ = std::make_unique<TensorRTInfer>(engine_path);
-        if (trt_->is_ok()) {
+        if (trt_->is_ok())
+        {
             int64_t vol = 1;
-            for (auto d : trt_->input_info().dims) vol *= d;
+            for (auto d : trt_->input_info().dims)
+                vol *= d;
             blob_.assign(vol, 0.0f);
             logger()->info("[YOLOV5] 使用 TensorRT 后端: {}", engine_path);
             return;
@@ -61,7 +64,7 @@ YOLOV5::YOLOV5(
     // ---- OpenVINO 后端 ----
     auto model = core_.read_model(model_path_);
     ov::preprocess::PrePostProcessor ppp(model);
-    auto & input = ppp.input();
+    auto &input = ppp.input();
 
     input.tensor()
         .set_element_type(ov::element::u8)
@@ -85,23 +88,29 @@ YOLOV5::YOLOV5(
     infer_request_ = compiled_model_.create_infer_request();
 }
 
-std::vector<Armor> YOLOV5::detect(const cv::Mat & raw_img, int frame_count)
+std::vector<Armor> YOLOV5::detect(const cv::Mat &raw_img, int frame_count)
 {
-    if (raw_img.empty()) {
+    if (raw_img.empty())
+    {
         logger()->warn("Empty img!, camera drop!");
         return std::vector<Armor>();
     }
 
     cv::Mat bgr_img;
-    if (use_roi_) {
-        if (roi_.width == -1) {  // -1 表示该维度不裁切
+    if (use_roi_)
+    {
+        if (roi_.width == -1)
+        { // -1 表示该维度不裁切
             roi_.width = raw_img.cols;
         }
-        if (roi_.height == -1) {  // -1 表示该维度不裁切
+        if (roi_.height == -1)
+        { // -1 表示该维度不裁切
             roi_.height = raw_img.rows;
         }
         bgr_img = raw_img(roi_);
-    } else {
+    }
+    else
+    {
         bgr_img = raw_img;
     }
 
@@ -110,28 +119,36 @@ std::vector<Armor> YOLOV5::detect(const cv::Mat & raw_img, int frame_count)
     letterbox(bgr_img, input_, scale);
 
 #ifdef QTL_ENABLE_TENSORRT
-    if (use_tensorrt_) {
+    if (use_tensorrt_)
+    {
         // TensorRT 预处理：u8 BGR letterbox -> f32 NCHW RGB /255
         // （与 OpenVINO PrePostProcessor 的 convert_color(RGB) + scale(255) 完全一致）
         const int plane = 640 * 640;
-        const uchar * src = input_.data;
-        float * dst = blob_.data();
-        for (int c = 0; c < 3; ++c) {
-            const uchar * sc = src + (2 - c);  // BGR -> RGB 通道交换
-            float * dc = dst + c * plane;
-            for (int i = 0; i < plane; ++i) dc[i] = sc[i * 3] * (1.0f / 255.0f);
+        const uchar *src = input_.data;
+        float *dst = blob_.data();
+        for (int c = 0; c < 3; ++c)
+        {
+            const uchar *sc = src + (2 - c); // BGR -> RGB 通道交换
+            float *dc = dst + c * plane;
+            for (int i = 0; i < plane; ++i)
+                dc[i] = sc[i * 3] * (1.0f / 255.0f);
         }
 
-        auto & outputs = trt_->infer(blob_.data());
-        auto & o = outputs[0];
+        auto &outputs = trt_->infer(blob_.data());
+        auto &o = outputs[0];
         int rows = 0, cols = 0;
-        if (o.dims.size() == 3) {  // [1, anchors, features]
+        if (o.dims.size() == 3)
+        { // [1, anchors, features]
             rows = static_cast<int>(o.dims[1]);
             cols = static_cast<int>(o.dims[2]);
-        } else if (o.dims.size() == 2) {  // [anchors, features]
+        }
+        else if (o.dims.size() == 2)
+        { // [anchors, features]
             rows = static_cast<int>(o.dims[0]);
             cols = static_cast<int>(o.dims[1]);
-        } else {
+        }
+        else
+        {
             logger()->error("[YOLOV5] 非法输出维度: {}", o.dims.size());
             return {};
         }
@@ -156,12 +173,12 @@ std::vector<Armor> YOLOV5::detect(const cv::Mat & raw_img, int frame_count)
 }
 
 std::vector<Armor> YOLOV5::parse(
-    double scale, cv::Mat & output, const cv::Mat & bgr_img, int frame_count)
+    double scale, cv::Mat &output, const cv::Mat &bgr_img, int frame_count)
 {
     // 输出为 anchor-major 布局 [1][anchors][22]，每行 22 个特征连续存放：
     // 直接按行遍历，省去逐行 Mat 视图与 minMaxLoc 的开销
-    const float * data = output.ptr<float>(0);
-    const int feature_num = output.cols;  // 22
+    const float *data = output.ptr<float>(0);
+    const int feature_num = output.cols; // 22
     const int anchor_num = output.rows;
 
     std::vector<int> color_ids, num_ids;
@@ -174,13 +191,15 @@ std::vector<Armor> YOLOV5::parse(
     boxes.reserve(64);
     armors_key_points.reserve(64);
 
-    for (int r = 0; r < anchor_num; r++) {
-        const float * row = data + r * feature_num;
+    for (int r = 0; r < anchor_num; r++)
+    {
+        const float *row = data + r * feature_num;
 
         double score = row[8];
         score = sigmoid(score);
 
-        if (score < score_threshold_) continue;
+        if (score < score_threshold_)
+            continue;
 
         std::vector<cv::Point2f> armor_key_points;
         armor_key_points.reserve(4);
@@ -188,14 +207,18 @@ std::vector<Armor> YOLOV5::parse(
         // 颜色(9..12)与类别(13..21)独热向量取 argmax（下标为局部下标，与原实现一致）
         double score_num = row[13], score_color = row[9];
         int _class_id = 0, _color_id = 0;
-        for (int c = 1; c < 9; c++) {
-            if (row[13 + c] > score_num) {
+        for (int c = 1; c < 9; c++)
+        {
+            if (row[13 + c] > score_num)
+            {
                 score_num = row[13 + c];
                 _class_id = c;
             }
         }
-        for (int c = 1; c < 4; c++) {
-            if (row[9 + c] > score_color) {
+        for (int c = 1; c < 4; c++)
+        {
+            if (row[9 + c] > score_color)
+            {
                 score_color = row[9 + c];
                 _color_id = c;
             }
@@ -211,11 +234,16 @@ std::vector<Armor> YOLOV5::parse(
         float min_y = armor_key_points[0].y;
         float max_y = armor_key_points[0].y;
 
-        for (int i = 1; i < 4; i++) {
-            if (armor_key_points[i].x < min_x) min_x = armor_key_points[i].x;
-            if (armor_key_points[i].x > max_x) max_x = armor_key_points[i].x;
-            if (armor_key_points[i].y < min_y) min_y = armor_key_points[i].y;
-            if (armor_key_points[i].y > max_y) max_y = armor_key_points[i].y;
+        for (int i = 1; i < 4; i++)
+        {
+            if (armor_key_points[i].x < min_x)
+                min_x = armor_key_points[i].x;
+            if (armor_key_points[i].x > max_x)
+                max_x = armor_key_points[i].x;
+            if (armor_key_points[i].y < min_y)
+                min_y = armor_key_points[i].y;
+            if (armor_key_points[i].y > max_y)
+                max_y = armor_key_points[i].y;
         }
 
         cv::Rect rect(min_x, min_y, max_x - min_x, max_y - min_y);
@@ -231,45 +259,55 @@ std::vector<Armor> YOLOV5::parse(
     cv::dnn::NMSBoxes(boxes, confidences, score_threshold_, nms_threshold_, indices);
 
     std::vector<Armor> armors;
-    for (const auto & i : indices) {
-        if (use_roi_) {
+    for (const auto &i : indices)
+    {
+        if (use_roi_)
+        {
             armors.emplace_back(
                 color_ids[i], num_ids[i], confidences[i], boxes[i], armors_key_points[i], offset_);
-        } else {
+        }
+        else
+        {
             armors.emplace_back(
                 color_ids[i], num_ids[i], confidences[i], boxes[i], armors_key_points[i]);
         }
     }
 
-    for (std::size_t i = 0; i < armors.size();) {
-        auto & a = armors[i];
-        if (!detector_.check_name(a, false)) {
+    for (std::size_t i = 0; i < armors.size();)
+    {
+        auto &a = armors[i];
+        if (!detector_.check_name(a, false))
+        {
             armors.erase(armors.begin() + i);
             continue;
         }
 
-        if (!Detector::check_type_neural(a)) {
+        if (!Detector::check_type_neural(a))
+        {
             armors.erase(armors.begin() + i);
             continue;
         }
         // 使用传统方法二次矫正角点
-        if (use_traditional_) detector_.detect(a, bgr_img);
+        if (use_traditional_)
+            detector_.detect(a, bgr_img);
 
         a.center_norm = detector_.get_center_norm(bgr_img, a.center);
         ++i;
     }
 
-    if (debug_) draw_detections(bgr_img, armors, frame_count);
+    if (debug_)
+        draw_detections(bgr_img, armors, frame_count);
 
     return armors;
 }
 
 void YOLOV5::draw_detections(
-    const cv::Mat & img, const std::vector<Armor> & armors, int frame_count) const
+    const cv::Mat &img, const std::vector<Armor> &armors, int frame_count) const
 {
     auto detection = img.clone();
     draw_text(detection, fmt::format("[{}]", frame_count), {10, 30}, {255, 255, 255});
-    for (const auto & armor : armors) {
+    for (const auto &armor : armors)
+    {
         auto info = fmt::format(
             "{:.2f} {} {} {}", armor.confidence, COLORS[armor.color], ARMOR_NAMES[armor.name],
             ARMOR_TYPES[armor.type]);
@@ -277,11 +315,12 @@ void YOLOV5::draw_detections(
         draw_text(detection, info, armor.center, {0, 255, 0});
     }
 
-    if (use_roi_) {
+    if (use_roi_)
+    {
         cv::Scalar green(0, 255, 0);
         cv::rectangle(detection, roi_, green, 2);
     }
-    cv::resize(detection, detection, {}, 0.5, 0.5);  // 显示时缩小图片尺寸
+    cv::resize(detection, detection, {}, 0.5, 0.5); // 显示时缩小图片尺寸
     cv::imshow("detection", detection);
 }
 
@@ -294,7 +333,7 @@ double YOLOV5::sigmoid(double x)
 }
 
 std::vector<Armor> YOLOV5::postprocess(
-    double scale, cv::Mat & output, const cv::Mat & bgr_img, int frame_count)
+    double scale, cv::Mat &output, const cv::Mat &bgr_img, int frame_count)
 {
     return parse(scale, output, bgr_img, frame_count);
 }

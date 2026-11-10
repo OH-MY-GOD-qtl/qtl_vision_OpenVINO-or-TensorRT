@@ -20,10 +20,11 @@ const std::string keys =
     "{@camera3       | video4                 | 第三路 USB 相机设备名}"
     "{d display      |                        | 显示视频流}";
 
-int main(int argc, char * argv[])
+int main(int argc, char *argv[])
 {
     cv::CommandLineParser cli(argc, argv, keys);
-    if (cli.has("help")) {
+    if (cli.has("help"))
+    {
         cli.printMessage();
         return 0;
     }
@@ -35,23 +36,29 @@ int main(int argc, char * argv[])
     const auto display = cli.has("display");
 
     std::array<std::unique_ptr<USBCamera>, 3> cameras;
-    for (std::size_t i = 0; i < cameras.size(); ++i) {
+    for (std::size_t i = 0; i < cameras.size(); ++i)
+    {
         cameras[i] = std::make_unique<USBCamera>(device_names[i], config_path);
-        if (display) cv::namedWindow(device_names[i], cv::WINDOW_NORMAL);
+        if (display)
+            cv::namedWindow(device_names[i], cv::WINDOW_NORMAL);
     }
 
     YOLO yolo(config_path, false);
     std::array<std::chrono::steady_clock::time_point, 3> previous_timestamps{};
     std::array<bool, 3> has_previous_timestamp{};
 
-    while (!exiter.exit()) {
-        for (std::size_t i = 0; i < cameras.size(); ++i) {
+    while (!exiter.exit())
+    {
+        for (std::size_t i = 0; i < cameras.size(); ++i)
+        {
             cv::Mat img;
             std::chrono::steady_clock::time_point timestamp;
-            if (!cameras[i]->try_read(img, timestamp, 10) || img.empty()) continue;
+            if (!cameras[i]->try_read(img, timestamp, 10) || img.empty())
+                continue;
 
             const auto armors = yolo.detect(img);
-            if (has_previous_timestamp[i]) {
+            if (has_previous_timestamp[i])
+            {
                 const auto fps = 1.0 / delta_time(timestamp, previous_timestamps[i]);
                 logger()->info(
                     "{}: {:.2f} fps, {} detections", device_names[i], fps, armors.size());
@@ -59,9 +66,11 @@ int main(int argc, char * argv[])
             previous_timestamps[i] = timestamp;
             has_previous_timestamp[i] = true;
 
-            if (display) {
+            if (display)
+            {
                 auto detection = img.clone();
-                for (const auto & armor : armors) {
+                for (const auto &armor : armors)
+                {
                     cv::rectangle(detection, armor.box, {0, 255, 0}, 2);
                     draw_text(
                         detection, ARMOR_NAMES[armor.name], armor.box.tl(), {0, 255, 0}, 0.6, 1);
@@ -70,9 +79,11 @@ int main(int argc, char * argv[])
             }
         }
 
-        if (display && cv::waitKey(1) == 'q') break;
+        if (display && cv::waitKey(1) == 'q')
+            break;
     }
 
-    if (display) cv::destroyAllWindows();
+    if (display)
+        cv::destroyAllWindows();
     return 0;
 }

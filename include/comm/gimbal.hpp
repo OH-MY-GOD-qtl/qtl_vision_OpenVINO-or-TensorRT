@@ -16,12 +16,12 @@
 struct __attribute__((packed)) GimbalToVision
 {
     uint8_t head[2] = {'S', 'P'};
-    uint8_t mode;  // 0: 空闲, 1: 自瞄, 2: 小符, 3: 大符
+    uint8_t mode; // 0: 空闲, 1: 自瞄, 2: 小符, 3: 大符
     float yaw;
     float yaw_vel;
     float pitch;
     float pitch_vel;
-    float bullet_speed;  // 子弹速度
+    float bullet_speed; // 子弹速度
     int id;
     uint16_t crc16;
 };
@@ -31,7 +31,7 @@ static_assert(sizeof(GimbalToVision) <= 64);
 struct __attribute__((packed)) VisionToGimbal
 {
     uint8_t head[2] = {'S', 'P'};
-    uint8_t mode;  // 0: 不控制, 1: 控制云台但不开火，2: 控制云台且开火
+    uint8_t mode; // 0: 不控制, 1: 控制云台但不开火，2: 控制云台且开火
     float yaw;
     float yaw_vel;
     float yaw_acc;
@@ -39,7 +39,7 @@ struct __attribute__((packed)) VisionToGimbal
     float pitch_vel;
     float pitch_acc;
     bool shoot;
-    bool is_empty;  // 目标是否为空
+    bool is_empty; // 目标是否为空
     uint16_t crc16;
 };
 
@@ -47,10 +47,10 @@ static_assert(sizeof(VisionToGimbal) <= 64);
 
 enum class GimbalMode
 {
-    IDLE,        // 空闲
-    AUTO_AIM,    // 自瞄
-    SMALL_BUFF,  // 小符
-    BIG_BUFF     // 大符
+    IDLE,       // 空闲
+    AUTO_AIM,   // 自瞄
+    SMALL_BUFF, // 小符
+    BIG_BUFF    // 大符
 };
 
 struct GimbalState
@@ -66,7 +66,7 @@ struct GimbalState
 class Gimbal
 {
 public:
-    Gimbal(const std::string & config_path, bool simulate_override = false);
+    Gimbal(const std::string &config_path, bool simulate_override = false);
 
     ~Gimbal();
 
@@ -82,8 +82,8 @@ public:
     void send(VisionToGimbal VisionToGimbal);
 
 private:
-    bool simulate_ = false;      // 无硬件模拟模式：不打开串口，固定自瞄
-    bool debug_serial_ = false;  // 打印串口收发原始字节（调试用）
+    bool simulate_ = false;     // 无硬件模拟模式：不打开串口，固定自瞄
+    bool debug_serial_ = false; // 打印串口收发原始字节（调试用）
     serial::Serial serial_;
 
     std::thread thread_;
@@ -97,12 +97,12 @@ private:
     GimbalState state_;
     // 姿态-时间戳历史缓冲：按相机捕获时刻插值云台姿态（时间戳对齐）
     std::deque<std::tuple<Eigen::Quaterniond, std::chrono::steady_clock::time_point>> q_history_;
-    static constexpr size_t kQHistoryMax = 500;  // 约0.5s @1kHz（按实际串口频率自适应）
-    bool read(uint8_t * buffer, size_t size);
+    static constexpr size_t kQHistoryMax = 500; // 约0.5s @1kHz（按实际串口频率自适应）
+    bool read(uint8_t *buffer, size_t size);
     void read_thread();
     void reconnect();
-    void log_sim();  // 模拟模式下的控制信息打印
-    void dump_hex(const char * tag, const uint8_t * data, size_t size);
+    void log_sim(); // 模拟模式下的控制信息打印
+    void dump_hex(const char *tag, const uint8_t *data, size_t size);
 };
 
-#endif  // IO__GIMBAL_HPP
+#endif // IO__GIMBAL_HPP

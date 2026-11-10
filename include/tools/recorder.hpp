@@ -15,8 +15,8 @@ public:
     Recorder(double fps = 30);
     ~Recorder();
     void record(
-        const cv::Mat & img, const Eigen::Quaterniond & q,
-        const std::chrono::steady_clock::time_point & timestamp);
+        const cv::Mat &img, const Eigen::Quaterniond &q,
+        const std::chrono::steady_clock::time_point &timestamp);
 
 private:
     struct FrameData
@@ -35,9 +35,9 @@ private:
     std::chrono::steady_clock::time_point start_time_;
     std::chrono::steady_clock::time_point last_time_;
     ThreadSafeQueue<FrameData> queue_;
-    std::thread saving_thread_;  // 负责保存帧数据的线程
-    void init(const cv::Mat & img);
+    std::thread saving_thread_; // 负责保存帧数据的线程
+    void init(const cv::Mat &img);
     void save_to_file();
 };
 
-#endif  // TOOLS__RECORDER_HPP
+#endif // TOOLS__RECORDER_HPP

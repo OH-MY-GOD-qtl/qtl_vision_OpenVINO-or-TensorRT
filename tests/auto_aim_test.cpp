@@ -22,11 +22,12 @@ const std::string keys =
     "{@end-index     | 0                 | 视频结束帧下标    }"
     "{@input-path    | assets/demo       | avi和txt文件的路径}";
 
-int main(int argc, char * argv[])
+int main(int argc, char *argv[])
 {
     // 读取命令行参数
     cv::CommandLineParser cli(argc, argv, keys);
-    if (cli.has("help")) {
+    if (cli.has("help"))
+    {
         cli.printMessage();
         return 0;
     }
@@ -56,16 +57,20 @@ int main(int argc, char * argv[])
     double last_t = -1;
 
     video.set(cv::CAP_PROP_POS_FRAMES, start_index);
-    for (int i = 0; i < start_index; i++) {
+    for (int i = 0; i < start_index; i++)
+    {
         double t, w, x, y, z;
         text >> t >> w >> x >> y >> z;
     }
 
-    for (int frame_count = start_index; !exiter.exit(); frame_count++) {
-        if (end_index > 0 && frame_count > end_index) break;
+    for (int frame_count = start_index; !exiter.exit(); frame_count++)
+    {
+        if (end_index > 0 && frame_count > end_index)
+            break;
 
         video.read(img);
-        if (img.empty()) break;
+        if (img.empty())
+            break;
 
         double t, w, x, y, z;
         text >> t >> w >> x >> y >> z;
@@ -88,7 +93,8 @@ int main(int argc, char * argv[])
             std::abs(command.yaw - last_command.yaw) * 57.3 < 2)
             command.shoot = true;
 
-        if (command.control) last_command = command;
+        if (command.control)
+            last_command = command;
         /// 调试输出
 
         auto finish = std::chrono::steady_clock::now();
@@ -115,8 +121,9 @@ int main(int argc, char * argv[])
 
         // 装甲板原始观测数据
         data["armor_num"] = armors.size();
-        if (!armors.empty()) {
-            const auto & armor = armors.front();
+        if (!armors.empty())
+        {
+            const auto &armor = armors.front();
             data["armor_x"] = armor.xyz_in_world[0];
             data["armor_y"] = armor.xyz_in_world[1];
             data["armor_yaw"] = armor.ypr_in_world[0] * 57.3;
@@ -131,10 +138,12 @@ int main(int argc, char * argv[])
         data["cmd_yaw"] = command.yaw * 57.3;
         data["shoot"] = command.shoot;
 
-        if (!targets.empty()) {
+        if (!targets.empty())
+        {
             auto target = targets.front();
 
-            if (last_t == -1) {
+            if (last_t == -1)
+            {
                 last_target = target;
                 last_t = t;
                 continue;
@@ -144,7 +153,8 @@ int main(int argc, char * argv[])
 
             // 当前帧target更新后
             armor_xyza_list = target.armor_xyza_list();
-            for (const Eigen::Vector4d & xyza : armor_xyza_list) {
+            for (const Eigen::Vector4d &xyza : armor_xyza_list)
+            {
                 auto image_points =
                     solver.reproject_armor(xyza.head(3), xyza[3], target.armor_type, target.name);
                 draw_points(img, image_points, {0, 255, 0});
@@ -155,7 +165,8 @@ int main(int argc, char * argv[])
             Eigen::Vector4d aim_xyza = aim_point.xyza;
             auto image_points = solver.reproject_armor(
                 aim_xyza.head(3), aim_xyza[3], target.armor_type, target.name);
-            if (aim_point.valid) draw_points(img, image_points, {0, 0, 255});
+            if (aim_point.valid)
+                draw_points(img, image_points, {0, 0, 255});
 
             // 观测器内部数据
             Eigen::VectorXd x = target.ekf_x();
@@ -186,10 +197,11 @@ int main(int argc, char * argv[])
 
         plotter.plot(data);
 
-        cv::resize(img, img, {}, 0.5, 0.5);  // 显示时缩小图片尺寸
+        cv::resize(img, img, {}, 0.5, 0.5); // 显示时缩小图片尺寸
         cv::imshow("reprojection", img);
         auto key = cv::waitKey(30);
-        if (key == 'q') break;
+        if (key == 'q')
+            break;
     }
 
     return 0;

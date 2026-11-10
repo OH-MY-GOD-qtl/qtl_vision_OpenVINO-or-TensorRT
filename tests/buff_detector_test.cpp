@@ -9,15 +9,17 @@
 
 namespace
 {
-void require(bool condition, const std::string & message)
-{
-    if (!condition) throw std::runtime_error(message);
-}
-}  // namespace
+    void require(bool condition, const std::string &message)
+    {
+        if (!condition)
+            throw std::runtime_error(message);
+    }
+} // namespace
 
 int main()
 {
-    try {
+    try
+    {
         // Buff_Detector 构造时会加载模型，这里用仓库内资产；测试需在仓库根目录运行
         const auto config_path =
             (std::filesystem::temp_directory_path() /
@@ -37,13 +39,16 @@ int main()
         detector.detect(black);
         require(detector.status() == TEM_LOSE, "first miss must be TEM_LOSE");
 
-        for (int i = 1; i < LOSE_MAX; ++i) detector.detect(black);
+        for (int i = 1; i < LOSE_MAX; ++i)
+            detector.detect(black);
         require(detector.status() == LOSE, "after LOSE_MAX misses status must be LOSE");
 
         std::filesystem::remove(config_path);
         std::puts("buff_detector_test passed");
         return 0;
-    } catch (const std::exception & e) {
+    }
+    catch (const std::exception &e)
+    {
         std::fprintf(stderr, "buff_detector_test failed: %s\n", e.what());
         return 1;
     }

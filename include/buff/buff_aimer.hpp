@@ -15,14 +15,14 @@
 class BuffAimer
 {
 public:
-    BuffAimer(const std::string & config_path);
+    BuffAimer(const std::string &config_path);
 
     Command aim(
-        BuffTarget & target, std::chrono::steady_clock::time_point & timestamp, double bullet_speed,
+        BuffTarget &target, std::chrono::steady_clock::time_point &timestamp, double bullet_speed,
         bool to_now = true);
 
-    double angle;      ///
-    double t_gap = 0;  ///
+    double angle;     ///
+    double t_gap = 0; ///
 
 private:
     SmallTarget target_;
@@ -41,7 +41,7 @@ private:
     std::chrono::steady_clock::time_point last_fire_t_;
 
     bool get_send_angle(
-        BuffTarget & target, const double predict_time, const double bullet_speed,
-        const bool to_now, double & yaw, double & pitch);
+        BuffTarget &target, const double predict_time, const double bullet_speed,
+        const bool to_now, double &yaw, double &pitch);
 };
-#endif  // AUTO_AIM__AIMER_HPP
+#endif // AUTO_AIM__AIMER_HPP

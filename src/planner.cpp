@@ -10,7 +10,7 @@
 using namespace std::chrono_literals;
 
 // 在构造函数中添加基础偏移量的读取
-Planner::Planner(const std::string & config_path)
+Planner::Planner(const std::string &config_path)
 {
     auto yaml = yaml_load(config_path);
 
@@ -20,8 +20,10 @@ Planner::Planner(const std::string & config_path)
 
     // 读取距离相关的偏移量配置
     auto offset_list = yaml_read<std::vector<std::vector<double>>>(yaml, "distance_offsets");
-    for (const auto & offset : offset_list) {
-        if (offset.size() == 3) {
+    for (const auto &offset : offset_list)
+    {
+        if (offset.size() == 3)
+        {
             // 转换pitch偏移量为弧度
             distance_offsets_.emplace_back(offset[0], offset[1] / 57.3, offset[2] / 57.3);
         }
@@ -37,7 +39,7 @@ Planner::Planner(const std::string & config_path)
     setup_pitch_solver(config_path);
 }
 
-Plan Planner::plan(Target & target, double bullet_speed)
+Plan Planner::plan(Target &target, double bullet_speed)
 {
     // 0. Check bullet speed
     bullet_speed = sanitize_bullet_speed(bullet_speed, "Planner");
@@ -45,9 +47,11 @@ Plan Planner::plan(Target & target, double bullet_speed)
     // 1. Predict fly_time
     Eigen::Vector3d xyz;
     auto min_dist = 1e10;
-    for (auto & xyza : target.armor_xyza_list()) {
+    for (auto &xyza : target.armor_xyza_list())
+    {
         auto dist = xyza.head<2>().norm();
-        if (dist < min_dist) {
+        if (dist < min_dist)
+        {
             min_dist = dist;
             xyz = xyza.head<3>();
         }
@@ -58,10 +62,13 @@ Plan Planner::plan(Target & target, double bullet_speed)
     // 2. Get trajectory
     double yaw0;
     StateTraj traj;
-    try {
+    try
+    {
         yaw0 = aim(target, bullet_speed)(0);
         traj = get_trajectory(target, yaw0, bullet_speed);
-    } catch (const std::exception & e) {
+    }
+    catch (const std::exception &e)
+    {
         logger()->warn("Unsolvable target {:.2f}", bullet_speed);
         return {false};
     }
@@ -104,9 +111,10 @@ Plan Planner::plan(Target & target, double bullet_speed)
     return plan;
 }
 
-Plan Planner::plan(std::optional<Target> & target, double bullet_speed)
+Plan Planner::plan(std::optional<Target> &target, double bullet_speed)
 {
-    if (!target.has_value()) return {false};  //c++聚合初始化,plan的数据字段均为false或0
+    if (!target.has_value())
+        return {false}; // c++聚合初始化,plan的数据字段均为false或0
 
     double delay_time = std::abs(target->ekf_x()[7]) > decision_speed_ ? high_speed_delay_time_
                                                                        : low_speed_delay_time_;
@@ -119,7 +127,7 @@ Plan Planner::plan(std::optional<Target> & target, double bullet_speed)
     return plan(*target, bullet_speed);
 }
 
-void Planner::setup_yaw_solver(const std::string & config_path)
+void Planner::setup_yaw_solver(const std::string &config_path)
 {
     auto yaml = yaml_load(config_path);
     auto max_yaw_acc = yaml_read<double>(yaml, "max_yaw_acc");
@@ -142,7 +150,7 @@ void Planner::setup_yaw_solver(const std::string & config_path)
     yaw_solver_->settings->max_iter = 10;
 }
 
-void Planner::setup_pitch_solver(const std::string & config_path)
+void Planner::setup_pitch_solver(const std::string &config_path)
 {
     auto yaml = yaml_load(config_path);
     auto max_pitch_acc = yaml_read<double>(yaml, "max_pitch_acc");
@@ -165,15 +173,17 @@ void Planner::setup_pitch_solver(const std::string & config_path)
     pitch_solver_->settings->max_iter = 10;
 }
 
-Eigen::Matrix<double, 2, 1> Planner::aim(const Target & target, double bullet_speed)
+Eigen::Matrix<double, 2, 1> Planner::aim(const Target &target, double bullet_speed)
 {
     Eigen::Vector3d xyz;
     double yaw;
     auto min_dist = 1e10;
 
-    for (auto & xyza : target.armor_xyza_list()) {
+    for (auto &xyza : target.armor_xyza_list())
+    {
         auto dist = xyza.head<2>().norm();
-        if (dist < min_dist) {
+        if (dist < min_dist)
+        {
             min_dist = dist;
             xyz = xyza.head<3>();
             yaw = xyza[3];
@@ -187,22 +197,24 @@ Eigen::Matrix<double, 2, 1> Planner::aim(const Target & target, double bullet_sp
 
     auto azim = std::atan2(xyz.y(), xyz.x());
     auto bullet_traj = BallisticTrajectory(bullet_speed, min_dist, xyz.z());
-    if (bullet_traj.unsolvable) throw std::runtime_error("Unsolvable bullet trajectory!");
+    if (bullet_traj.unsolvable)
+        throw std::runtime_error("Unsolvable bullet trajectory!");
 
     return {limit_rad(azim + yaw_offset), -bullet_traj.pitch - pitch_offset};
 }
 
-StateTraj Planner::get_trajectory(Target & target, double yaw0, double bullet_speed)
+StateTraj Planner::get_trajectory(Target &target, double yaw0, double bullet_speed)
 {
     StateTraj traj;
 
     target.predict(-DT * (HALF_HORIZON + 1));
     auto yaw_pitch_last = aim(target, bullet_speed);
 
-    target.predict(DT);  // [0] = -HALF_HORIZON * DT -> [HHALF_HORIZON] = 0
+    target.predict(DT); // [0] = -HALF_HORIZON * DT -> [HHALF_HORIZON] = 0
     auto yaw_pitch = aim(target, bullet_speed);
 
-    for (int i = 0; i < HORIZON; i++) {
+    for (int i = 0; i < HORIZON; i++)
+    {
         target.predict(DT);
         auto yaw_pitch_next = aim(target, bullet_speed);
 
@@ -220,23 +232,27 @@ StateTraj Planner::get_trajectory(Target & target, double yaw0, double bullet_sp
 
 std::pair<double, double> Planner::get_offset_by_distance(double distance)
 {
-    if (distance_offsets_.empty()) {
+    if (distance_offsets_.empty())
+    {
         // 如果没有距离相关的偏移量配置，使用配置文件中的基础偏移量
         return {yaw_offset_, pitch_offset_};
     }
 
     // 如果距离小于最小配置距离，返回最小距离的偏移量
-    if (distance <= std::get<0>(distance_offsets_.front())) {
+    if (distance <= std::get<0>(distance_offsets_.front()))
+    {
         return {std::get<1>(distance_offsets_.front()), std::get<2>(distance_offsets_.front())};
     }
 
     // 如果距离大于最大配置距离，返回最大距离的偏移量
-    if (distance >= std::get<0>(distance_offsets_.back())) {
+    if (distance >= std::get<0>(distance_offsets_.back()))
+    {
         return {std::get<1>(distance_offsets_.back()), std::get<2>(distance_offsets_.back())};
     }
 
     // 在配置的距离区间内进行线性插值
-    for (size_t i = 0; i < distance_offsets_.size() - 1; ++i) {
+    for (size_t i = 0; i < distance_offsets_.size() - 1; ++i)
+    {
         double dist1 = std::get<0>(distance_offsets_[i]);
         double yaw1 = std::get<1>(distance_offsets_[i]);
         double pitch1 = std::get<2>(distance_offsets_[i]);
@@ -245,7 +261,8 @@ std::pair<double, double> Planner::get_offset_by_distance(double distance)
         double yaw2 = std::get<1>(distance_offsets_[i + 1]);
         double pitch2 = std::get<2>(distance_offsets_[i + 1]);
 
-        if (distance >= dist1 && distance <= dist2) {
+        if (distance >= dist1 && distance <= dist2)
+        {
             double ratio = (distance - dist1) / (dist2 - dist1);
             double yaw_offset = yaw1 + ratio * (yaw2 - yaw1);
             double pitch_offset = pitch1 + ratio * (pitch2 - pitch1);
@@ -253,16 +270,16 @@ std::pair<double, double> Planner::get_offset_by_distance(double distance)
         }
     }
 
-    return {0.0, 0.0};  // 兜底返回
+    return {0.0, 0.0}; // 兜底返回
 }
 
 Eigen::Vector4d Planner::predict_xyza(
-    const Target & target, double bullet_speed, std::chrono::steady_clock::time_point t) const
+    const Target &target, double bullet_speed, std::chrono::steady_clock::time_point t) const
 {
     // 与 plan() 的延迟/弹道假设保持一致，但按传入的帧时间戳 t 预测，避免与显示线程不同步
     bullet_speed = sanitize_bullet_speed(bullet_speed, "Planner");
 
-    Target tgt = target;  // 拷贝快照，避免修改跟踪状态
+    Target tgt = target; // 拷贝快照，避免修改跟踪状态
 
     double delay_time =
         std::abs(tgt.ekf_x()[7]) > decision_speed_ ? high_speed_delay_time_ : low_speed_delay_time_;
@@ -272,9 +289,11 @@ Eigen::Vector4d Planner::predict_xyza(
     Eigen::Vector3d xyz;
     double yaw = 0;
     auto min_dist = 1e10;
-    for (const auto & xyza : tgt.armor_xyza_list()) {
+    for (const auto &xyza : tgt.armor_xyza_list())
+    {
         auto dist = xyza.head<2>().norm();
-        if (dist < min_dist) {
+        if (dist < min_dist)
+        {
             min_dist = dist;
             xyz = xyza.head<3>();
             yaw = xyza[3];
@@ -282,15 +301,18 @@ Eigen::Vector4d Planner::predict_xyza(
     }
 
     auto bullet_traj = BallisticTrajectory(bullet_speed, min_dist, xyz.z());
-    if (bullet_traj.unsolvable) return Eigen::Vector4d(xyz.x(), xyz.y(), xyz.z(), yaw);
+    if (bullet_traj.unsolvable)
+        return Eigen::Vector4d(xyz.x(), xyz.y(), xyz.z(), yaw);
 
     tgt.predict(bullet_traj.fly_time);
 
     // 命中时刻重新选择距离最近的装甲板（与 plan() 中 aim() 的行为一致）
     min_dist = 1e10;
-    for (const auto & xyza : tgt.armor_xyza_list()) {
+    for (const auto &xyza : tgt.armor_xyza_list())
+    {
         auto dist = xyza.head<2>().norm();
-        if (dist < min_dist) {
+        if (dist < min_dist)
+        {
             min_dist = dist;
             xyz = xyza.head<3>();
             yaw = xyza[3];

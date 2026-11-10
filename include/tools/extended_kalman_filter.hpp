@@ -15,37 +15,40 @@ public:
     ExtendedKalmanFilter() = default;
 
     ExtendedKalmanFilter(
-        const Eigen::VectorXd & x0, const Eigen::MatrixXd & P0,
+        const Eigen::VectorXd &x0, const Eigen::MatrixXd &P0,
         std::function<Eigen::VectorXd(const Eigen::VectorXd &, const Eigen::VectorXd &)> x_add =
-            [](const Eigen::VectorXd & a, const Eigen::VectorXd & b) { return a + b; });
+            [](const Eigen::VectorXd &a, const Eigen::VectorXd &b)
+        { return a + b; });
 
     // 使用 Eigen::Ref 使固定尺寸矩阵（如 Matrix<double,11,11>）可零拷贝传入
     Eigen::VectorXd predict(
-        const Eigen::Ref<const Eigen::MatrixXd> & F, const Eigen::Ref<const Eigen::MatrixXd> & Q);
+        const Eigen::Ref<const Eigen::MatrixXd> &F, const Eigen::Ref<const Eigen::MatrixXd> &Q);
 
     Eigen::VectorXd predict(
-        const Eigen::Ref<const Eigen::MatrixXd> & F, const Eigen::Ref<const Eigen::MatrixXd> & Q,
+        const Eigen::Ref<const Eigen::MatrixXd> &F, const Eigen::Ref<const Eigen::MatrixXd> &Q,
         std::function<Eigen::VectorXd(const Eigen::VectorXd &)> f);
 
     Eigen::VectorXd update(
-        const Eigen::Ref<const Eigen::VectorXd> & z, const Eigen::Ref<const Eigen::MatrixXd> & H,
-        const Eigen::Ref<const Eigen::MatrixXd> & R,
+        const Eigen::Ref<const Eigen::VectorXd> &z, const Eigen::Ref<const Eigen::MatrixXd> &H,
+        const Eigen::Ref<const Eigen::MatrixXd> &R,
         std::function<Eigen::VectorXd(const Eigen::VectorXd &, const Eigen::VectorXd &)>
             z_subtract =
-                [](const Eigen::VectorXd & a, const Eigen::VectorXd & b) { return a - b; });
+                [](const Eigen::VectorXd &a, const Eigen::VectorXd &b)
+        { return a - b; });
 
     Eigen::VectorXd update(
-        const Eigen::Ref<const Eigen::VectorXd> & z, const Eigen::Ref<const Eigen::MatrixXd> & H,
-        const Eigen::Ref<const Eigen::MatrixXd> & R,
+        const Eigen::Ref<const Eigen::VectorXd> &z, const Eigen::Ref<const Eigen::MatrixXd> &H,
+        const Eigen::Ref<const Eigen::MatrixXd> &R,
         std::function<Eigen::VectorXd(const Eigen::VectorXd &)> h,
         std::function<Eigen::VectorXd(const Eigen::VectorXd &, const Eigen::VectorXd &)>
             z_subtract =
-                [](const Eigen::VectorXd & a, const Eigen::VectorXd & b) { return a - b; });
+                [](const Eigen::VectorXd &a, const Eigen::VectorXd &b)
+        { return a - b; });
 
-    std::map<std::string, double> data;  //卡方检验数据
+    std::map<std::string, double> data; // 卡方检验数据
     std::deque<int> recent_nis_failures{0};
     size_t window_size = 100;
-    double last_nis = 0.0;  // 最近一次先验 NIS
+    double last_nis = 0.0; // 最近一次先验 NIS
 
     // 连续 NIS 超限帧数：被一次正常更新打断即清零，供收敛门使用
     int nis_fail_streak() const { return nis_fail_streak_; }
@@ -77,8 +80,9 @@ private:
 inline bool bad_converge_tripped(
     bool enabled, int update_count, int nis_fail_streak, int warmup, int streak)
 {
-    if (!enabled) return false;
+    if (!enabled)
+        return false;
     return update_count >= warmup && nis_fail_streak >= streak;
 }
 
-#endif  // TOOLS__EXTENDED_KALMAN_FILTER_HPP
+#endif // TOOLS__EXTENDED_KALMAN_FILTER_HPP
