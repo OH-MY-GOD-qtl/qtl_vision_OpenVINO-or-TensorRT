@@ -33,7 +33,9 @@ public:
 
     void predict(std::chrono::steady_clock::time_point t);
     void predict(double dt);
-    void update(const Armor &armor);
+
+    // id 由 Tracker 用重投影关联给出（见 Tracker::associate_armor）
+    void update(const Armor &armor, int id);
 
     const Eigen::VectorXd &ekf_x() const;
     const ExtendedKalmanFilter &ekf() const;
@@ -53,6 +55,11 @@ public:
     // 量测中断时作废连续超限证据
     void reset_nis_streak();
 
+    // 调试用：最近一次重投影关联的归一化误差与决策裕度（次优/最优）
+    double reproj_err() const;
+    double reproj_margin() const;
+    void set_reproj_stats(double err, double margin);
+
 private:
     int armor_num_;
     int switch_count_;
@@ -65,6 +72,10 @@ private:
 
     // 帧间复用缓冲：避免 armor_xyza_list/h_jacobian 每次调用堆分配
     mutable std::vector<Eigen::Vector4d> armor_xyza_cache_;
+
+    // 仅在调试与阈值标定时使用，不影响滤波
+    double reproj_err_ = -1.0;
+    double reproj_margin_ = -1.0;
 
     void update_ypda(const Armor &armor, int id); // yaw pitch distance angle
 

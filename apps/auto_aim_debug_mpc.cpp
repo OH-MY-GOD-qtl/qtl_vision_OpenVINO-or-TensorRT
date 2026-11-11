@@ -120,6 +120,10 @@ int main(int argc, char * argv[])
                 // 目标年龄：updates 反复归零说明目标被频繁重建，NIS 自然接近 0
                 data["updates"] = target->update_count();
                 data["nis_window"] = static_cast<double>(target->ekf().recent_nis_failures.size());
+
+                // 重投影关联：err 已按板边长归一化，margin = 次优/最优
+                data["reproj_err"] = target->reproj_err();
+                data["reproj_margin"] = target->reproj_margin();
             }
 
             if (target.has_value()) {

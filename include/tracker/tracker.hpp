@@ -43,6 +43,7 @@ private:
     bool drop_on_bad_converge_;         // NIS 收敛门总开关
     int bad_converge_warmup_;           // 预热期（更新次数），此期间不判收敛
     int bad_converge_streak_;           // 连续超限帧数达到该值才判丢目标
+    double reproj_max_error_;           // 重投影关联的归一化像素误差上限
     std::string state_, pre_state_;
     Target target_;
     std::chrono::steady_clock::time_point last_timestamp_;
@@ -54,6 +55,10 @@ private:
     bool set_target(std::vector<Armor> &armors, std::chrono::steady_clock::time_point t);
 
     bool update_target(std::vector<Armor> &armors, std::chrono::steady_clock::time_point t);
+
+    // 用预测状态把各装甲板投到图像，与检测四边形比较，选出最可能的 id。
+    // 返回 false 表示当前没有可用的预测（例如刚建目标）。
+    bool associate_armor(const Armor &armor, int &id, double &err_norm, double &margin) const;
 };
 
 #endif // AUTO_AIM__TRACKER_HPP

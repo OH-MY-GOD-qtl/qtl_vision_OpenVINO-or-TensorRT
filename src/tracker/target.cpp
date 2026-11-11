@@ -150,55 +150,15 @@ void Target::predict(double dt)
     ekf_.predict(F, Q, f);
 }
 
-void Target::update(const Armor &armor)
+void Target::update(const Armor &armor, int id)
 {
-    // 装甲板匹配
-    int id = 0;
-    auto min_angle_error = 1e10;
-    const std::vector<Eigen::Vector4d> &xyza_list = armor_xyza_list();
-
-    std::vector<std::pair<Eigen::Vector4d, int>> xyza_i_list;
-    for (int i = 0; i < armor_num_; i++)
-    {
-        xyza_i_list.push_back({xyza_list[i], i});
-    }
-
-    std::sort(
-        xyza_i_list.begin(), xyza_i_list.end(),
-        [](const std::pair<Eigen::Vector4d, int> &a, const std::pair<Eigen::Vector4d, int> &b)
-        {
-            Eigen::Vector3d ypd1 = xyz2ypd(a.first.head(3));
-            Eigen::Vector3d ypd2 = xyz2ypd(b.first.head(3));
-            return ypd1[2] < ypd2[2];
-        });
-
-    // 取前 min(3, armor_num_) 个距离最小的装甲板（armor_num_ 可能为 2，避免越界）
-    for (int i = 0; i < std::min(3, armor_num_); i++)
-    {
-        const auto &xyza = xyza_i_list[i].first;
-        Eigen::Vector3d ypd = xyz2ypd(xyza.head(3));
-        auto angle_error = std::abs(limit_rad(armor.ypr_in_world[0] - xyza[3])) +
-                           std::abs(limit_rad(armor.ypd_in_world[0] - ypd[0]));
-
-        if (std::abs(angle_error) < std::abs(min_angle_error))
-        {
-            id = xyza_i_list[i].second;
-            min_angle_error = angle_error;
-        }
-    }
-
+    // 装甲板关联已由 Tracker::associate_armor 用重投影完成，这里只做记账和量测更新。
+    // 原先基于 PnP yaw 的角度差关联在小陀螺下不可靠：单块平面板的 yaw 在正对相机时
+    // 病态，而高速旋转必然扫过这个区间。
     if (id != 0)
         jumped = true;
 
-    if (id != last_id)
-    {
-        is_switch_ = true;
-    }
-    else
-    {
-        is_switch_ = false;
-    }
-
+    is_switch_ = (id != last_id);
     if (is_switch_)
         switch_count_++;
 
@@ -352,3 +312,13 @@ bool Target::checkinit() { return isinit; }
 int Target::update_count() const { return update_count_; }
 
 void Target::reset_nis_streak() { ekf_.reset_nis_streak(); }
+
+double Target::reproj_err() const { return reproj_err_; }
+
+double Target::reproj_margin() const { return reproj_margin_; }
+
+void Target::set_reproj_stats(double err, double margin)
+{
+    reproj_err_ = err;
+    reproj_margin_ = margin;
+}

@@ -47,6 +47,10 @@ outpost_max_temp_lost_count: 75
 ekf_drop_on_bad_converge: false
 ekf_bad_converge_warmup: 30
 ekf_bad_converge_streak: 20
+# 重投影关联：预测装甲板投到图像后与检测四边形的归一化像素误差上限。
+# 超限只表示本帧量测不可信，只跳过量测；是否丢目标仍由状态机的帧数迟滞决定。
+# 初值 0.5（约半个板宽），待实机日志分布出来再收紧。
+reproj_max_error: 0.5
 
 #####-----aimer参数-----#####
 yaw_offset: -1 # degree -2.5

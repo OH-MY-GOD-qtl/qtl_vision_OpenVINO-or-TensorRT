@@ -3,11 +3,14 @@
 #include <yaml-cpp/yaml.h>
 
 #include <algorithm>
+#include <cmath>
+#include <limits>
 #include <tuple>
 
 #include "tools/logger.hpp"
 #include "tools/math_tools.hpp"
 #include "tools/yaml.hpp"
+#include "tracker/reproj_match.hpp"
 
 Tracker::Tracker(const std::string &config_path, Solver &solver)
     : solver_{solver},
@@ -43,6 +46,13 @@ Tracker::Tracker(const std::string &config_path, Solver &solver)
     // 配置兜底：streak<=0 会让判据恒真，warmup<0 没有意义
     bad_converge_warmup_ = std::max(0, bad_converge_warmup_);
     bad_converge_streak_ = std::max(1, bad_converge_streak_);
+
+    // 重投影关联：把预测的装甲板投到图像，与检测四边形的归一化像素误差上限。
+    // 超限只表示本帧量测不可信，是否丢目标仍由 state_machine 的帧数迟滞决定。
+    // 初值取宽松的 0.5（误差约半个板宽），等实机日志的分布出来再收紧。
+    reproj_max_error_ = yaml["reproj_max_error"] ? yaml["reproj_max_error"].as<double>() : 0.5;
+    if (!(reproj_max_error_ > 0.0))
+        reproj_max_error_ = 0.5;
 
     // 从配置文件读取相机矩阵并计算图像中心坐标
     auto camera_matrix_data = yaml_read<std::vector<double>>(yaml, "camera_matrix");
@@ -340,40 +350,86 @@ bool Tracker::set_target(std::vector<Armor> &armors, std::chrono::steady_clock::
     return true;
 }
 
+bool Tracker::associate_armor(const Armor &armor, int &id, double &err_norm, double &margin) const
+{
+    const auto &xyza_list = target_.armor_xyza_list();
+    if (xyza_list.empty())
+        return false;
+
+    double best = std::numeric_limits<double>::infinity();
+    double second = std::numeric_limits<double>::infinity();
+    int best_id = -1;
+
+    for (int i = 0; i < static_cast<int>(xyza_list.size()); i++)
+    {
+        // 用预测状态把该 id 的装甲板投到图像，和检测四边形比几何。
+        // 只用 PnP 的位置，不用它的 yaw——单块平面板的 yaw 在正对相机时是病态的。
+        const auto uv =
+            solver_.reproject_armor(xyza_list[i].head(3), xyza_list[i][3], armor.type, armor.name);
+        const double e = reproj::normalized_quad_distance(uv, armor.points);
+
+        if (e < best)
+        {
+            second = best;
+            best = e;
+            best_id = i;
+        }
+        else if (e < second)
+        {
+            second = e;
+        }
+    }
+
+    if (best_id < 0 || !std::isfinite(best))
+        return false;
+
+    id = best_id;
+    err_norm = best;
+    // 次优/最优：越大说明这次 id 决策越不模糊。只有一块板时没有次优，记 inf。
+    margin = (best > 1e-9) ? second / best : std::numeric_limits<double>::infinity();
+    return true;
+}
+
 bool Tracker::update_target(std::vector<Armor> &armors, std::chrono::steady_clock::time_point t)
 {
     target_.predict(t);
 
-    int found_count = 0;
-    double min_x = 1e10; // 画面最左侧
-    for (const auto &armor : armors)
-    {
-        if (armor.name != target_.name || armor.type != target_.armor_type)
-            continue;
-        found_count++;
-        min_x = armor.center.x < min_x ? armor.center.x : min_x;
-    }
-
-    if (found_count == 0)
-    {
-        // 本帧没有可用量测：旧的连续超限证据不应跨中断继续累计
-        target_.reset_nis_streak();
-        return false;
-    }
-
+    bool measured = false;
     for (auto &armor : armors)
     {
-        if (armor.name != target_.name || armor.type != target_.armor_type
-            //  || armor.center.x != min_x
-        )
+        if (armor.name != target_.name || armor.type != target_.armor_type)
             continue;
 
         solver_.solve(armor);
 
-        target_.update(armor);
+        int id = 0;
+        double err_norm = 0.0, margin = 0.0;
+        if (!associate_armor(armor, id, err_norm, margin))
+            continue;
+
+        target_.set_reproj_stats(err_norm, margin);
+
+        // 归一化重投影误差超限：本帧不喂量测。是否丢目标交给 state_machine 的帧数迟滞，
+        // 不在这里另起一条丢目标路径——那正是 NIS 收敛门失败的原因。
+        if (err_norm > reproj_max_error_)
+        {
+            logger()->debug(
+                "[Tracker] reproj reject id={} err={:.3f} > {:.3f}", id, err_norm,
+                reproj_max_error_);
+            continue;
+        }
+
+        target_.update(armor, id);
+        measured = true;
     }
 
-    return true;
+    if (!measured)
+    {
+        // 本帧没有可用量测：旧的连续超限证据不应跨中断继续累计
+        target_.reset_nis_streak();
+    }
+
+    return measured;
 }
 
 bool Tracker::set_enemy_color(int id)
