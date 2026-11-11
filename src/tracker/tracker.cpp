@@ -425,15 +425,21 @@ bool Tracker::update_target(std::vector<Armor> &armors, std::chrono::steady_cloc
             continue;
 
         any_candidate = true;
-        solver_.solve(armor);
 
+        // 关联只用检测框和预测状态，不需要 PnP 位姿，所以放在解算之前：
+        // 拿到 id 后就能用该装甲板的预测 yaw 作为 PnP yaw 优化的搜索中心。
         int id = 0;
         double err_norm = 0.0, margin = 0.0;
         if (!associate_armor(armor, id, err_norm, margin))
+        {
+            // 无预测可用：仍做一次常规解算，保证下游拿到的位姿有效
+            solver_.solve(armor);
             continue;
+        }
 
         target_.set_reproj_stats(err_norm, margin);
 
+        bool accept = true;
         if (gate_active && err_norm > reproj_max_error_)
         {
             reproj_reject_streak_++;
@@ -444,24 +450,39 @@ bool Tracker::update_target(std::vector<Armor> &armors, std::chrono::steady_cloc
                 logger()->debug(
                     "[Tracker] reproj reject id={} err={:.3f} > {:.3f} streak={}", id, err_norm,
                     reproj_max_error_, reproj_reject_streak_);
-                continue;
+                accept = false;
             }
+            else
+            {
+                // 只有逃逸的那一帧放大先验，之后靠量测自己收回来，避免 P 越滚越大
+                if (reproj_reject_streak_ == reproj_max_reject_streak_ + 1)
+                    target_.inflate_prior(kReprojEscapeInflate);
 
-            // 只有逃逸的那一帧放大先验，之后靠量测自己收回来，避免 P 越滚越大
-            if (reproj_reject_streak_ == reproj_max_reject_streak_ + 1)
-                target_.inflate_prior(kReprojEscapeInflate);
-
-            logger()->debug(
-                "[Tracker] reproj force accept id={} err={:.3f} streak={}", id, err_norm,
-                reproj_reject_streak_);
+                logger()->debug(
+                    "[Tracker] reproj force accept id={} err={:.3f} streak={}", id, err_norm,
+                    reproj_reject_streak_);
+            }
         }
         else
         {
             reproj_reject_streak_ = 0;
         }
 
-        target_.update(armor, id);
-        measured = true;
+        // 用该装甲板的预测 yaw 作搜索中心，避免云台 yaw 与真实板 yaw 相差过大时
+        // PnP yaw 优化卡在搜索窗边界、把错误角度灌进 EKF。
+        // 只在量测被接受时用：err_norm 已经超限说明预测本身不可信，
+        // 这时退回云台 yaw 更安全。
+        if (accept)
+        {
+            const double pred_yaw = target_.armor_xyza_list()[id][3];
+            solver_.solve(armor, pred_yaw);
+            target_.update(armor, id);
+            measured = true;
+        }
+        else
+        {
+            solver_.solve(armor);
+        }
     }
 
     if (!measured)

@@ -51,7 +51,7 @@ void Solver::set_R_gimbal2world(const Eigen::Quaterniond &q)
 }
 
 // solvePnP（获得姿态）
-void Solver::solve(Armor &armor) const
+void Solver::solve(Armor &armor, std::optional<double> yaw_hint) const
 {
     const auto &object_points =
         (armor.type == ArmorType::big) ? BIG_ARMOR_POINTS : SMALL_ARMOR_POINTS;
@@ -84,7 +84,7 @@ void Solver::solve(Armor &armor) const
     if (is_balance)
         return;
 
-    optimize_yaw(armor);
+    optimize_yaw(armor, yaw_hint);
 }
 
 std::vector<cv::Point2f> Solver::reproject_armor(
@@ -196,12 +196,18 @@ double Solver::oupost_reprojection_error(Armor armor, const double &pitch)
     return error;
 }
 
-void Solver::optimize_yaw(Armor &armor) const
+void Solver::optimize_yaw(Armor &armor, std::optional<double> yaw_hint) const
 {
-    Eigen::Vector3d gimbal_ypr = eulers(R_gimbal2world_, 2, 1, 0);
+    // 搜索中心优先用滤波器预测的装甲板 yaw。
+    // 原先固定用云台 yaw 作中心，而云台 yaw 与装甲板真实 yaw 之间还隔着目标方位角
+    // 与自身旋转：目标高速自旋时真实 yaw 会跑出 +/-70 度的搜索窗，best_yaw 卡在边界，
+    // 把错误角度当量测喂给 EKF，经先验协方差的相位-角速度耦合会把角速度拽到物理
+    // 不可能的量级。没有预测可用时（新建目标）才退回云台 yaw。
+    const double center_yaw =
+        yaw_hint.has_value() ? *yaw_hint : eulers(R_gimbal2world_, 2, 1, 0)[0];
 
     constexpr double SEARCH_RANGE = 140; // degree
-    auto yaw0 = limit_rad(gimbal_ypr[0] - SEARCH_RANGE / 2 * CV_PI / 180.0);
+    auto yaw0 = limit_rad(center_yaw - SEARCH_RANGE / 2 * CV_PI / 180.0);
 
     // 与 yaw 无关的变换全部提到循环外，避免 140 次循环中重复的矩阵乘法、Rodrigues 与内存分配
     const Eigen::Matrix3d R_camera2gimbal_T = R_camera2gimbal_.transpose();
@@ -218,7 +224,7 @@ void Solver::optimize_yaw(Armor &armor) const
     const double cos_pitch = std::cos(pitch);
 
     auto min_error = 1e10;
-    auto best_yaw = armor.ypr_in_world[0];
+    auto best_yaw = limit_rad(center_yaw);
 
     cv::Mat rmat(3, 3, CV_64F);
     cv::Vec3d tvec(t_armor2camera[0], t_armor2camera[1], t_armor2camera[2]);

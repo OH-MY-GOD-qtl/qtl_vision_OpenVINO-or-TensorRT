@@ -5,6 +5,8 @@
 #include <Eigen/Geometry>
 #include <opencv2/core/eigen.hpp>
 
+#include <optional>
+
 #include "armor.hpp"
 
 class Solver
@@ -16,7 +18,9 @@ public:
 
     void set_R_gimbal2world(const Eigen::Quaterniond &q);
 
-    void solve(Armor &armor) const;
+    // yaw_hint：滤波器预测的装甲板 yaw。给出时用它作为 PnP yaw 优化的搜索中心，
+    // 不给出时退回云台 yaw（新建目标、无预测可用时）。
+    void solve(Armor &armor, std::optional<double> yaw_hint = std::nullopt) const;
 
     std::vector<cv::Point2f> reproject_armor(
         const Eigen::Vector3d &xyz_in_world, double yaw, ArmorType type, ArmorName name) const;
@@ -33,7 +37,7 @@ private:
     Eigen::Vector3d t_camera2gimbal_;
     Eigen::Matrix3d R_gimbal2world_;
 
-    void optimize_yaw(Armor &armor) const;
+    void optimize_yaw(Armor &armor, std::optional<double> yaw_hint) const;
 
     double armor_reprojection_error(const Armor &armor, double yaw, const double &inclined) const;
     double SJTU_cost(
