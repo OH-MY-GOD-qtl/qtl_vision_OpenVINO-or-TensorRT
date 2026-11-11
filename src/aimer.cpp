@@ -179,8 +179,8 @@ AimPoint Aimer::choose_aim_point(const Target &target)
         delta_angle_list.emplace_back(delta_angle);
     }
 
-    // 不考虑小陀螺
-    if (std::abs(target.ekf_x()[8]) <= 2 && target.name != ArmorName::outpost)
+    // 不考虑小陀螺：ekf_x[7] 是角速度（rad/s），ekf_x[8] 是半径
+    if (std::abs(target.ekf_x()[7]) <= 2 && target.name != ArmorName::outpost)
     {
         // 选择在可射击范围内的装甲板
         std::vector<int> id_list;
