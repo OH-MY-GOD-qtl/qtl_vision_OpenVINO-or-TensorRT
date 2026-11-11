@@ -71,6 +71,8 @@ public:
     ~Gimbal();
 
     GimbalMode mode() const;
+    // 模拟模式：不打开串口、不启动 read_thread，state() 恒为初值（无姿态回传）
+    bool simulate() const;
     GimbalState state() const;
     std::string str(GimbalMode mode) const;
     Eigen::Quaterniond q(std::chrono::steady_clock::time_point t);

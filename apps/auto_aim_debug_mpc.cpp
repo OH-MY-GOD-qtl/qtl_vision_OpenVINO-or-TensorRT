@@ -91,10 +91,15 @@ int main(int argc, char * argv[])
                 // plan.fire 只比较 MPC 解与它自己的参考（planner.cpp:99），完全不含真实云台
                 // 姿态，静止目标实测恒为 true。这里再要求实际滞后不超过一阶跟随的稳态滞后，
                 // 否则说明云台还在追参考（切目标/被遮挡/发散），此时点火必然打飞。
-                const double yaw_lag_allow = std::abs(plan.yaw_vel) / kp_yaw + kFireSlack;
-                const double pitch_lag_allow = std::abs(plan.pitch_vel) / kp_pitch + kFireSlack;
-                fire_cmd = plan.fire && std::abs(yaw_err) <= yaw_lag_allow &&
-                           std::abs(pitch_err) <= pitch_lag_allow;
+                // 模拟模式没有姿态回传（read_thread 不启动，state() 恒为初值），闭环永远建
+                // 不起来，门控会一直挡着开火，所以只在实机生效。
+                if (!gimbal.simulate()) {
+                    const double yaw_lag_allow = std::abs(plan.yaw_vel) / kp_yaw + kFireSlack;
+                    const double pitch_lag_allow =
+                        std::abs(plan.pitch_vel) / kp_pitch + kFireSlack;
+                    fire_cmd = plan.fire && std::abs(yaw_err) <= yaw_lag_allow &&
+                               std::abs(pitch_err) <= pitch_lag_allow;
+                }
             }
 
             gimbal.send(

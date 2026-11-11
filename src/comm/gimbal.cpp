@@ -53,6 +53,8 @@ GimbalMode Gimbal::mode() const
     return mode_;
 }
 
+bool Gimbal::simulate() const { return simulate_; }
+
 GimbalState Gimbal::state() const
 {
     std::lock_guard<std::mutex> lock(mutex_);
