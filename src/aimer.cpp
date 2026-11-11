@@ -38,8 +38,10 @@ Command Aimer::aim(
         return {false, false, 0, 0};
     auto target = targets.front();
 
-    double delay_time =
-        target.ekf_x()[7] > decision_speed_ ? high_speed_delay_time_ : low_speed_delay_time_;
+    // 转速决定整链路延迟补偿：反向小陀螺（ω < -decision_speed）与正向同等对待，
+    // 少取绝对值会让反向高速旋转只拿到低速档延迟，相位补偿严重不足。
+    double delay_time = std::abs(target.ekf_x()[7]) > decision_speed_ ? high_speed_delay_time_
+                                                                      : low_speed_delay_time_;
 
     bullet_speed = sanitize_bullet_speed(bullet_speed, "Aimer");
 
