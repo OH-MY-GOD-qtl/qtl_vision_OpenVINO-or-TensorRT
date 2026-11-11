@@ -23,12 +23,11 @@ const std::string keys =
     "{@end-index     | 0                      | 视频结束帧下标    }"
     "{@input-path    |                        | avi和txt文件的路径}";
 
-int main(int argc, char *argv[])
+int main(int argc, char * argv[])
 {
     // 读取命令行参数
     cv::CommandLineParser cli(argc, argv, keys);
-    if (cli.has("help"))
-    {
+    if (cli.has("help")) {
         cli.printMessage();
         return 0;
     }
@@ -58,20 +57,16 @@ int main(int argc, char *argv[])
     double last_t = -1;
 
     video.set(cv::CAP_PROP_POS_FRAMES, start_index);
-    for (int i = 0; i < start_index; i++)
-    {
+    for (int i = 0; i < start_index; i++) {
         double t, w, x, y, z;
         text >> t >> w >> x >> y >> z;
     }
 
-    for (int frame_count = start_index; !exiter.exit(); frame_count++)
-    {
-        if (end_index > 0 && frame_count > end_index)
-            break;
+    for (int frame_count = start_index; !exiter.exit(); frame_count++) {
+        if (end_index > 0 && frame_count > end_index) break;
 
         video.read(img);
-        if (img.empty())
-            break;
+        if (img.empty()) break;
 
         double t, w, x, y, z;
         text >> t >> w >> x >> y >> z;
@@ -100,9 +95,8 @@ int main(int argc, char *argv[])
         // data["bullet_speed"] = cboard.bullet_speed;
 
         // buff原始观测数据
-        if (power_runes.has_value())
-        {
-            const auto &p = power_runes.value();
+        if (power_runes.has_value()) {
+            const auto & p = power_runes.value();
             data["buff_R_yaw"] = p.ypd_in_world[0];
             data["buff_R_pitch"] = p.ypd_in_world[1];
             data["buff_R_dis"] = p.ypd_in_world[2];
@@ -111,13 +105,11 @@ int main(int argc, char *argv[])
             data["buff_roll"] = p.ypr_in_world[2] * 57.3;
         }
 
-        if (!target.is_unsolve())
-        {
-            auto &p = power_runes.value();
+        if (!target.is_unsolve()) {
+            auto & p = power_runes.value();
 
             // 显示
-            for (int i = 0; i < 4; i++)
-                draw_point(img, p.target().points[i]);
+            for (int i = 0; i < 4; i++) draw_point(img, p.target().points[i]);
             draw_point(img, p.target().center, {0, 0, 255}, 3);
             draw_point(img, p.r_center, {0, 0, 255}, 3);
 
@@ -154,8 +146,7 @@ int main(int argc, char *argv[])
 
             data["angle"] = x[5] * 57.3;
             data["spd"] = x[6] * 57.3;
-            if (x.size() >= 10)
-            {
+            if (x.size() >= 10) {
                 data["spd"] = x[6];
                 data["a"] = x[7];
                 data["w"] = x[8];
@@ -169,8 +160,7 @@ int main(int argc, char *argv[])
         data["gimbal_yaw"] = ypr[0] * 57.3;
         data["gimbal_pitch"] = -ypr[1] * 57.3;
 
-        if (command.control)
-        {
+        if (command.control) {
             data["cmd_yaw"] = command.yaw * 57.3;
             data["cmd_pitch"] = command.pitch * 57.3;
         }
@@ -180,17 +170,14 @@ int main(int argc, char *argv[])
         cv::imshow("result", img);
 
         int key = cv::waitKey(1);
-        if (key == 'q')
-            break;
-        while (key == ' ')
-        {
+        if (key == 'q') break;
+        while (key == ' ') {
             int y = cv::waitKey(30);
-            if (y == 'q')
-                break;
+            if (y == 'q') break;
         }
     }
     cv::destroyAllWindows();
-    text.close(); // 关闭文件
+    text.close();  // 关闭文件
 
     return 0;
 }

@@ -11,11 +11,10 @@ const std::string keys =
     "{@config-path   | configs/camera.yaml | yaml配置文件路径 }"
     "{d display      |                     | 显示视频流       }";
 
-int main(int argc, char *argv[])
+int main(int argc, char * argv[])
 {
     cv::CommandLineParser cli(argc, argv, keys);
-    if (cli.has("help"))
-    {
+    if (cli.has("help")) {
         cli.printMessage();
         return 0;
     }
@@ -29,8 +28,7 @@ int main(int argc, char *argv[])
     cv::Mat img;
     std::chrono::steady_clock::time_point timestamp;
     auto last_stamp = std::chrono::steady_clock::now();
-    while (!exiter.exit())
-    {
+    while (!exiter.exit()) {
         camera.read(img, timestamp);
 
         auto dt = delta_time(timestamp, last_stamp);
@@ -38,10 +36,8 @@ int main(int argc, char *argv[])
 
         logger()->info("{:.2f} fps", 1 / dt);
 
-        if (!display)
-            continue;
+        if (!display) continue;
         cv::imshow("img", img);
-        if (cv::waitKey(1) == 'q')
-            break;
+        if (cv::waitKey(1) == 'q') break;
     }
 }

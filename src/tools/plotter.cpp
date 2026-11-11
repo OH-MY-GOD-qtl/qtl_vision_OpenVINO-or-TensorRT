@@ -1,8 +1,8 @@
 #include "tools/plotter.hpp"
 
-#include <arpa/inet.h>  // htons, inet_addr
-#include <sys/socket.h> // socket, sendto
-#include <unistd.h>     // close
+#include <arpa/inet.h>   // htons, inet_addr
+#include <sys/socket.h>  // socket, sendto
+#include <unistd.h>      // close
 
 Plotter::Plotter(std::string host, uint16_t port)
 {
@@ -15,7 +15,7 @@ Plotter::Plotter(std::string host, uint16_t port)
 
 Plotter::~Plotter() { ::close(socket_); }
 
-void Plotter::plot(const nlohmann::json &json)
+void Plotter::plot(const nlohmann::json & json)
 {
     std::lock_guard<std::mutex> lock(mutex_);
     auto data = json.dump();

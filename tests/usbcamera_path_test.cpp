@@ -9,17 +9,15 @@
 
 namespace
 {
-    void require(bool condition, const std::string &message)
-    {
-        if (!condition)
-            throw std::runtime_error(message);
-    }
-} // namespace
+void require(bool condition, const std::string & message)
+{
+    if (!condition) throw std::runtime_error(message);
+}
+}  // namespace
 
 int main()
 {
-    try
-    {
+    try {
         require(
             USBCamera::resolve_device_path("video0") == "/dev/video0",
             "legacy videoN must resolve to /dev/videoN");
@@ -77,9 +75,7 @@ int main()
 
         std::puts("usbcamera_path_test passed");
         return 0;
-    }
-    catch (const std::exception &e)
-    {
+    } catch (const std::exception & e) {
         std::fprintf(stderr, "usbcamera_path_test failed: %s\n", e.what());
         return 1;
     }

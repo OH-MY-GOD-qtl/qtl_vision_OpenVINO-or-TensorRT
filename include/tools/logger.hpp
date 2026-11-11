@@ -5,4 +5,4 @@
 
 std::shared_ptr<spdlog::logger> logger();
 
-#endif // TOOLS__LOGGER_HPP
+#endif  // TOOLS__LOGGER_HPP

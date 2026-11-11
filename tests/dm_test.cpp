@@ -13,8 +13,7 @@ int main()
     Exiter exiter;
     DM_IMU imu;
 
-    while (!exiter.exit())
-    {
+    while (!exiter.exit()) {
         auto timestamp = std::chrono::steady_clock::now();
 
         std::this_thread::sleep_for(1ms);

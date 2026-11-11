@@ -11,8 +11,7 @@ BallisticTrajectory::BallisticTrajectory(const double v0, const double d, const 
     auto c = a + h;
     auto delta = b * b - 4 * a * c;
 
-    if (delta < 0)
-    {
+    if (delta < 0) {
         unsolvable = true;
         return;
     }

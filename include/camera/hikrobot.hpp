@@ -17,13 +17,13 @@ public:
     // timestamp_latency_ms：曝光中点之后仍未抵消的固定延迟（传感器读出 + USB 传输）。
     // 曝光中点补偿（exposure/2）在采集线程内按帧信息自动完成，不需要配置。
     HikRobot(
-        double exposure_ms, double gain, const std::string &vid_pid,
+        double exposure_ms, double gain, const std::string & vid_pid,
         double timestamp_latency_ms = 0.0);
     ~HikRobot() override;
-    void read(cv::Mat &img, std::chrono::steady_clock::time_point &timestamp) override;
+    void read(cv::Mat & img, std::chrono::steady_clock::time_point & timestamp) override;
     // 带超时的读取：timeout_ms 内无新帧返回 false（不阻塞），供主循环避免掉线时卡死
     bool try_read(
-        cv::Mat &img, std::chrono::steady_clock::time_point &timestamp,
+        cv::Mat & img, std::chrono::steady_clock::time_point & timestamp,
         int timeout_ms = 100) override;
 
 private:
@@ -40,7 +40,7 @@ private:
     std::thread daemon_thread_;
     std::atomic<bool> daemon_quit_;
 
-    void *handle_;
+    void * handle_;
     std::thread capture_thread_;
     std::atomic<bool> capturing_;
     std::atomic<bool> capture_quit_;
@@ -52,11 +52,11 @@ private:
     void capture_start();
     void capture_stop();
 
-    void set_float_value(const std::string &name, double value);
-    void set_enum_value(const std::string &name, unsigned int value);
+    void set_float_value(const std::string & name, double value);
+    void set_enum_value(const std::string & name, unsigned int value);
 
-    void set_vid_pid(const std::string &vid_pid);
+    void set_vid_pid(const std::string & vid_pid);
     void reset_usb() const;
 };
 
-#endif // IO__HIKROBOT_HPP
+#endif  // IO__HIKROBOT_HPP

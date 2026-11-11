@@ -41,19 +41,6 @@ min_confidence: 0.8
 min_detect_count: 5
 max_temp_lost_count: 15
 outpost_max_temp_lost_count: 75
-# NIS 收敛门：预热期（更新次数）之后连续超限才丢目标。
-# 注意：NIS 反映的是运动模型拟合度，目标机动时会持续超限，
-# 开启后容易把正常跟踪判成丢失，默认关闭。
-ekf_drop_on_bad_converge: false
-ekf_bad_converge_warmup: 30
-ekf_bad_converge_streak: 20
-# 重投影关联：预测装甲板投到图像后与检测四边形的归一化像素误差上限。
-# 超限只表示本帧量测不可信，只跳过量测；是否丢目标仍由状态机的帧数迟滞决定。
-# 初值 0.5（约半个板宽），待实机日志分布出来再收紧。
-reproj_max_error: 0.5
-# 连续拒绝上限：超过则强制接受量测并放大先验。
-# 门只应该挡零星离群帧；连续超限说明错的是先验而不是量测。
-reproj_max_reject_streak: 3
 
 #####-----aimer参数-----#####
 yaw_offset: -1 # degree -2.5

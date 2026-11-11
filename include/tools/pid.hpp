@@ -13,9 +13,9 @@ public:
     PID(float dt, float kp, float ki, float kd, float max_out, float max_iout,
         bool angular = false);
 
-    float pout = 0.0f; // P项输出, 用于调试
-    float iout = 0.0f; // I项输出, 用于调试
-    float dout = 0.0f; // D项输出, 用于调试
+    float pout = 0.0f;  // P项输出, 用于调试
+    float iout = 0.0f;  // I项输出, 用于调试
+    float dout = 0.0f;  // D项输出, 用于调试
 
     // 计算PID输出值
     // set: 目标值
@@ -28,7 +28,7 @@ private:
     const float max_out_, max_iout_;
     const bool angular_;
 
-    float last_fdb_ = 0.0f; // 上次反馈值
+    float last_fdb_ = 0.0f;  // 上次反馈值
 };
 
-#endif // TOOLS__PID_HPP
+#endif  // TOOLS__PID_HPP

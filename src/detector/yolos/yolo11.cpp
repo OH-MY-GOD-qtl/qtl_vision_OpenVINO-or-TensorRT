@@ -12,26 +12,21 @@
 #include "tools/yaml.hpp"
 
 // 仅复用 Detector 的判定逻辑；YOLO11 直接输出类别，不需要数字分类器。
-YOLO11::YOLO11(const std::string &config_path, bool debug)
-    : debug_(debug), detector_(config_path, false, false)
+YOLO11::YOLO11(const std::string & config_path, bool debug)
+: debug_(debug), detector_(config_path, false, false)
 {
     auto yaml = yaml_load(config_path);
 
     // 可选：类别数覆盖与类别映射。缺省时类别数从输出张量自动推断，
     // class_map 为空表示模型类别 id 直接作为 armor_properties 下标。
-    if (yaml["class_num"])
-    {
+    if (yaml["class_num"]) {
         class_num_ = yaml["class_num"].as<int>();
-        if (class_num_ <= 0)
-            throw std::runtime_error("[YOLO11] class_num must be positive");
+        if (class_num_ <= 0) throw std::runtime_error("[YOLO11] class_num must be positive");
     }
-    if (yaml["class_map"])
-    {
+    if (yaml["class_map"]) {
         class_map_ = yaml["class_map"].as<std::vector<int>>();
-        for (auto id : class_map_)
-        {
-            if (id < 0 || id >= static_cast<int>(armor_properties.size()))
-            {
+        for (auto id : class_map_) {
+            if (id < 0 || id >= static_cast<int>(armor_properties.size())) {
                 throw std::runtime_error(
                     fmt::format("[YOLO11] class_map value {} out of range", id));
             }
@@ -50,7 +45,7 @@ YOLO11::YOLO11(const std::string &config_path, bool debug)
     offset_ = cv::Point2f(x, y);
     auto model = core_.read_model(model_path_);
     ov::preprocess::PrePostProcessor ppp(model);
-    auto &input = ppp.input();
+    auto & input = ppp.input();
 
     input.tensor()
         .set_element_type(ov::element::u8)
@@ -75,29 +70,23 @@ YOLO11::YOLO11(const std::string &config_path, bool debug)
     input_ = cv::Mat(640, 640, CV_8UC3, cv::Scalar(0, 0, 0));
 }
 
-std::vector<Armor> YOLO11::detect(const cv::Mat &raw_img, int frame_count)
+std::vector<Armor> YOLO11::detect(const cv::Mat & raw_img, int frame_count)
 {
-    if (raw_img.empty())
-    {
+    if (raw_img.empty()) {
         logger()->warn("Empty img!, camera drop!");
         return std::vector<Armor>();
     }
 
     cv::Mat bgr_img;
-    if (use_roi_)
-    {
-        if (roi_.width == -1)
-        { // -1 表示该维度不裁切
+    if (use_roi_) {
+        if (roi_.width == -1) {  // -1 表示该维度不裁切
             roi_.width = raw_img.cols;
         }
-        if (roi_.height == -1)
-        { // -1 表示该维度不裁切
+        if (roi_.height == -1) {  // -1 表示该维度不裁切
             roi_.height = raw_img.rows;
         }
         bgr_img = raw_img(roi_);
-    }
-    else
-    {
+    } else {
         bgr_img = raw_img;
     }
 
@@ -119,35 +108,31 @@ std::vector<Armor> YOLO11::detect(const cv::Mat &raw_img, int frame_count)
 }
 
 std::vector<Armor> YOLO11::parse(
-    double scale, cv::Mat &output, const cv::Mat &bgr_img, int frame_count)
-{ // 输出为 feature-major 布局 [1][features][anchors]：
+    double scale, cv::Mat & output, const cv::Mat & bgr_img, int frame_count)
+{  // 输出为 feature-major 布局 [1][features][anchors]：
     // 直接按步长遍历，省去原先 cv::transpose 的整矩阵拷贝
-    const float *data = output.ptr<float>(0);
+    const float * data = output.ptr<float>(0);
     const int anchor_num = output.cols;
 
     // 输出必须为 feature-major [1][features][anchors]；features = 4 + class_num + 8。
-    if (output.rows > output.cols)
-    {
+    if (output.rows > output.cols) {
         logger()->error(
             "[YOLO11] expect feature-major output [1][features][anchors], got {}x{}", output.rows,
             output.cols);
         return {};
     }
     const int detected_class_num = output.rows - 12;
-    if (detected_class_num <= 0)
-    {
+    if (detected_class_num <= 0) {
         logger()->error("[YOLO11] invalid output features: {}", output.rows);
         return {};
     }
-    if (class_num_ > 0 && class_num_ != detected_class_num)
-    {
+    if (class_num_ > 0 && class_num_ != detected_class_num) {
         logger()->warn(
             "[YOLO11] class_num config {} != detected {}, use detected", class_num_,
             detected_class_num);
     }
     const int class_num = detected_class_num;
-    if (!class_map_.empty() && static_cast<int>(class_map_.size()) != class_num)
-    {
+    if (!class_map_.empty() && static_cast<int>(class_map_.size()) != class_num) {
         logger()->error(
             "[YOLO11] class_map size {} != class_num {}", class_map_.size(), class_num);
         return {};
@@ -162,11 +147,10 @@ std::vector<Armor> YOLO11::parse(
     boxes.reserve(64);
     armors_key_points.reserve(64);
 
-    for (int r = 0; r < anchor_num; r++)
-    {
-        const float *xywh = data + r;
-        const float *scores = data + 4 * anchor_num + r;
-        const float *key_points = data + (4 + class_num) * anchor_num + r;
+    for (int r = 0; r < anchor_num; r++) {
+        const float * xywh = data + r;
+        const float * scores = data + 4 * anchor_num + r;
+        const float * key_points = data + (4 + class_num) * anchor_num + r;
 
         std::vector<cv::Point2f> armor_key_points;
         armor_key_points.reserve(4);
@@ -174,17 +158,14 @@ std::vector<Armor> YOLO11::parse(
         // 原实现为 cv::minMaxLoc(scores)：取最大分数及其下标
         float score = scores[0];
         int max_point = 0;
-        for (int c = 1; c < class_num; c++)
-        {
-            if (scores[c * anchor_num] > score)
-            {
+        for (int c = 1; c < class_num; c++) {
+            if (scores[c * anchor_num] > score) {
                 score = scores[c * anchor_num];
                 max_point = c;
             }
         }
 
-        if (score < score_threshold_)
-            continue;
+        if (score < score_threshold_) continue;
 
         auto x = xywh[0 * anchor_num];
         auto y = xywh[1 * anchor_num];
@@ -195,8 +176,7 @@ std::vector<Armor> YOLO11::parse(
         auto width = static_cast<int>(w / scale);
         auto height = static_cast<int>(h / scale);
 
-        for (int i = 0; i < 4; i++)
-        {
+        for (int i = 0; i < 4; i++) {
             float x = key_points[(i * 2 + 0) * anchor_num] / scale;
             float y = key_points[(i * 2 + 1) * anchor_num] / scale;
             armor_key_points.emplace_back(x, y);
@@ -211,45 +191,36 @@ std::vector<Armor> YOLO11::parse(
     cv::dnn::NMSBoxes(boxes, confidences, score_threshold_, nms_threshold_, indices);
 
     std::vector<Armor> armors;
-    for (const auto &i : indices)
-    {
+    for (const auto & i : indices) {
         sort_keypoints(armors_key_points[i]);
 
         const int model_id = ids[i];
         if (!class_map_.empty() &&
-            (model_id < 0 || model_id >= static_cast<int>(class_map_.size())))
-        {
+            (model_id < 0 || model_id >= static_cast<int>(class_map_.size()))) {
             logger()->warn("[YOLO11] class id {} out of class_map range", model_id);
             continue;
         }
         const int armor_id = class_map_.empty() ? model_id : class_map_[model_id];
-        if (armor_id < 0 || armor_id >= static_cast<int>(armor_properties.size()))
-        {
+        if (armor_id < 0 || armor_id >= static_cast<int>(armor_properties.size())) {
             logger()->warn("[YOLO11] class id {} maps to invalid armor id {}", model_id, armor_id);
             continue;
         }
 
-        if (use_roi_)
-        {
+        if (use_roi_) {
             armors.emplace_back(armor_id, confidences[i], boxes[i], armors_key_points[i], offset_);
-        }
-        else
-        {
+        } else {
             armors.emplace_back(armor_id, confidences[i], boxes[i], armors_key_points[i]);
         }
     }
 
-    for (std::size_t i = 0; i < armors.size();)
-    {
-        auto &a = armors[i];
-        if (!detector_.check_name(a, false))
-        {
+    for (std::size_t i = 0; i < armors.size();) {
+        auto & a = armors[i];
+        if (!detector_.check_name(a, false)) {
             armors.erase(armors.begin() + i);
             continue;
         }
 
-        if (!Detector::check_type_neural(a))
-        {
+        if (!Detector::check_type_neural(a)) {
             armors.erase(armors.begin() + i);
             continue;
         }
@@ -258,49 +229,45 @@ std::vector<Armor> YOLO11::parse(
         ++i;
     }
 
-    if (debug_)
-        draw_detections(bgr_img, armors, frame_count);
+    if (debug_) draw_detections(bgr_img, armors, frame_count);
 
     return armors;
 }
 
-void YOLO11::sort_keypoints(std::vector<cv::Point2f> &keypoints)
+void YOLO11::sort_keypoints(std::vector<cv::Point2f> & keypoints)
 {
-    if (keypoints.size() != 4)
-    {
+    if (keypoints.size() != 4) {
         std::cout << "beyond 4!!" << std::endl;
         return;
     }
 
-    std::sort(keypoints.begin(), keypoints.end(), [](const cv::Point2f &a, const cv::Point2f &b)
-              { return a.y < b.y; });
+    std::sort(keypoints.begin(), keypoints.end(), [](const cv::Point2f & a, const cv::Point2f & b) {
+        return a.y < b.y;
+    });
 
     std::vector<cv::Point2f> top_points = {keypoints[0], keypoints[1]};
     std::vector<cv::Point2f> bottom_points = {keypoints[2], keypoints[3]};
 
     std::sort(
         top_points.begin(), top_points.end(),
-        [](const cv::Point2f &a, const cv::Point2f &b)
-        { return a.x < b.x; });
+        [](const cv::Point2f & a, const cv::Point2f & b) { return a.x < b.x; });
 
     std::sort(
         bottom_points.begin(), bottom_points.end(),
-        [](const cv::Point2f &a, const cv::Point2f &b)
-        { return a.x < b.x; });
+        [](const cv::Point2f & a, const cv::Point2f & b) { return a.x < b.x; });
 
-    keypoints[0] = top_points[0];    // top-left
-    keypoints[1] = top_points[1];    // top-right
-    keypoints[2] = bottom_points[1]; // bottom-right
-    keypoints[3] = bottom_points[0]; // bottom-left
+    keypoints[0] = top_points[0];     // top-left
+    keypoints[1] = top_points[1];     // top-right
+    keypoints[2] = bottom_points[1];  // bottom-right
+    keypoints[3] = bottom_points[0];  // bottom-left
 }
 
 void YOLO11::draw_detections(
-    const cv::Mat &img, const std::vector<Armor> &armors, int frame_count) const
+    const cv::Mat & img, const std::vector<Armor> & armors, int frame_count) const
 {
     auto detection = img.clone();
     draw_text(detection, fmt::format("[{}]", frame_count), {10, 30}, {255, 255, 255});
-    for (const auto &armor : armors)
-    {
+    for (const auto & armor : armors) {
         auto info = fmt::format(
             "{:.2f} {} {} {}", armor.confidence, COLORS[armor.color], ARMOR_NAMES[armor.name],
             ARMOR_TYPES[armor.type]);
@@ -308,17 +275,16 @@ void YOLO11::draw_detections(
         draw_text(detection, info, armor.center, {0, 255, 0});
     }
 
-    if (use_roi_)
-    {
+    if (use_roi_) {
         cv::Scalar green(0, 255, 0);
         cv::rectangle(detection, roi_, green, 2);
     }
-    cv::resize(detection, detection, {}, 0.5, 0.5); // 显示时缩小图片尺寸
+    cv::resize(detection, detection, {}, 0.5, 0.5);  // 显示时缩小图片尺寸
     cv::imshow("detection", detection);
 }
 
 std::vector<Armor> YOLO11::postprocess(
-    double scale, cv::Mat &output, const cv::Mat &bgr_img, int frame_count)
+    double scale, cv::Mat & output, const cv::Mat & bgr_img, int frame_count)
 {
     return parse(scale, output, bgr_img, frame_count);
 }

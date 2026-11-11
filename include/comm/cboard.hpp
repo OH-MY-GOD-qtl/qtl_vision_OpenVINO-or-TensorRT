@@ -38,9 +38,9 @@ public:
     double bullet_speed;
     Mode mode;
     ShootMode shoot_mode;
-    double ft_angle; // 无人机专有
+    double ft_angle;  //无人机专有
 
-    CBoard(const std::string &config_path);
+    CBoard(const std::string & config_path);
 
     Eigen::Quaterniond imu_at(std::chrono::steady_clock::time_point timestamp);
 
@@ -53,16 +53,16 @@ private:
         std::chrono::steady_clock::time_point timestamp;
     };
 
-    ThreadSafeQueue<IMUData> queue_; // 必须在can_之前初始化，否则存在死锁的可能
+    ThreadSafeQueue<IMUData> queue_;  // 必须在can_之前初始化，否则存在死锁的可能
     SocketCAN can_;
     IMUData data_ahead_;
     IMUData data_behind_;
 
     int quaternion_canid_, bullet_speed_canid_, send_canid_;
 
-    void callback(const can_frame &frame);
+    void callback(const can_frame & frame);
 
-    std::string read_yaml(const std::string &config_path);
+    std::string read_yaml(const std::string & config_path);
 };
 
-#endif // IO__CBOARD_HPP
+#endif  // IO__CBOARD_HPP

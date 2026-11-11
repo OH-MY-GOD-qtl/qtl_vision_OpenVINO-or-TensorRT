@@ -5,16 +5,15 @@
 
 namespace
 {
-    class NullHpReporter : public HpReporter
-    {
-    public:
-        void report(const HpReport &) override {}
-    };
-} // namespace
-
-std::unique_ptr<HpReporter> make_hp_reporter(const std::string &)
+class NullHpReporter : public HpReporter
 {
+public:
+    void report(const HpReport &) override {}
+};
+}  // namespace
+
+std::unique_ptr<HpReporter> make_hp_reporter(const std::string &) {
     return std::make_unique<NullHpReporter>();
 }
 
-#endif // QTL_WITH_ROS2
+#endif  // QTL_WITH_ROS2

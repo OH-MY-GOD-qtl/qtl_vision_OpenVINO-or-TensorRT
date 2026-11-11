@@ -8,16 +8,14 @@ cv::Matx33f BuffSolver::rotation_matrix(double angle) const
         1, 0, 0, 0, std::cos(angle), -std::sin(angle), 0, std::sin(angle), std::cos(angle));
 }
 
-void BuffSolver::compute_rotated_points(std::vector<std::vector<cv::Point3f>> &object_points)
+void BuffSolver::compute_rotated_points(std::vector<std::vector<cv::Point3f>> & object_points)
 {
-    const std::vector<cv::Point3f> &base_points = object_points[0];
-    for (int i = 1; i < 5; ++i)
-    {
+    const std::vector<cv::Point3f> & base_points = object_points[0];
+    for (int i = 1; i < 5; ++i) {
         double angle = i * THETA;
         cv::Matx33f R = rotation_matrix(angle);
         std::vector<cv::Point3f> rotated_points;
-        for (const auto &point : base_points)
-        {
+        for (const auto & point : base_points) {
             cv::Vec3f vec(point.x, point.y, point.z);
             cv::Vec3f rotated_vec = R * vec;
             rotated_points.emplace_back(rotated_vec[0], rotated_vec[1], rotated_vec[2]);
@@ -26,8 +24,8 @@ void BuffSolver::compute_rotated_points(std::vector<std::vector<cv::Point3f>> &o
     }
 }
 
-BuffSolver::BuffSolver(const std::string &config_path)
-    : R_gimbal2world_(Eigen::Matrix3d::Identity())
+BuffSolver::BuffSolver(const std::string & config_path)
+: R_gimbal2world_(Eigen::Matrix3d::Identity())
 {
     auto yaml = yaml_load(config_path);
 
@@ -50,17 +48,16 @@ BuffSolver::BuffSolver(const std::string &config_path)
 
 Eigen::Matrix3d BuffSolver::R_gimbal2world() const { return R_gimbal2world_; }
 
-void BuffSolver::set_R_gimbal2world(const Eigen::Quaterniond &q)
+void BuffSolver::set_R_gimbal2world(const Eigen::Quaterniond & q)
 {
     Eigen::Matrix3d R_imubody2imuabs = q.toRotationMatrix();
     R_gimbal2world_ = R_gimbal2imubody_.transpose() * R_imubody2imuabs * R_gimbal2imubody_;
 }
 
-void BuffSolver::solve(std::optional<PowerRune> &ps) const
+void BuffSolver::solve(std::optional<PowerRune> & ps) const
 {
-    if (!ps.has_value())
-        return;
-    PowerRune &p = ps.value();
+    if (!ps.has_value()) return;
+    PowerRune & p = ps.value();
     // std::vector<cv::Point2f> image_points;
     // std::vector<cv::Point3f> object_points;
     // int i = 0;
@@ -127,13 +124,13 @@ cv::Point2f BuffSolver::point_buff2pixel(cv::Point3f x)
 
 // xyz_in_world2xyz_in_pix
 std::vector<cv::Point2f> BuffSolver::reproject_buff(
-    const Eigen::Vector3d &xyz_in_world, double yaw, double row) const
+    const Eigen::Vector3d & xyz_in_world, double yaw, double row) const
 {
     auto R_buff2world = ::rotation_matrix(Eigen::Vector3d(yaw, 0.0, row));
     // clang-format on
 
     // get R_buff2camera t_buff2camera
-    const Eigen::Vector3d &t_buff2world = xyz_in_world;
+    const Eigen::Vector3d & t_buff2world = xyz_in_world;
     Eigen::Matrix3d R_buff2camera =
         R_camera2gimbal_.transpose() * R_gimbal2world_.transpose() * R_buff2world;
     Eigen::Vector3d t_buff2camera = R_camera2gimbal_.transpose() *

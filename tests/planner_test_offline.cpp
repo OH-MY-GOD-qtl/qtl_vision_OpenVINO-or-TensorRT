@@ -17,14 +17,13 @@ const std::string keys =
     "{@d             | 3.0 | Target距离(m)        }"
     "{@w             | 5.0 | Target角速度(rad/s)  }";
 
-int main(int argc, char *argv[])
+int main(int argc, char * argv[])
 {
     cv::CommandLineParser cli(argc, argv, keys);
     auto config_path = cli.get<std::string>(0);
     auto d = cli.get<double>(1);
     auto w = cli.get<double>(2);
-    if (cli.has("help") || !cli.has("@config-path"))
-    {
+    if (cli.has("help") || !cli.has("@config-path")) {
         cli.printMessage();
         return 0;
     }
@@ -37,8 +36,7 @@ int main(int argc, char *argv[])
 
     auto t0 = std::chrono::steady_clock::now();
 
-    while (!exiter.exit())
-    {
+    while (!exiter.exit()) {
         target.predict(0.01);
 
         auto plan = planner.plan(target, 22);

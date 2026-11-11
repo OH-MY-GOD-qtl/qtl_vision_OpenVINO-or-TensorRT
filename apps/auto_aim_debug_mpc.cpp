@@ -3,7 +3,6 @@
 
 #include <atomic>
 #include <chrono>
-#include <cmath>
 #include <nlohmann/json.hpp>
 #include <opencv2/opencv.hpp>
 #include <thread>
@@ -104,26 +103,6 @@ int main(int argc, char * argv[])
             if (target.has_value()) {
                 data["target_z"] = target->ekf_x()[4];   //z目标在世界坐标系中的z轴位置坐标
                 data["target_vz"] = target->ekf_x()[5];  //vz目标在z轴方向的速度分量
-
-                // 滤波诊断：卡方检验只在有量测更新时才变化
-                const auto & ekf_data = target->ekf().data;
-                data["nis"] = ekf_data.at("nis");
-                data["nees"] = ekf_data.at("nees");
-                data["nis_fail"] = ekf_data.at("nis_fail");
-                data["nees_fail"] = ekf_data.at("nees_fail");
-                data["recent_nis_failures"] = ekf_data.at("recent_nis_failures");
-                data["residual_yaw"] = ekf_data.at("residual_yaw");
-                data["residual_pitch"] = ekf_data.at("residual_pitch");
-                data["residual_distance"] = ekf_data.at("residual_distance");
-                data["residual_angle"] = ekf_data.at("residual_angle");
-
-                // 目标年龄：updates 反复归零说明目标被频繁重建，NIS 自然接近 0
-                data["updates"] = target->update_count();
-                data["nis_window"] = static_cast<double>(target->ekf().recent_nis_failures.size());
-
-                // 重投影关联：err 已按板边长归一化，margin = 次优/最优
-                data["reproj_err"] = target->reproj_err();
-                data["reproj_margin"] = target->reproj_margin();
             }
 
             if (target.has_value()) {
@@ -140,22 +119,6 @@ int main(int argc, char * argv[])
                 target.has_value() ? std::hypot(target->ekf_x()[0], target->ekf_x()[2]) : 0.0;
 
             plotter.plot(data);
-
-            // 每 2 s 打一行滤波标定信息，便于直接复制
-            static auto last_ekf_log = std::chrono::steady_clock::now();
-            if (target.has_value() && delta_time(std::chrono::steady_clock::now(), last_ekf_log) > 2.0) {
-                last_ekf_log = std::chrono::steady_clock::now();
-                const auto & d = target->ekf().data;
-                logger()->info(
-                    "[EKF] n={} nis_mean={:.2f} | r_rms yaw={:.4f} pitch={:.4f} dist={:.3f} "
-                    "angle={:.4f} | R_est yaw={:.2e} pitch={:.2e} dist={:.2e} angle={:.2e} "
-                    "| reproj err={:.3f} margin={:.2f}",
-                    target->update_count(), d.at("nis_mean"), std::sqrt(d.at("r_var_yaw")),
-                    std::sqrt(d.at("r_var_pitch")), std::sqrt(d.at("r_var_distance")),
-                    std::sqrt(d.at("r_var_angle")), d.at("R_est_yaw"), d.at("R_est_pitch"),
-                    d.at("R_est_distance"), d.at("R_est_angle"), target->reproj_err(),
-                    target->reproj_margin());
-            }
 
             std::this_thread::sleep_for(10ms);
         }
@@ -193,16 +156,6 @@ int main(int argc, char * argv[])
             auto image_points = solver.reproject_armor(
                 aim_xyza.head(3), aim_xyza[3], target.armor_type, target.name);
             draw_points(img, image_points, {0, 0, 255});
-
-            // 滤波诊断：NIS 期望约等于量测维数（4），失败率期望约 5%
-            const auto & ekf_data = target.ekf().data;
-            draw_text(
-                img,
-                fmt::format(
-                    "NIS {:.2f}  NEES {:.2f}  fail {:.0f}%  n={}", ekf_data.at("nis"),
-                    ekf_data.at("nees"), ekf_data.at("recent_nis_failures") * 100,
-                    target.update_count()),
-                {10, 30}, {0, 255, 255}, 0.8, 2);
         }
 
         cv::resize(img, img, {}, 0.5, 0.5);  // 显示时缩小图片尺寸

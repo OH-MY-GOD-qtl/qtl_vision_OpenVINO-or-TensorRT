@@ -33,23 +33,23 @@ class BuffTarget
 public:
     BuffTarget();
     virtual void get_target(
-        const std::optional<PowerRune> &p,
-        std::chrono::steady_clock::time_point &timestamp) = 0; // 纯虚函数
+        const std::optional<PowerRune> & p,
+        std::chrono::steady_clock::time_point & timestamp) = 0;  // 纯虚函数
 
-    virtual void predict(double dt) = 0; // 纯虚函数
+    virtual void predict(double dt) = 0;  // 纯虚函数
 
-    Eigen::Vector3d point_buff2world(const Eigen::Vector3d &point_in_buff) const;
+    Eigen::Vector3d point_buff2world(const Eigen::Vector3d & point_in_buff) const;
 
     bool is_unsolve() const;
 
     Eigen::VectorXd ekf_x() const;
 
-    double spd = 0; // 调试用
+    double spd = 0;  //调试用
 
 protected:
-    virtual void init(double nowtime, const PowerRune &p) = 0; // 纯虚函数
+    virtual void init(double nowtime, const PowerRune & p) = 0;  // 纯虚函数
 
-    virtual void update(double nowtime, const PowerRune &p) = 0; // 纯虚函数
+    virtual void update(double nowtime, const PowerRune & p) = 0;  // 纯虚函数
 
     Eigen::VectorXd x0_;
     Eigen::MatrixXd P0_;
@@ -59,7 +59,7 @@ protected:
     Eigen::MatrixXd R_;
     ExtendedKalmanFilter ekf_;
     double lasttime_ = 0;
-    Voter voter; // 逆时针-1 顺时针1
+    Voter voter;  // 逆时针-1 顺时针1
     bool first_in_;
     bool unsolvable_;
 };
@@ -72,15 +72,15 @@ public:
     SmallTarget();
 
     void get_target(
-        const std::optional<PowerRune> &p,
-        std::chrono::steady_clock::time_point &timestamp) override;
+        const std::optional<PowerRune> & p,
+        std::chrono::steady_clock::time_point & timestamp) override;
 
     void predict(double dt) override;
 
 private:
-    void init(double nowtime, const PowerRune &p) override;
+    void init(double nowtime, const PowerRune & p) override;
 
-    void update(double nowtime, const PowerRune &p) override;
+    void update(double nowtime, const PowerRune & p) override;
 
     Eigen::MatrixXd h_jacobian() const;
 
@@ -96,15 +96,15 @@ public:
     BigTarget();
 
     void get_target(
-        const std::optional<PowerRune> &p,
-        std::chrono::steady_clock::time_point &timestamp) override;
+        const std::optional<PowerRune> & p,
+        std::chrono::steady_clock::time_point & timestamp) override;
 
     void predict(double dt) override;
 
 private:
-    void init(double nowtime, const PowerRune &p) override;
+    void init(double nowtime, const PowerRune & p) override;
 
-    void update(double nowtime, const PowerRune &p) override;
+    void update(double nowtime, const PowerRune & p) override;
 
     Eigen::MatrixXd h_jacobian() const;
 

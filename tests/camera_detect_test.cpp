@@ -15,12 +15,11 @@ const std::string keys =
     "{@config-path   | configs/sentry.yaml    | yaml配置文件的路径}"
     "{tradition t    |  false                 | 是否使用传统方法识别}";
 
-int main(int argc, char *argv[])
+int main(int argc, char * argv[])
 {
     // 读取命令行参数
     cv::CommandLineParser cli(argc, argv, keys);
-    if (cli.has("help"))
-    {
+    if (cli.has("help")) {
         cli.printMessage();
         return 0;
     }
@@ -35,15 +34,13 @@ int main(int argc, char *argv[])
 
     std::chrono::steady_clock::time_point timestamp;
 
-    while (!exiter.exit())
-    {
+    while (!exiter.exit()) {
         cv::Mat img;
         std::vector<Armor> armors;
 
         camera.read(img, timestamp);
 
-        if (img.empty())
-            break;
+        if (img.empty()) break;
 
         auto last = std::chrono::steady_clock::now();
 
@@ -57,8 +54,7 @@ int main(int argc, char *argv[])
         logger()->info("{:.2f} fps", 1 / dt);
 
         auto key = cv::waitKey(33);
-        if (key == 'q')
-            break;
+        if (key == 'q') break;
     }
 
     return 0;

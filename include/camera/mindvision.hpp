@@ -12,9 +12,9 @@
 class MindVision : public CameraBase
 {
 public:
-    MindVision(double exposure_ms, double gamma, const std::string &vid_pid);
+    MindVision(double exposure_ms, double gamma, const std::string & vid_pid);
     ~MindVision() override;
-    void read(cv::Mat &img, std::chrono::steady_clock::time_point &timestamp) override;
+    void read(cv::Mat & img, std::chrono::steady_clock::time_point & timestamp) override;
 
 private:
     struct CameraData
@@ -36,8 +36,8 @@ private:
     void open();
     void try_open();
     void close();
-    void set_vid_pid(const std::string &vid_pid);
+    void set_vid_pid(const std::string & vid_pid);
     void reset_usb() const;
 };
 
-#endif // IO__MINDVISION_HPP
+#endif  // IO__MINDVISION_HPP

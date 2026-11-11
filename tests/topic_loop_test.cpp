@@ -5,7 +5,7 @@
 #include "tools/exiter.hpp"
 #include "tools/logger.hpp"
 
-int main(int argc, char **argv)
+int main(int argc, char ** argv)
 {
     Exiter exiter;
     ROS2 ros2;
@@ -14,8 +14,7 @@ int main(int argc, char **argv)
         ros2.create_publisher<sp_msgs::msg::EnemyStatusMsg>("temp_node", "enemy_status", 10);
 
     int i = 0;
-    while (!exiter.exit())
-    {
+    while (!exiter.exit()) {
         sp_msgs::msg::EnemyStatusMsg msg;
         msg.invincible_enemy_ids = {1, 2, 3};
         msg.timestamp = clock.now();
@@ -27,15 +26,13 @@ int main(int argc, char **argv)
         i++;
         std::this_thread::sleep_for(std::chrono::microseconds(5));
 
-        if (i % 3 == 0)
-        {
+        if (i % 3 == 0) {
             auto x = ros2.subscribe_enemy_status();
             // logger()->info("invincible enemy ids size is{}", x.size());
         }
 
         std::this_thread::sleep_for(std::chrono::seconds(1));
-        if (i > 1000)
-            break;
+        if (i > 1000) break;
     }
 
     return 0;

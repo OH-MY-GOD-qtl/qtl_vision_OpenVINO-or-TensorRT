@@ -20,13 +20,13 @@ class Aimer
 {
 public:
     AimPoint debug_aim_point;
-    explicit Aimer(const std::string &config_path);
+    explicit Aimer(const std::string & config_path);
     Command aim(
-        const std::vector<Target> &targets, std::chrono::steady_clock::time_point timestamp,
+        const std::vector<Target> & targets, std::chrono::steady_clock::time_point timestamp,
         double bullet_speed, bool to_now = true);
 
     Command aim(
-        const std::vector<Target> &targets, std::chrono::steady_clock::time_point timestamp,
+        const std::vector<Target> & targets, std::chrono::steady_clock::time_point timestamp,
         double bullet_speed, ShootMode shoot_mode, bool to_now = true);
 
 private:
@@ -41,7 +41,7 @@ private:
     double low_speed_delay_time_;
     double decision_speed_;
 
-    AimPoint choose_aim_point(const Target &target);
+    AimPoint choose_aim_point(const Target & target);
 };
 
-#endif // AUTO_AIM__AIMER_HPP
+#endif  // AUTO_AIM__AIMER_HPP

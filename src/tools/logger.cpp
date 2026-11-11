@@ -26,7 +26,6 @@ void set_logger()
 
 std::shared_ptr<spdlog::logger> logger()
 {
-    if (!logger_)
-        set_logger();
+    if (!logger_) set_logger();
     return logger_;
 }

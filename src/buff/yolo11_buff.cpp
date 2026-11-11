@@ -6,7 +6,7 @@
 const double ConfidenceThreshold = 0.7f;
 const double IouThreshold = 0.4f;
 
-YOLO11_BUFF::YOLO11_BUFF(const std::string &config)
+YOLO11_BUFF::YOLO11_BUFF(const std::string & config)
 {
     auto yaml = yaml_load(config);
     std::string model_path = yaml_read<std::string>(yaml, "model");
@@ -21,16 +21,15 @@ YOLO11_BUFF::YOLO11_BUFF(const std::string &config)
     input_tensor.set_shape({1, 3, 640, 640});
 }
 
-std::vector<YOLO11_BUFF::Object> YOLO11_BUFF::get_multicandidateboxes(cv::Mat &image)
+std::vector<YOLO11_BUFF::Object> YOLO11_BUFF::get_multicandidateboxes(cv::Mat & image)
 {
-    const int64 start = cv::getTickCount(); // 设置模型输入
+    const int64 start = cv::getTickCount();  // 设置模型输入
 
     /// 预处理
 
     // const float factor = fill_tensor_data_image(input_tensor, image);  // 填充图片到合适的input size
 
-    if (image.empty())
-    {
+    if (image.empty()) {
         logger()->warn("Empty img!, camera drop!");
         return std::vector<YOLO11_BUFF::Object>();
     }
@@ -49,24 +48,22 @@ std::vector<YOLO11_BUFF::Object> YOLO11_BUFF::get_multicandidateboxes(cv::Mat &i
     infer_request.infer();
 
     /// 处理推理计算结果
-    const ov::Tensor output = infer_request.get_output_tensor(); // 获得推理结果
+    const ov::Tensor output = infer_request.get_output_tensor();  // 获得推理结果
     const ov::Shape output_shape = output.get_shape();
-    const float *output_buffer = output.data<const float>();
-    const int out_rows = output_shape[1]; // 获得"output"节点的rows 15
-    const int out_cols = output_shape[2]; // 获得"output"节点的cols 8400
+    const float * output_buffer = output.data<const float>();
+    const int out_rows = output_shape[1];  // 获得"output"节点的rows 15
+    const int out_cols = output_shape[2];  // 获得"output"节点的cols 8400
     const cv::Mat det_output(
-        out_rows, out_cols, CV_32F, (float *)output_buffer); // output_buff类型转换
-    std::vector<cv::Rect> boxes;                             // 目标框
-    std::vector<float> confidences;                          // 置信度
-    std::vector<std::vector<float>> objects_keypoints;       // 关键点
+        out_rows, out_cols, CV_32F, (float *)output_buffer);  // output_buff类型转换
+    std::vector<cv::Rect> boxes;                              // 目标框
+    std::vector<float> confidences;                           // 置信度
+    std::vector<std::vector<float>> objects_keypoints;        // 关键点
     // 输出格式是[15,8400], 每列代表一个框(即最多有8400个框), 前面4行分别是[cx, cy, ow, oh], 中间score, 最后5*2关键点(3代表每个关键点的信息, 包括[x, y, visibility],如果是2，则没有visibility)
     // 15 = 4 + 1 + NUM_POINTS * 2      56
-    for (int i = 0; i < det_output.cols; ++i)
-    {
+    for (int i = 0; i < det_output.cols; ++i) {
         const float score = det_output.at<float>(4, i);
         // 如果置信度满足条件则放进vector
-        if (score > ConfidenceThreshold)
-        {
+        if (score > ConfidenceThreshold) {
             // 获取目标框
             const float cx = det_output.at<float>(0, i);
             const float cy = det_output.at<float>(1, i);
@@ -85,8 +82,7 @@ std::vector<YOLO11_BUFF::Object> YOLO11_BUFF::get_multicandidateboxes(cv::Mat &i
             // 获取关键点
             std::vector<float> keypoints;
             cv::Mat kpts = det_output.col(i).rowRange(NUM_POINTS, 15);
-            for (int j = 0; j < NUM_POINTS; ++j)
-            {
+            for (int j = 0; j < NUM_POINTS; ++j) {
                 const float x = kpts.at<float>(j * 2 + 0, 0) * factor;
                 const float y = kpts.at<float>(j * 2 + 1, 0) * factor;
                 // const float s = kpts.at<float>(j * 3 + 2, 0);
@@ -102,17 +98,15 @@ std::vector<YOLO11_BUFF::Object> YOLO11_BUFF::get_multicandidateboxes(cv::Mat &i
     std::vector<int> indexes;
     cv::dnn::NMSBoxes(boxes, confidences, ConfidenceThreshold, IouThreshold, indexes);
 
-    std::vector<Object> object_result; // 最终得到的object
-    for (size_t i = 0; i < indexes.size(); ++i)
-    {
+    std::vector<Object> object_result;  // 最终得到的object
+    for (size_t i = 0; i < indexes.size(); ++i) {
         Object obj;
         const int index = indexes[i];
         obj.rect = boxes[index];
         obj.prob = confidences[index];
 
-        const std::vector<float> &keypoint = objects_keypoints[index];
-        for (int i = 0; i < NUM_POINTS; ++i)
-        {
+        const std::vector<float> & keypoint = objects_keypoints[index];
+        for (int i = 0; i < NUM_POINTS; ++i) {
             const float x_coord = keypoint[i * 2];
             const float y_coord = keypoint[i * 2 + 1];
             obj.kpt.push_back(cv::Point2f(x_coord, y_coord));
@@ -120,8 +114,8 @@ std::vector<YOLO11_BUFF::Object> YOLO11_BUFF::get_multicandidateboxes(cv::Mat &i
         object_result.push_back(obj);
 
         /// 绘制关键点和连线
-        cv::rectangle(image, obj.rect, cv::Scalar(255, 255, 255), 1, 8);           // 绘制矩形框
-        const std::string label = "buff:" + std::to_string(obj.prob).substr(0, 4); // 绘制标签
+        cv::rectangle(image, obj.rect, cv::Scalar(255, 255, 255), 1, 8);            // 绘制矩形框
+        const std::string label = "buff:" + std::to_string(obj.prob).substr(0, 4);  // 绘制标签
         const cv::Size textSize = cv::getTextSize(label, cv::FONT_HERSHEY_SIMPLEX, 0.5, 1, nullptr);
         const cv::Rect textBox(
             obj.rect.tl().x, obj.rect.tl().y - 15, textSize.width, textSize.height + 5);
@@ -129,8 +123,8 @@ std::vector<YOLO11_BUFF::Object> YOLO11_BUFF::get_multicandidateboxes(cv::Mat &i
         cv::putText(
             image, label, cv::Point(obj.rect.tl().x, obj.rect.tl().y - 5), cv::FONT_HERSHEY_SIMPLEX,
             0.5, cv::Scalar(0, 0, 0));
-        const int radius = 2; // 绘制关键点
-        const cv::Size &shape = image.size();
+        const int radius = 2;  // 绘制关键点
+        const cv::Size & shape = image.size();
         for (int i = 0; i < NUM_POINTS; ++i)
             cv::circle(image, obj.kpt[i], radius, cv::Scalar(255, 0, 0), -1, cv::LINE_AA);
     }
@@ -146,12 +140,12 @@ std::vector<YOLO11_BUFF::Object> YOLO11_BUFF::get_multicandidateboxes(cv::Mat &i
     return object_result;
 }
 
-std::vector<YOLO11_BUFF::Object> YOLO11_BUFF::get_onecandidatebox(cv::Mat &image)
+std::vector<YOLO11_BUFF::Object> YOLO11_BUFF::get_onecandidatebox(cv::Mat & image)
 {
-    const int64 start = cv::getTickCount(); // 设置模型输入
+    const int64 start = cv::getTickCount();  // 设置模型输入
 
     /// 预处理
-    const float factor = fill_tensor_data_image(input_tensor, image); // 填充图片到合适的input size
+    const float factor = fill_tensor_data_image(input_tensor, image);  // 填充图片到合适的input size
 
     /// 执行推理计算
 
@@ -159,30 +153,27 @@ std::vector<YOLO11_BUFF::Object> YOLO11_BUFF::get_onecandidatebox(cv::Mat &image
 
     /// 处理推理计算结果  output 输出格式是[17,8400], 每列代表一个框(即最多有8400个框), 前面4行分别是[cx, cy, ow, oh], 中间score, 最后6*2关键点
 
-    const ov::Tensor output = infer_request.get_output_tensor(); // 获得推理结果
+    const ov::Tensor output = infer_request.get_output_tensor();  // 获得推理结果
     const ov::Shape output_shape = output.get_shape();
-    const float *output_buffer = output.data<const float>();
-    const int out_rows = output_shape[1]; // 获得"output"节点的rows 17
-    const int out_cols = output_shape[2]; // 获得"output"节点的cols 8400
+    const float * output_buffer = output.data<const float>();
+    const int out_rows = output_shape[1];  // 获得"output"节点的rows 17
+    const int out_cols = output_shape[2];  // 获得"output"节点的cols 8400
     const cv::Mat det_output(
-        out_rows, out_cols, CV_32F, (float *)output_buffer); // output_buff类型转换
+        out_rows, out_cols, CV_32F, (float *)output_buffer);  // output_buff类型转换
 
     /// 寻找置信度最大的框
 
     int best_index = -1;
     float max_confidence = 0.0f;
-    for (int i = 0; i < det_output.cols; ++i)
-    {
+    for (int i = 0; i < det_output.cols; ++i) {
         const float confidence = det_output.at<float>(4, i);
-        if (confidence > max_confidence)
-        {
+        if (confidence > max_confidence) {
             max_confidence = confidence;
             best_index = i;
         }
     }
-    std::vector<Object> object_result; // 最终得到的object
-    if (max_confidence > ConfidenceThreshold)
-    {
+    std::vector<Object> object_result;  // 最终得到的object
+    if (max_confidence > ConfidenceThreshold) {
         Object obj;
         // 获取目标框
         const float cx = det_output.at<float>(0, best_index);
@@ -197,8 +188,7 @@ std::vector<YOLO11_BUFF::Object> YOLO11_BUFF::get_onecandidatebox(cv::Mat &image
         obj.prob = max_confidence;
         // 获取关键点
         cv::Mat kpts = det_output.col(best_index).rowRange(5, 5 + NUM_POINTS * 2);
-        for (int i = 0; i < NUM_POINTS; ++i)
-        {
+        for (int i = 0; i < NUM_POINTS; ++i) {
             const float x = kpts.at<float>(i * 2 + 0, 0) * factor;
             const float y = kpts.at<float>(i * 2 + 1, 0) * factor;
             obj.kpt.push_back(cv::Point2f(x, y));
@@ -206,13 +196,12 @@ std::vector<YOLO11_BUFF::Object> YOLO11_BUFF::get_onecandidatebox(cv::Mat &image
         object_result.push_back(obj);
 
         /// 0.3-0.7 save
-        if (max_confidence < 0.7)
-            save(std::to_string(start), image);
+        if (max_confidence < 0.7) save(std::to_string(start), image);
 
         /// 绘制关键点和连线
-        cv::rectangle(image, obj.rect, cv::Scalar(255, 255, 255), 1, 8); // 绘制矩形框
+        cv::rectangle(image, obj.rect, cv::Scalar(255, 255, 255), 1, 8);  // 绘制矩形框
         const std::string label =
-            "buff:" + std::to_string(max_confidence).substr(0, 4); // 绘制标签
+            "buff:" + std::to_string(max_confidence).substr(0, 4);  // 绘制标签
         const cv::Size textSize = cv::getTextSize(label, cv::FONT_HERSHEY_SIMPLEX, 0.5, 1, nullptr);
         const cv::Rect textBox(
             obj.rect.tl().x, obj.rect.tl().y - 15, textSize.width, textSize.height + 5);
@@ -220,10 +209,9 @@ std::vector<YOLO11_BUFF::Object> YOLO11_BUFF::get_onecandidatebox(cv::Mat &image
         cv::putText(
             image, label, cv::Point(obj.rect.tl().x, obj.rect.tl().y - 5), cv::FONT_HERSHEY_SIMPLEX,
             0.5, cv::Scalar(0, 0, 0));
-        const int radius = 2; // 绘制关键点
-        const cv::Size &shape = image.size();
-        for (int i = 0; i < NUM_POINTS; ++i)
-        {
+        const int radius = 2;  // 绘制关键点
+        const cv::Size & shape = image.size();
+        for (int i = 0; i < NUM_POINTS; ++i) {
             cv::circle(image, obj.kpt[i], radius, cv::Scalar(255, 255, 0), -1, cv::LINE_AA);
             cv::putText(
                 image, std::to_string(i + 1), obj.kpt[i] + cv::Point2f(5, -5),
@@ -240,17 +228,15 @@ std::vector<YOLO11_BUFF::Object> YOLO11_BUFF::get_onecandidatebox(cv::Mat &image
 }
 
 void YOLO11_BUFF::convert(
-    const cv::Mat &input, cv::Mat &output, const bool normalize, const bool BGR2RGB) const
+    const cv::Mat & input, cv::Mat & output, const bool normalize, const bool BGR2RGB) const
 {
     input.convertTo(output, CV_32F);
-    if (normalize)
-        output = output / 255.0; // 归一化到[0, 1]
-    if (BGR2RGB)
-        cv::cvtColor(output, output, cv::COLOR_BGR2RGB);
+    if (normalize) output = output / 255.0;  // 归一化到[0, 1]
+    if (BGR2RGB) cv::cvtColor(output, output, cv::COLOR_BGR2RGB);
 }
 
 float YOLO11_BUFF::fill_tensor_data_image(
-    ov::Tensor &input_tensor, const cv::Mat &input_image) const
+    ov::Tensor & input_tensor, const cv::Mat & input_image) const
 {
     /// letterbox变换: 不改变宽高比(aspect ratio), 将input_image缩放并放置到blob_image左上角
     const ov::Shape tensor_shape = input_tensor.get_shape();
@@ -260,38 +246,27 @@ float YOLO11_BUFF::fill_tensor_data_image(
     // 缩放因子
     const float scale = std::min(height / float(input_image.rows), width / float(input_image.cols));
     const cv::Matx23f matrix{
-        scale,
-        0.0,
-        0.0,
-        0.0,
-        scale,
-        0.0,
+        scale, 0.0, 0.0, 0.0, scale, 0.0,
     };
     cv::Mat blob_image;
     // 下面根据scale范围进行数据转换, 这只是为了提高一点速度(主要是提高了交换通道的速度)
     // 如果不在意这点速度提升的可以固定一种做法(两个if分支随便一个都可以)
-    if (scale < 1.0f)
-    {
+    if (scale < 1.0f) {
         // 要缩小, 那么先缩小再交换通道
         cv::warpAffine(input_image, blob_image, matrix, cv::Size(width, height));
         convert(blob_image, blob_image, true, true);
-    }
-    else
-    {
+    } else {
         // 要放大, 那么先交换通道再放大
         convert(input_image, blob_image, true, true);
         cv::warpAffine(blob_image, blob_image, matrix, cv::Size(width, height));
     }
 
     /// 将图像数据填入input_tensor
-    float *const input_tensor_data = input_tensor.data<float>();
+    float * const input_tensor_data = input_tensor.data<float>();
     // 原有图片数据为 HWC格式，模型输入节点要求的为 CHW 格式
-    for (size_t c = 0; c < num_channels; c++)
-    {
-        for (size_t h = 0; h < height; h++)
-        {
-            for (size_t w = 0; w < width; w++)
-            {
+    for (size_t c = 0; c < num_channels; c++) {
+        for (size_t h = 0; h < height; h++) {
+            for (size_t w = 0; w < width; w++) {
                 input_tensor_data[c * width * height + h * width + w] =
                     blob_image.at<cv::Vec<float, 3>>(h, w)[c];
             }
@@ -300,13 +275,12 @@ float YOLO11_BUFF::fill_tensor_data_image(
     return 1 / scale;
 }
 
-void YOLO11_BUFF::printInputAndOutputsInfo(const ov::Model &network)
+void YOLO11_BUFF::printInputAndOutputsInfo(const ov::Model & network)
 {
     std::cout << "model name: " << network.get_friendly_name() << std::endl;
 
     const std::vector<ov::Output<const ov::Node>> inputs = network.inputs();
-    for (const ov::Output<const ov::Node> &input : inputs)
-    {
+    for (const ov::Output<const ov::Node> & input : inputs) {
         std::cout << "    inputs" << std::endl;
 
         const std::string name = input.get_names().empty() ? "NONE" : input.get_any_name();
@@ -320,8 +294,7 @@ void YOLO11_BUFF::printInputAndOutputsInfo(const ov::Model &network)
     }
 
     const std::vector<ov::Output<const ov::Node>> outputs = network.outputs();
-    for (const ov::Output<const ov::Node> &output : outputs)
-    {
+    for (const ov::Output<const ov::Node> & output : outputs) {
         std::cout << "    outputs" << std::endl;
 
         const std::string name = output.get_names().empty() ? "NONE" : output.get_any_name();
@@ -335,11 +308,10 @@ void YOLO11_BUFF::printInputAndOutputsInfo(const ov::Model &network)
     }
 }
 
-void YOLO11_BUFF::save(const std::string &programName, const cv::Mat &image)
+void YOLO11_BUFF::save(const std::string & programName, const cv::Mat & image)
 {
     const std::filesystem::path saveDir = "../result/";
-    if (!std::filesystem::exists(saveDir))
-    {
+    if (!std::filesystem::exists(saveDir)) {
         std::filesystem::create_directories(saveDir);
     }
     const std::filesystem::path savePath = saveDir / (programName + ".jpg");

@@ -15,23 +15,23 @@
 class Tracker
 {
 public:
-    Tracker(const std::string &config_path, Solver &solver);
+    Tracker(const std::string & config_path, Solver & solver);
 
     std::string state() const;
 
     std::vector<Target> track(
-        std::vector<Armor> &armors, std::chrono::steady_clock::time_point t, int id = 0,
+        std::vector<Armor> & armors, std::chrono::steady_clock::time_point t, int id = 0,
         bool use_enemy_color = true);
 
     std::tuple<DetectionResult, std::vector<Target>> track(
-        const std::vector<DetectionResult> &detection_queue, std::vector<Armor> &armors,
+        const std::vector<DetectionResult> & detection_queue, std::vector<Armor> & armors,
         std::chrono::steady_clock::time_point t, int id = 0, bool use_enemy_color = true);
 
     bool set_enemy_color(int id);
     Color get_enemy_color() const;
 
 private:
-    Solver &solver_;
+    Solver & solver_;
     Color enemy_color_;
     int min_detect_count_;
     int max_temp_lost_count_;
@@ -39,28 +39,18 @@ private:
     int temp_lost_count_;
     int outpost_max_temp_lost_count_;
     int normal_temp_lost_count_;
-    int switching_max_temp_lost_count_; // switching 状态丢失上限，缺省 200（保持旧行为）
-    bool drop_on_bad_converge_;         // NIS 收敛门总开关
-    int bad_converge_warmup_;           // 预热期（更新次数），此期间不判收敛
-    int bad_converge_streak_;           // 连续超限帧数达到该值才判丢目标
-    double reproj_max_error_;           // 重投影关联的归一化像素误差上限
-    int reproj_max_reject_streak_;      // 连续拒绝上限，超过则强制接受并放大先验
-    int reproj_reject_streak_;          // 当前连续拒绝帧数
+    int switching_max_temp_lost_count_;  // switching 状态丢失上限，缺省 200（保持旧行为）
     std::string state_, pre_state_;
     Target target_;
     std::chrono::steady_clock::time_point last_timestamp_;
     ArmorPriority omni_target_priority_;
-    cv::Point2f img_center_; // 图像中心坐标
+    cv::Point2f img_center_;  // 图像中心坐标
 
     void state_machine(bool found);
 
-    bool set_target(std::vector<Armor> &armors, std::chrono::steady_clock::time_point t);
+    bool set_target(std::vector<Armor> & armors, std::chrono::steady_clock::time_point t);
 
-    bool update_target(std::vector<Armor> &armors, std::chrono::steady_clock::time_point t);
-
-    // 用预测状态把各装甲板投到图像，与检测四边形比较，选出最可能的 id。
-    // 返回 false 表示当前没有可用的预测（例如刚建目标）。
-    bool associate_armor(const Armor &armor, int &id, double &err_norm, double &margin) const;
+    bool update_target(std::vector<Armor> & armors, std::chrono::steady_clock::time_point t);
 };
 
-#endif // AUTO_AIM__TRACKER_HPP
+#endif  // AUTO_AIM__TRACKER_HPP

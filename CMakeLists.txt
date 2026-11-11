@@ -258,7 +258,6 @@ add_executable(omni_arbitration_test tests/omni_arbitration_test.cpp)
 add_executable(planner_test tests/planner_test.cpp)
 add_executable(planner_test_offline tests/planner_test_offline.cpp)
 add_executable(ekf_test tests/ekf_test.cpp)
-add_executable(reproj_match_test tests/reproj_match_test.cpp)
 add_executable(buff_detector_test tests/buff_detector_test.cpp)
 
 foreach(t   auto_aim_test
@@ -279,7 +278,6 @@ target_link_libraries(auto_buff_test ${TEST_BASE_LIBS} auto_aim auto_buff)
 target_link_libraries(omni_config_test ${TEST_BASE_LIBS} auto_aim omni)
 target_link_libraries(omni_arbitration_test ${TEST_BASE_LIBS} auto_aim omni)
 target_link_libraries(ekf_test ${TEST_BASE_LIBS})
-target_link_libraries(reproj_match_test ${TEST_BASE_LIBS})
 target_link_libraries(buff_detector_test ${TEST_BASE_LIBS} auto_aim auto_buff)
 
 # 血量灯条识别：合成图断言 + 可选 ROS2 上报冒烟

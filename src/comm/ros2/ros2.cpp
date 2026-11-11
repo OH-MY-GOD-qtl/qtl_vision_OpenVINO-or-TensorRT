@@ -8,11 +8,9 @@ ROS2::ROS2()
 
     subscribe2nav_ = std::make_shared<Subscribe2Nav>();
 
-    publish_spin_thread_ = std::make_unique<std::thread>([this]()
-                                                         { publish2nav_->start(); });
+    publish_spin_thread_ = std::make_unique<std::thread>([this]() { publish2nav_->start(); });
 
-    subscribe_spin_thread_ = std::make_unique<std::thread>([this]()
-                                                           { subscribe2nav_->start(); });
+    subscribe_spin_thread_ = std::make_unique<std::thread>([this]() { subscribe2nav_->start(); });
 }
 
 ROS2::~ROS2()
@@ -22,7 +20,7 @@ ROS2::~ROS2()
     subscribe_spin_thread_->join();
 }
 
-void ROS2::publish(const Eigen::Vector4d &target_pos) { publish2nav_->send_data(target_pos); }
+void ROS2::publish(const Eigen::Vector4d & target_pos) { publish2nav_->send_data(target_pos); }
 
 std::vector<int8_t> ROS2::subscribe_enemy_status()
 {

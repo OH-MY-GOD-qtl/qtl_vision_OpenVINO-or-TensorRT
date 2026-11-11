@@ -19,7 +19,7 @@ Publish2Nav::~Publish2Nav()
     RCLCPP_INFO(this->get_logger(), "auto_aim_target_pos_publisher node shutting down.");
 }
 
-void Publish2Nav::send_data(const Eigen::Vector4d &target_pos)
+void Publish2Nav::send_data(const Eigen::Vector4d & target_pos)
 {
     // 创建消息
     auto message = std::make_shared<std_msgs::msg::String>();

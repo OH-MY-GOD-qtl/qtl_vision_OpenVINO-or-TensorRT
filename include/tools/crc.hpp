@@ -4,15 +4,15 @@
 #include <cstdint>
 
 // len不包括crc8
-uint8_t get_crc8(const uint8_t *data, uint16_t len);
+uint8_t get_crc8(const uint8_t * data, uint16_t len);
 
 // len包括crc8
-bool check_crc8(const uint8_t *data, uint16_t len);
+bool check_crc8(const uint8_t * data, uint16_t len);
 
 // len不包括crc16
-uint16_t get_crc16(const uint8_t *data, uint32_t len);
+uint16_t get_crc16(const uint8_t * data, uint32_t len);
 
 // len包括crc16
-bool check_crc16(const uint8_t *data, uint32_t len);
+bool check_crc16(const uint8_t * data, uint32_t len);
 
-#endif // TOOLS__CRC_HPP
+#endif  // TOOLS__CRC_HPP
