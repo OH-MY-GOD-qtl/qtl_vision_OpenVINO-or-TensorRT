@@ -403,7 +403,7 @@ bool Tracker::associate_armor(const Armor &armor, int &id, double &err_norm, dou
 
     id = best_id;
     err_norm = best;
-    // 次优/最优：越大说明这次 id 决策越不模糊。只有一块板时没有次优，记 inf。
+    // 次优/最优：越大说明这次 id 决策越不模糊。只有一块装甲板时没有次优，记 inf。
     margin = (best > 1e-9) ? second / best : std::numeric_limits<double>::infinity();
     return true;
 }
@@ -412,12 +412,19 @@ bool Tracker::update_target(std::vector<Armor> &armors, std::chrono::steady_cloc
 {
     target_.predict(t);
 
+    // 刚建目标（detecting）时状态由首帧量测直接初始化，重投影误差没有判别力；
+    // 而 state_machine 的 detecting 分支没有帧数迟滞，一次拒绝就直接判 lost。
+    // 所以闸门只在已经有预测的状态（tracking / temp_lost / switching）下生效。
+    const bool gate_active = (state_ != "detecting");
+
     bool measured = false;
+    bool any_candidate = false;
     for (auto &armor : armors)
     {
         if (armor.name != target_.name || armor.type != target_.armor_type)
             continue;
 
+        any_candidate = true;
         solver_.solve(armor);
 
         int id = 0;
@@ -427,7 +434,7 @@ bool Tracker::update_target(std::vector<Armor> &armors, std::chrono::steady_cloc
 
         target_.set_reproj_stats(err_norm, margin);
 
-        if (err_norm > reproj_max_error_)
+        if (gate_active && err_norm > reproj_max_error_)
         {
             reproj_reject_streak_++;
 
@@ -461,6 +468,9 @@ bool Tracker::update_target(std::vector<Armor> &armors, std::chrono::steady_cloc
     {
         // 本帧没有可用量测：旧的连续超限证据不应跨中断继续累计
         target_.reset_nis_streak();
+        // 根本没看到同名装甲板时，「连续拒绝」不成立，计数作废
+        if (!any_candidate)
+            reproj_reject_streak_ = 0;
     }
 
     return measured;
