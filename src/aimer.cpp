@@ -3,6 +3,8 @@
 #include <yaml-cpp/yaml.h>
 
 #include <cmath>
+#include <cstdio>
+#include <string>
 #include <vector>
 
 #include "common/common.hpp"
@@ -18,6 +20,42 @@ namespace
     // 会同时容下两块装甲板并靠 lock_id_ 锁住，容易锁到正在转走的那块；超过这个转速
     // 就改按转向挑迎面来的装甲板。
     constexpr double kSpinSelectSpeed = 2.0; // rad/s
+
+    // 调试用：小陀螺选板的方向核对。输出转向、各装甲板的 δ（度）、选中的 id，
+    // 以及选中装甲板与机器人中心各自到原点的距离——后者能直接判 δ 基准是否差了 π：
+    // 正对相机的装甲板一定在近侧（range < center），若 range > center 说明选中了
+    // 背面那块。
+    // 限频 0.5 s：choose_aim_point 会被飞行时间迭代调用多次，不限频会刷屏。
+    void log_spin_choice(
+        double w, const std::vector<double> &deltas, const std::vector<Eigen::Vector4d> &xyza,
+        double center_norm, int pick)
+    {
+        static auto last = std::chrono::steady_clock::now();
+        const auto now = std::chrono::steady_clock::now();
+        if (delta_time(now, last) < 0.5)
+            return;
+        last = now;
+
+        std::string joined;
+        char buf[32];
+        for (int i = 0; i < static_cast<int>(deltas.size()); i++)
+        {
+            std::snprintf(buf, sizeof(buf), i == 0 ? "%.0f" : " %.0f", deltas[i] * 57.3);
+            joined += buf;
+        }
+
+        if (pick < 0 || pick >= static_cast<int>(deltas.size()))
+        {
+            logger()->debug("[Aimer] spin w={:.2f} delta_deg=[{}] pick=none", w, joined);
+            return;
+        }
+
+        const double pick_norm = std::hypot(xyza[pick][0], xyza[pick][1]);
+        logger()->debug(
+            "[Aimer] spin w={:.2f} delta_deg=[{}] pick={} pick_delta={:.0f} "
+            "range pick={:.2f} center={:.2f}",
+            w, joined, pick, deltas[pick] * 57.3, pick_norm, center_norm);
+    }
 } // namespace
 
 Aimer::Aimer(const std::string &config_path)
@@ -239,15 +277,23 @@ AimPoint Aimer::choose_aim_point(const Target &target)
     }
 
     // 在小陀螺时，一侧的装甲板不断出现，另一侧的装甲板不断消失，显然前者被打中的概率更高
+    const double center_norm = std::hypot(ekf_x[0], ekf_x[2]);
     for (int i = 0; i < armor_num; i++)
     {
         if (std::abs(delta_angle_list[i]) > coming_angle)
             continue;
         if (ekf_x[7] > 0 && delta_angle_list[i] < leaving_angle)
+        {
+            log_spin_choice(ekf_x[7], delta_angle_list, armor_xyza_list, center_norm, i);
             return {true, armor_xyza_list[i]};
+        }
         if (ekf_x[7] < 0 && delta_angle_list[i] > -leaving_angle)
+        {
+            log_spin_choice(ekf_x[7], delta_angle_list, armor_xyza_list, center_norm, i);
             return {true, armor_xyza_list[i]};
+        }
     }
 
+    log_spin_choice(ekf_x[7], delta_angle_list, armor_xyza_list, center_norm, -1);
     return {false, armor_xyza_list[0]};
 }
