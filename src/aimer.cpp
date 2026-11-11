@@ -11,6 +11,15 @@
 #include "tools/trajectory.hpp"
 #include "tools/yaml.hpp"
 
+namespace
+{
+    // 选板用的转速门槛，与 decision_speed_（延迟补偿分档）不是同一个概念，不要合并。
+    // 2 rad/s 约对应「一个飞行时间内装甲板转过 20°」。再快时普通模式的 ±60° 视场
+    // 会同时容下两块板并靠 lock_id_ 锁住，容易锁到正在转走的那块；超过这个转速
+    // 就改按转向挑迎面板。
+    constexpr double kSpinSelectSpeed = 2.0; // rad/s
+} // namespace
+
 Aimer::Aimer(const std::string &config_path)
     : left_yaw_offset_(std::nullopt), right_yaw_offset_(std::nullopt)
 {
@@ -182,7 +191,7 @@ AimPoint Aimer::choose_aim_point(const Target &target)
     }
 
     // 不考虑小陀螺：ekf_x[7] 是角速度（rad/s），ekf_x[8] 是半径
-    if (std::abs(target.ekf_x()[7]) <= 2 && target.name != ArmorName::outpost)
+    if (std::abs(target.ekf_x()[7]) <= kSpinSelectSpeed && target.name != ArmorName::outpost)
     {
         // 选择在可射击范围内的装甲板
         std::vector<int> id_list;
