@@ -148,11 +148,13 @@ int main(int argc, char * argv[])
                 const auto & d = target->ekf().data;
                 logger()->info(
                     "[EKF] n={} nis_mean={:.2f} | r_rms yaw={:.4f} pitch={:.4f} dist={:.3f} "
-                    "angle={:.4f} | R_est yaw={:.2e} pitch={:.2e} dist={:.2e} angle={:.2e}",
+                    "angle={:.4f} | R_est yaw={:.2e} pitch={:.2e} dist={:.2e} angle={:.2e} "
+                    "| reproj err={:.3f} margin={:.2f}",
                     target->update_count(), d.at("nis_mean"), std::sqrt(d.at("r_var_yaw")),
                     std::sqrt(d.at("r_var_pitch")), std::sqrt(d.at("r_var_distance")),
                     std::sqrt(d.at("r_var_angle")), d.at("R_est_yaw"), d.at("R_est_pitch"),
-                    d.at("R_est_distance"), d.at("R_est_angle"));
+                    d.at("R_est_distance"), d.at("R_est_angle"), target->reproj_err(),
+                    target->reproj_margin());
             }
 
             std::this_thread::sleep_for(10ms);
