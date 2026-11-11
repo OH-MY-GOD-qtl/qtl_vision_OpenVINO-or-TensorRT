@@ -55,6 +55,9 @@ public:
     // 量测中断时作废连续超限证据
     void reset_nis_streak();
 
+    // 先验失准时放大协方差，让下一帧量测重新主导
+    void inflate_prior(double factor);
+
     // 调试用：最近一次重投影关联的归一化误差与决策裕度（次优/最优）
     double reproj_err() const;
     double reproj_margin() const;

@@ -12,6 +12,13 @@
 #include "tools/yaml.hpp"
 #include "tracker/reproj_match.hpp"
 
+namespace
+{
+    // 跳出拒绝自锁时对先验协方差的放大倍数：实测位置误差可达数个板宽，
+    // 增益需要从 ~0.1 提到 ~0.5 才能在状态机超时前拉回来。
+    constexpr double kReprojEscapeInflate = 10.0;
+} // namespace
+
 Tracker::Tracker(const std::string &config_path, Solver &solver)
     : solver_{solver},
       detect_count_(0),
@@ -53,6 +60,14 @@ Tracker::Tracker(const std::string &config_path, Solver &solver)
     reproj_max_error_ = yaml["reproj_max_error"] ? yaml["reproj_max_error"].as<double>() : 0.5;
     if (!(reproj_max_error_ > 0.0))
         reproj_max_error_ = 0.5;
+
+    // 连续拒绝逃逸：门只应该挡零星离群帧。实测每次拒绝都成段、长度直达 temp_lost
+    // 上限，说明连续超限时错的是先验而不是量测，必须放行并放大先验，
+    // 否则滤波器会在无修正下滑行，直到状态机超时丢目标。
+    reproj_max_reject_streak_ =
+        yaml["reproj_max_reject_streak"] ? yaml["reproj_max_reject_streak"].as<int>() : 3;
+    reproj_max_reject_streak_ = std::max(0, reproj_max_reject_streak_);
+    reproj_reject_streak_ = 0;
 
     // 从配置文件读取相机矩阵并计算图像中心坐标
     auto camera_matrix_data = yaml_read<std::vector<double>>(yaml, "camera_matrix");
@@ -308,6 +323,9 @@ void Tracker::state_machine(bool found)
 
 bool Tracker::set_target(std::vector<Armor> &armors, std::chrono::steady_clock::time_point t)
 {
+    // 新目标没有历史：连续拒绝计数从零开始
+    reproj_reject_streak_ = 0;
+
     if (armors.empty())
         return false;
 
@@ -409,14 +427,30 @@ bool Tracker::update_target(std::vector<Armor> &armors, std::chrono::steady_cloc
 
         target_.set_reproj_stats(err_norm, margin);
 
-        // 归一化重投影误差超限：本帧不喂量测。是否丢目标交给 state_machine 的帧数迟滞，
-        // 不在这里另起一条丢目标路径——那正是 NIS 收敛门失败的原因。
         if (err_norm > reproj_max_error_)
         {
+            reproj_reject_streak_++;
+
+            // 零星离群帧：丢掉。连续超限：错的是先验，放行。
+            if (reproj_reject_streak_ <= reproj_max_reject_streak_)
+            {
+                logger()->debug(
+                    "[Tracker] reproj reject id={} err={:.3f} > {:.3f} streak={}", id, err_norm,
+                    reproj_max_error_, reproj_reject_streak_);
+                continue;
+            }
+
+            // 只有逃逸的那一帧放大先验，之后靠量测自己收回来，避免 P 越滚越大
+            if (reproj_reject_streak_ == reproj_max_reject_streak_ + 1)
+                target_.inflate_prior(kReprojEscapeInflate);
+
             logger()->debug(
-                "[Tracker] reproj reject id={} err={:.3f} > {:.3f}", id, err_norm,
-                reproj_max_error_);
-            continue;
+                "[Tracker] reproj force accept id={} err={:.3f} streak={}", id, err_norm,
+                reproj_reject_streak_);
+        }
+        else
+        {
+            reproj_reject_streak_ = 0;
         }
 
         target_.update(armor, id);

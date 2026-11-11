@@ -263,6 +263,35 @@ void test_streak_reset()
     require(ekf.nis_fail_streak() == 0, "explicit reset must clear the streak");
 }
 
+// 放大先验后，同一量测应该把状态拉得更近。
+// 重投影关联靠这个性质跳出「拒绝量测 → 无修正滑行」的自锁。
+void test_inflate_covariance()
+{
+    const int n = 2;
+    Eigen::MatrixXd H = Eigen::MatrixXd::Identity(n, n);
+    Eigen::MatrixXd R = Eigen::MatrixXd::Identity(n, n);
+
+    Eigen::VectorXd x0(n);
+    x0 << 0.0, 0.0;
+    Eigen::MatrixXd P0 = Eigen::MatrixXd::Identity(n, n) * 0.01;
+
+    Eigen::VectorXd z(n);
+    z << 1.0, 1.0;
+
+    ExtendedKalmanFilter plain(x0, P0);
+    ExtendedKalmanFilter inflated(x0, P0);
+
+    inflated.inflate_covariance(10.0);
+    require((inflated.P - 10.0 * plain.P).norm() < 1e-9, "inflate must scale the covariance");
+
+    plain.update(z, H, R);
+    inflated.update(z, H, R);
+
+    require(
+        inflated.x.norm() > plain.x.norm(),
+        "inflated prior must let the measurement dominate more");
+}
+
 int main()
 {
     try
@@ -276,6 +305,7 @@ int main()
         test_fail_streak_bounded_on_consistent_filter();
         test_gate_predicate();
         test_streak_reset();
+        test_inflate_covariance();
 
         std::puts("ekf_test passed");
         return 0;

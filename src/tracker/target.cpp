@@ -322,3 +322,12 @@ void Target::set_reproj_stats(double err, double margin)
     reproj_err_ = err;
     reproj_margin_ = margin;
 }
+
+void Target::inflate_prior(double factor)
+{
+    // 只膨胀动态状态（0..7 = 位置/速度/相位/角速度）。
+    // r/l/h（8..10）是物理常数且 Q 中过程噪声为 0，放大它们会让半径重新漂移
+    // 并重新触发 diverged()，那是之前踩过的坑。
+    constexpr int kDynamicDims = 8;
+    ekf_.inflate_covariance(factor, kDynamicDims);
+}

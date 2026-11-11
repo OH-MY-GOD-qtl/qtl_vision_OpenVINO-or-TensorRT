@@ -2,6 +2,7 @@
 #define TOOLS__EXTENDED_KALMAN_FILTER_HPP
 
 #include <Eigen/Dense>
+#include <cmath>
 #include <deque>
 #include <functional>
 #include <map>
@@ -58,6 +59,19 @@ public:
     {
         nis_fail_streak_ = 0;
         data["nis_fail_streak"] = 0.0;
+    }
+
+    // 先验失准时临时放大协方差：下一帧量测的卡尔曼增益随之变大，
+    // 用来跳出「拒绝量测 → 无修正滑行 → 误差更大 → 继续拒绝」的自锁。
+    // 只放大前 count 个分量（默认全部）；用对角相似变换 P ← S P S，保持对称正定。
+    void inflate_covariance(double factor, int count = -1)
+    {
+        const int n = static_cast<int>(P.rows());
+        if (count < 0 || count > n)
+            count = n;
+        Eigen::VectorXd s = Eigen::VectorXd::Ones(n);
+        s.head(count).setConstant(std::sqrt(factor));
+        P = s.asDiagonal() * P * s.asDiagonal();
     }
 
 private:

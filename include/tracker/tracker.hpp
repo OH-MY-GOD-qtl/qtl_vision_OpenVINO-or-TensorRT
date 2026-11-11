@@ -44,6 +44,8 @@ private:
     int bad_converge_warmup_;           // 预热期（更新次数），此期间不判收敛
     int bad_converge_streak_;           // 连续超限帧数达到该值才判丢目标
     double reproj_max_error_;           // 重投影关联的归一化像素误差上限
+    int reproj_max_reject_streak_;      // 连续拒绝上限，超过则强制接受并放大先验
+    int reproj_reject_streak_;          // 当前连续拒绝帧数
     std::string state_, pre_state_;
     Target target_;
     std::chrono::steady_clock::time_point last_timestamp_;
