@@ -95,14 +95,39 @@ void test_scale_invariance()
         "normalized error must not depend on how large the quad appears");
 }
 
-// 退化四边形（边长趋近 0）不能产生有限结果，否则阈值判据会误通过
-void test_degenerate_returns_infinity()
+// 观测框退化（四角重合）时无法归一化，必须返回 infinity
+void test_degenerate_observation_returns_infinity()
 {
     const std::vector<cv::Point2f> point{
         {100.0f, 100.0f}, {100.0f, 100.0f}, {100.0f, 100.0f}, {100.0f, 100.0f}};
     require(
-        !std::isfinite(reproj::normalized_quad_distance(point, make_quad())),
-        "degenerate prediction must return infinity");
+        !std::isfinite(reproj::normalized_quad_distance(make_quad(), point)),
+        "degenerate observation must return infinity");
+}
+
+// 预测侧退化是「预测塌成一点」，不是「量测无效」：应给出有限的大误差，
+// 交给阈值判据去拒绝，而不是当无效值直接跳过
+void test_degenerate_prediction_stays_finite()
+{
+    const std::vector<cv::Point2f> point{
+        {100.0f, 100.0f}, {100.0f, 100.0f}, {100.0f, 100.0f}, {100.0f, 100.0f}};
+    const double e = reproj::normalized_quad_distance(point, make_quad());
+    require(std::isfinite(e), "degenerate prediction must stay finite");
+    require(e > 1.0, "degenerate prediction must score far above the gate");
+}
+
+// 分母取观测框边长：预测被压缩（foreshortening）时不能被放大成假警报。
+// 同一个 40x20 观测框，预测压成 40x1 时
+//   按观测边长 (40+20)/2 = 30 归一化 -> 9.5/30  ≈ 0.317
+//   若按预测边长 (40+1)/2 = 20.5 归一化 -> 9.5/20.5 ≈ 0.463
+// 后者会把边缘朝向时的正常误差推到阈值以上。
+void test_foreshortened_prediction_is_not_inflated()
+{
+    const std::vector<cv::Point2f> obs = make_quad();
+    const std::vector<cv::Point2f> pred{{0.0f, 0.0f}, {40.0f, 0.0f}, {40.0f, 1.0f}, {0.0f, 1.0f}};
+    require_near(
+        reproj::normalized_quad_distance(pred, obs), 9.5 / 30.0, 1e-6,
+        "denominator must come from the observed quad");
 }
 
 // 角点数量不是 4 时直接判无效
@@ -123,7 +148,9 @@ int main()
         test_reversed_invariance();
         test_translation_is_normalized_by_edge();
         test_scale_invariance();
-        test_degenerate_returns_infinity();
+        test_degenerate_observation_returns_infinity();
+        test_degenerate_prediction_stays_finite();
+        test_foreshortened_prediction_is_not_inflated();
         test_wrong_size_returns_infinity();
 
         std::puts("reproj_match_test passed");
