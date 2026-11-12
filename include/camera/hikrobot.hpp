@@ -18,7 +18,7 @@ public:
     // 曝光中点补偿（exposure/2）在采集线程内按帧信息自动完成，不需要配置。
     HikRobot(
         double exposure_ms, double gain, const std::string & vid_pid,
-        double timestamp_latency_ms = 0.0);
+        double timestamp_latency_ms = 0.0, bool balance_white_auto = true);
     ~HikRobot() override;
     void read(cv::Mat & img, std::chrono::steady_clock::time_point & timestamp) override;
     // 带超时的读取：timeout_ms 内无新帧返回 false（不阻塞），供主循环避免掉线时卡死
@@ -36,6 +36,9 @@ private:
     double exposure_us_;
     double gain_;
     double timestamp_latency_ms_;
+    // 连续自动白平衡会让通道差逐帧漂移，而传统检测用的是固定色差阈值，
+    // 因此开放为可配置：false = 锁定白平衡（A/B 排查闪烁用）
+    bool balance_white_auto_;
 
     std::thread daemon_thread_;
     std::atomic<bool> daemon_quit_;

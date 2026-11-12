@@ -7,50 +7,57 @@
 using namespace std::chrono_literals;
 
 HikRobot::HikRobot(
-    double exposure_ms, double gain, const std::string & vid_pid, double timestamp_latency_ms)
-: exposure_us_(exposure_ms * 1e3),
-  gain_(gain),
-  timestamp_latency_ms_(timestamp_latency_ms),
-  queue_(1),
-  daemon_quit_(false),
-  handle_(nullptr),
-  libusb_ok_(false),
-  vid_(-1),
-  pid_(-1)
+    double exposure_ms, double gain, const std::string &vid_pid, double timestamp_latency_ms,
+    bool balance_white_auto)
+    : exposure_us_(exposure_ms * 1e3),
+      gain_(gain),
+      timestamp_latency_ms_(timestamp_latency_ms),
+      balance_white_auto_(balance_white_auto),
+      queue_(1),
+      daemon_quit_(false),
+      handle_(nullptr),
+      libusb_ok_(false),
+      vid_(-1),
+      pid_(-1)
 {
     set_vid_pid(vid_pid);
     libusb_ok_ = (libusb_init(NULL) == 0);
-    if (!libusb_ok_) logger()->warn("Unable to init libusb!");
+    if (!libusb_ok_)
+        logger()->warn("Unable to init libusb!");
 
-    daemon_thread_ = std::thread{[this] {
-        logger()->info("HikRobot's daemon thread started.");
+    daemon_thread_ = std::thread{[this]
+                                 {
+                                     logger()->info("HikRobot's daemon thread started.");
 
-        capture_start();
+                                     capture_start();
 
-        while (!daemon_quit_) {
-            std::this_thread::sleep_for(100ms);
+                                     while (!daemon_quit_)
+                                     {
+                                         std::this_thread::sleep_for(100ms);
 
-            if (capturing_) continue;
+                                         if (capturing_)
+                                             continue;
 
-            capture_stop();
-            reset_usb();
-            capture_start();
-        }
+                                         capture_stop();
+                                         reset_usb();
+                                         capture_start();
+                                     }
 
-        capture_stop();
+                                     capture_stop();
 
-        logger()->info("HikRobot's daemon thread stopped.");
-    }};
+                                     logger()->info("HikRobot's daemon thread stopped.");
+                                 }};
 }
 
 HikRobot::~HikRobot()
 {
     daemon_quit_ = true;
-    if (daemon_thread_.joinable()) daemon_thread_.join();
+    if (daemon_thread_.joinable())
+        daemon_thread_.join();
     logger()->info("HikRobot destructed.");
 }
 
-void HikRobot::read(cv::Mat & img, std::chrono::steady_clock::time_point & timestamp)
+void HikRobot::read(cv::Mat &img, std::chrono::steady_clock::time_point &timestamp)
 {
     CameraData data;
     queue_.pop(data);
@@ -60,11 +67,12 @@ void HikRobot::read(cv::Mat & img, std::chrono::steady_clock::time_point & times
 }
 
 bool HikRobot::try_read(
-    cv::Mat & img, std::chrono::steady_clock::time_point & timestamp, int timeout_ms)
+    cv::Mat &img, std::chrono::steady_clock::time_point &timestamp, int timeout_ms)
 {
     CameraData data;
     // 相机掉线时守护线程会反复重连、无人 push；超时返回 false 而不是永久阻塞
-    if (!queue_.try_pop(data, timeout_ms)) return false;
+    if (!queue_.try_pop(data, timeout_ms))
+        return false;
 
     img = data.img;
     timestamp = data.timestamp;
@@ -80,29 +88,35 @@ void HikRobot::capture_start()
 
     MV_CC_DEVICE_INFO_LIST device_list;
     ret = MV_CC_EnumDevices(MV_USB_DEVICE, &device_list);
-    if (ret != MV_OK) {
+    if (ret != MV_OK)
+    {
         logger()->warn("MV_CC_EnumDevices failed: {:#x}", ret);
         return;
     }
 
-    if (device_list.nDeviceNum == 0) {
+    if (device_list.nDeviceNum == 0)
+    {
         logger()->warn("Not found camera!");
         return;
     }
 
     ret = MV_CC_CreateHandle(&handle_, device_list.pDeviceInfo[0]);
-    if (ret != MV_OK) {
+    if (ret != MV_OK)
+    {
         logger()->warn("MV_CC_CreateHandle failed: {:#x}", ret);
         return;
     }
 
     ret = MV_CC_OpenDevice(handle_);
-    if (ret != MV_OK) {
+    if (ret != MV_OK)
+    {
         logger()->warn("MV_CC_OpenDevice failed: {:#x}", ret);
         return;
     }
 
-    set_enum_value("BalanceWhiteAuto", MV_BALANCEWHITE_AUTO_CONTINUOUS);
+    set_enum_value(
+        "BalanceWhiteAuto",
+        balance_white_auto_ ? MV_BALANCEWHITE_AUTO_CONTINUOUS : MV_BALANCEWHITE_AUTO_OFF);
     set_enum_value("ExposureAuto", MV_EXPOSURE_AUTO_MODE_OFF);
     set_enum_value("GainAuto", MV_GAIN_MODE_OFF);
     set_float_value("ExposureTime", exposure_us_);
@@ -110,150 +124,164 @@ void HikRobot::capture_start()
     MV_CC_SetFrameRate(handle_, 150);
 
     ret = MV_CC_StartGrabbing(handle_);
-    if (ret != MV_OK) {
+    if (ret != MV_OK)
+    {
         logger()->warn("MV_CC_StartGrabbing failed: {:#x}", ret);
         return;
     }
 
-    capture_thread_ = std::thread{[this] {
-        logger()->info("HikRobot's capture thread started.");
+    capture_thread_ = std::thread{[this]
+                                  {
+                                      logger()->info("HikRobot's capture thread started.");
 
-        capturing_ = true;
+                                      capturing_ = true;
 
-        MV_FRAME_OUT raw;
-        MV_CC_PIXEL_CONVERT_PARAM cvt_param;
-        bool timestamp_logged = false;
+                                      MV_FRAME_OUT raw;
+                                      MV_CC_PIXEL_CONVERT_PARAM cvt_param;
+                                      bool timestamp_logged = false;
 
-        while (!capture_quit_) {
-            std::this_thread::sleep_for(1ms);
+                                      while (!capture_quit_)
+                                      {
+                                          std::this_thread::sleep_for(1ms);
 
-            unsigned int ret;
-            unsigned int nMsec = 100;
+                                          unsigned int ret;
+                                          unsigned int nMsec = 100;
 
-            ret = MV_CC_GetImageBuffer(handle_, &raw, nMsec);
-            if (ret != MV_OK) {
-                logger()->warn("MV_CC_GetImageBuffer failed: {:#x}", ret);
-                break;
-            }
+                                          ret = MV_CC_GetImageBuffer(handle_, &raw, nMsec);
+                                          if (ret != MV_OK)
+                                          {
+                                              logger()->warn("MV_CC_GetImageBuffer failed: {:#x}", ret);
+                                              break;
+                                          }
 
-            const auto & frame_info = raw.stFrameInfo;
+                                          const auto &frame_info = raw.stFrameInfo;
 
-            // 时间戳对齐：帧内容是曝光区间 [t0, t0+exposure] 的积分，姿态应取曝光中点 t0+exposure/2。
-            // MV_CC_GetImageBuffer 在整帧传输完成后才返回，晚于曝光中点 (exposure/2 + 读出 + 传输)，
-            // 所以用帧信息里的真实曝光时间回退一半，再回退配置的固定读出/传输延迟。
-            auto timestamp = std::chrono::steady_clock::now();
-            // fExposureTime 单位为 us（与 ExposureTime 特性一致）。与配置值差一个数量级以上
-            // 说明该机型没填这个字段或单位不同，退回配置值，避免补偿量被放大/缩小 1000 倍。
-            const double raw_exposure_us = static_cast<double>(frame_info.fExposureTime);
-            const bool exposure_sane = raw_exposure_us > 0.0 &&
-                                       raw_exposure_us > exposure_us_ * 0.1 &&
-                                       raw_exposure_us < exposure_us_ * 10.0;
-            const double frame_exposure_us = exposure_sane ? raw_exposure_us : exposure_us_;
-            const double compensate_ms = frame_exposure_us * 0.5e-3 + timestamp_latency_ms_;
-            timestamp -= std::chrono::microseconds(static_cast<long long>(compensate_ms * 1e3));
-            if (!timestamp_logged) {
-                timestamp_logged = true;
-                logger()->info(
-                    "[HikRobot] frame timestamp = dequeue - {:.3f} ms (frame exposure {:.1f} us, "
-                    "config {:.1f} us, latency {:.3f} ms)",
-                    compensate_ms, raw_exposure_us, exposure_us_, timestamp_latency_ms_);
-            }
+                                          // 时间戳对齐：帧内容是曝光区间 [t0, t0+exposure] 的积分，姿态应取曝光中点 t0+exposure/2。
+                                          // MV_CC_GetImageBuffer 在整帧传输完成后才返回，晚于曝光中点 (exposure/2 + 读出 + 传输)，
+                                          // 所以用帧信息里的真实曝光时间回退一半，再回退配置的固定读出/传输延迟。
+                                          auto timestamp = std::chrono::steady_clock::now();
+                                          // fExposureTime 单位为 us（与 ExposureTime 特性一致）。与配置值差一个数量级以上
+                                          // 说明该机型没填这个字段或单位不同，退回配置值，避免补偿量被放大/缩小 1000 倍。
+                                          const double raw_exposure_us = static_cast<double>(frame_info.fExposureTime);
+                                          const bool exposure_sane = raw_exposure_us > 0.0 &&
+                                                                     raw_exposure_us > exposure_us_ * 0.1 &&
+                                                                     raw_exposure_us < exposure_us_ * 10.0;
+                                          const double frame_exposure_us = exposure_sane ? raw_exposure_us : exposure_us_;
+                                          const double compensate_ms = frame_exposure_us * 0.5e-3 + timestamp_latency_ms_;
+                                          timestamp -= std::chrono::microseconds(static_cast<long long>(compensate_ms * 1e3));
+                                          if (!timestamp_logged)
+                                          {
+                                              timestamp_logged = true;
+                                              logger()->info(
+                                                  "[HikRobot] frame timestamp = dequeue - {:.3f} ms (frame exposure {:.1f} us, "
+                                                  "config {:.1f} us, latency {:.3f} ms)",
+                                                  compensate_ms, raw_exposure_us, exposure_us_, timestamp_latency_ms_);
+                                          }
 
-            cv::Mat img(
-                cv::Size(frame_info.nWidth, frame_info.nHeight), CV_8U, raw.pBufAddr);
+                                          cv::Mat img(
+                                              cv::Size(frame_info.nWidth, frame_info.nHeight), CV_8U, raw.pBufAddr);
 
-            cvt_param.nWidth = raw.stFrameInfo.nWidth;
-            cvt_param.nHeight = raw.stFrameInfo.nHeight;
+                                          cvt_param.nWidth = raw.stFrameInfo.nWidth;
+                                          cvt_param.nHeight = raw.stFrameInfo.nHeight;
 
-            cvt_param.pSrcData = raw.pBufAddr;
-            cvt_param.nSrcDataLen = raw.stFrameInfo.nFrameLen;
-            cvt_param.enSrcPixelType = raw.stFrameInfo.enPixelType;
+                                          cvt_param.pSrcData = raw.pBufAddr;
+                                          cvt_param.nSrcDataLen = raw.stFrameInfo.nFrameLen;
+                                          cvt_param.enSrcPixelType = raw.stFrameInfo.enPixelType;
 
-            cvt_param.pDstBuffer = img.data;
-            cvt_param.nDstBufferSize = img.total() * img.elemSize();
-            cvt_param.enDstPixelType = PixelType_Gvsp_BGR8_Packed;
+                                          cvt_param.pDstBuffer = img.data;
+                                          cvt_param.nDstBufferSize = img.total() * img.elemSize();
+                                          cvt_param.enDstPixelType = PixelType_Gvsp_BGR8_Packed;
 
-            // ret = MV_CC_ConvertPixelType(handle_, &cvt_param);
-            auto pixel_type = frame_info.enPixelType;
-            cv::Mat dst_image;
-            const static std::unordered_map<MvGvspPixelType, cv::ColorConversionCodes> type_map = {
-                {PixelType_Gvsp_BayerGR8, cv::COLOR_BayerGR2RGB},
-                {PixelType_Gvsp_BayerRG8, cv::COLOR_BayerRG2RGB},
-                {PixelType_Gvsp_BayerGB8, cv::COLOR_BayerGB2RGB},
-                {PixelType_Gvsp_BayerBG8, cv::COLOR_BayerBG2RGB}};
-            cv::cvtColor(img, dst_image, type_map.at(pixel_type));
-            img = dst_image;
+                                          // ret = MV_CC_ConvertPixelType(handle_, &cvt_param);
+                                          auto pixel_type = frame_info.enPixelType;
+                                          cv::Mat dst_image;
+                                          const static std::unordered_map<MvGvspPixelType, cv::ColorConversionCodes> type_map = {
+                                              {PixelType_Gvsp_BayerGR8, cv::COLOR_BayerGR2RGB},
+                                              {PixelType_Gvsp_BayerRG8, cv::COLOR_BayerRG2RGB},
+                                              {PixelType_Gvsp_BayerGB8, cv::COLOR_BayerGB2RGB},
+                                              {PixelType_Gvsp_BayerBG8, cv::COLOR_BayerBG2RGB}};
+                                          cv::cvtColor(img, dst_image, type_map.at(pixel_type));
+                                          img = dst_image;
 
-            queue_.push({img, timestamp});
+                                          queue_.push({img, timestamp});
 
-            ret = MV_CC_FreeImageBuffer(handle_, &raw);
-            if (ret != MV_OK) {
-                logger()->warn("MV_CC_FreeImageBuffer failed: {:#x}", ret);
-                break;
-            }
-        }
+                                          ret = MV_CC_FreeImageBuffer(handle_, &raw);
+                                          if (ret != MV_OK)
+                                          {
+                                              logger()->warn("MV_CC_FreeImageBuffer failed: {:#x}", ret);
+                                              break;
+                                          }
+                                      }
 
-        capturing_ = false;
-        logger()->info("HikRobot's capture thread stopped.");
-    }};
+                                      capturing_ = false;
+                                      logger()->info("HikRobot's capture thread stopped.");
+                                  }};
 }
 
 void HikRobot::capture_stop()
 {
     capture_quit_ = true;
-    if (capture_thread_.joinable()) capture_thread_.join();
+    if (capture_thread_.joinable())
+        capture_thread_.join();
 
-    if (handle_ == nullptr) return;
+    if (handle_ == nullptr)
+        return;
 
     unsigned int ret;
 
     ret = MV_CC_StopGrabbing(handle_);
-    if (ret != MV_OK) {
+    if (ret != MV_OK)
+    {
         logger()->warn("MV_CC_StopGrabbing failed: {:#x}", ret);
         return;
     }
 
     ret = MV_CC_CloseDevice(handle_);
-    if (ret != MV_OK) {
+    if (ret != MV_OK)
+    {
         logger()->warn("MV_CC_CloseDevice failed: {:#x}", ret);
         return;
     }
 
     ret = MV_CC_DestroyHandle(handle_);
-    if (ret != MV_OK) {
+    if (ret != MV_OK)
+    {
         logger()->warn("MV_CC_DestroyHandle failed: {:#x}", ret);
         return;
     }
 }
 
-void HikRobot::set_float_value(const std::string & name, double value)
+void HikRobot::set_float_value(const std::string &name, double value)
 {
     unsigned int ret;
 
     ret = MV_CC_SetFloatValue(handle_, name.c_str(), value);
 
-    if (ret != MV_OK) {
+    if (ret != MV_OK)
+    {
         logger()->warn("MV_CC_SetFloatValue(\"{}\", {}) failed: {:#x}", name, value, ret);
         return;
     }
 }
 
-void HikRobot::set_enum_value(const std::string & name, unsigned int value)
+void HikRobot::set_enum_value(const std::string &name, unsigned int value)
 {
     unsigned int ret;
 
     ret = MV_CC_SetEnumValue(handle_, name.c_str(), value);
 
-    if (ret != MV_OK) {
+    if (ret != MV_OK)
+    {
         logger()->warn("MV_CC_SetEnumValue(\"{}\", {}) failed: {:#x}", name, value, ret);
         return;
     }
 }
 
-void HikRobot::set_vid_pid(const std::string & vid_pid)
+void HikRobot::set_vid_pid(const std::string &vid_pid)
 {
     auto index = vid_pid.find(':');
-    if (index == std::string::npos) {
+    if (index == std::string::npos)
+    {
         logger()->warn("Invalid vid_pid: \"{}\"", vid_pid);
         return;
     }
@@ -261,21 +289,26 @@ void HikRobot::set_vid_pid(const std::string & vid_pid)
     auto vid_str = vid_pid.substr(0, index);
     auto pid_str = vid_pid.substr(index + 1);
 
-    try {
+    try
+    {
         vid_ = std::stoi(vid_str, 0, 16);
         pid_ = std::stoi(pid_str, 0, 16);
-    } catch (const std::exception &) {
+    }
+    catch (const std::exception &)
+    {
         logger()->warn("Invalid vid_pid: \"{}\"", vid_pid);
     }
 }
 
 void HikRobot::reset_usb() const
 {
-    if (!libusb_ok_ || vid_ == -1 || pid_ == -1) return;
+    if (!libusb_ok_ || vid_ == -1 || pid_ == -1)
+        return;
 
     // https://github.com/ralight/usb-reset/blob/master/usb-reset.c
     auto handle = libusb_open_device_with_vid_pid(NULL, vid_, pid_);
-    if (!handle) {
+    if (!handle)
+    {
         logger()->warn("Unable to open usb!");
         return;
     }

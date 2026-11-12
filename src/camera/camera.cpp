@@ -27,7 +27,12 @@ Camera::Camera(const std::string & config_path)
         // 这里只补曝光中点之后剩下的传感器读出 + USB 传输固定延迟。
         const double timestamp_latency_ms =
             yaml["hik_timestamp_latency_ms"] ? yaml["hik_timestamp_latency_ms"].as<double>() : 0.0;
-        camera_ = std::make_unique<HikRobot>(exposure_ms, gain, vid_pid, timestamp_latency_ms);
+        // 连续自动白平衡会让通道差逐帧漂移，与固定色差阈值冲突；
+        // 缺省保持原行为（CONTINUOUS），排查闪烁时设为 false 做 A/B
+        const bool balance_white_auto =
+            yaml["balance_white_auto"] ? yaml["balance_white_auto"].as<bool>() : true;
+        camera_ = std::make_unique<HikRobot>(
+            exposure_ms, gain, vid_pid, timestamp_latency_ms, balance_white_auto);
     }
 
     else if (camera_name == "usb") {
