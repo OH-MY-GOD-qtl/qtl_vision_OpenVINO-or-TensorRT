@@ -8,7 +8,9 @@
 #include <array>
 #include <atomic>
 #include <chrono>
+#include <cmath>
 #include <memory>
+#include <nlohmann/json.hpp>
 #include <opencv2/opencv.hpp>
 #include <optional>
 #include <string>
@@ -28,6 +30,7 @@
 #include "tools/img_tools.hpp"
 #include "tools/logger.hpp"
 #include "tools/math_tools.hpp"
+#include "tools/plotter.hpp"
 #include "tools/yaml.hpp"
 #include "tracker/tracker.hpp"
 
@@ -159,6 +162,7 @@ int main(int argc, char *argv[])
     const bool display = cli.has("display");
 
     Exiter exiter;
+    Plotter plotter; // UDP 127.0.0.1:9870，供 PlotJuggler 显示
 
     // ---- USB 设备和安装角从同一配置项读取，确保顺序一致 ----
     auto yaml = yaml_load(config_path);
@@ -223,6 +227,60 @@ int main(int argc, char *argv[])
         }
     };
 
+    const auto t0 = std::chrono::steady_clock::now();
+
+    // PlotJuggler：每轮主循环发一帧（相机可用性 / 海康目标 / USB 引导 / 规划解），
+    // 与其它 app 同格式（UDP 127.0.0.1:9870）。plan 为空表示本轮没有送云台的精确解。
+    auto publish_plot = [&](bool hik_ok, bool hik_active, const Decider::Guide &guide,
+                            const std::optional<Target> &target, const Plan *plan)
+    {
+        nlohmann::json data;
+        data["t"] = delta_time(std::chrono::steady_clock::now(), t0);
+        data["mode"] = static_cast<int>(gimbal.mode());
+        data["hik_ok"] = hik_ok ? 1 : 0;
+        data["hik_target"] = target.has_value() ? 1 : 0;
+        data["hik_active"] = hik_active ? 1 : 0;
+
+        // phase: 0=none 1=lock 2=coast；camera: usb0..2 -> 0..2，未锁定 -1
+        data["guide_valid"] = guide.valid ? 1 : 0;
+        data["guide_phase"] = guide.phase == Decider::GuidePhase::LOCKED   ? 1
+                              : guide.phase == Decider::GuidePhase::COAST ? 2
+                                                                          : 0;
+        int camera_index = -1;
+        if (guide.camera.size() == 4 && guide.camera.rfind("usb", 0) == 0)
+            camera_index = guide.camera[3] - '0';
+        data["guide_camera"] = camera_index;
+        data["guide_yaw"] = guide.yaw * 57.3;
+        data["guide_pitch"] = guide.pitch * 57.3;
+        data["guide_age"] = guide.age;
+
+        auto gs = gimbal.state();
+        data["gimbal_yaw"] = gs.yaw * 57.3;
+        data["gimbal_pitch"] = gs.pitch * 57.3;
+        data["bullet_speed"] = gs.bullet_speed;
+
+        if (plan)
+        {
+            data["plan_yaw"] = plan->yaw * 57.3;
+            data["plan_pitch"] = plan->pitch * 57.3;
+            data["control"] = plan->control ? 1 : 0;
+            data["fire"] = plan->fire ? 1 : 0;
+            // 必须 wrap：跨越 ±π 时不处理会出现 ±360° 跳变，调参时容易误判
+            data["diff_yaw"] = limit_rad(plan->yaw - gs.yaw) * 57.3;
+            data["diff_pitch"] = (plan->pitch - gs.pitch) * 57.3;
+        }
+
+        if (target)
+        {
+            data["distance"] = std::hypot(target->ekf_x()[0], target->ekf_x()[2]);
+            data["w"] = target->ekf_x()[7];
+            data["target_z"] = target->ekf_x()[4];
+            data["target_vz"] = target->ekf_x()[5];
+        }
+
+        plotter.plot(data);
+    };
+
     while (!exiter.exit())
     {
         auto mode = gimbal.mode();
@@ -279,6 +337,8 @@ int main(int argc, char *argv[])
                 apply_guide(guide);
             }
 
+            publish_plot(false, false, guide, std::nullopt, nullptr);
+
             if (display)
             {
                 if (show_debug_view(
@@ -295,6 +355,7 @@ int main(int argc, char *argv[])
         if (mode != GimbalMode::AUTO_AIM)
         {
             reset_and_stop();
+            publish_plot(true, false, Decider::Guide{}, std::nullopt, nullptr);
             continue;
         }
 
@@ -349,6 +410,9 @@ int main(int argc, char *argv[])
         {
             apply_guide(guide);
         }
+
+        // 只有海康精确链路在控云台时才带规划解，避免与 USB 引导数据混看清
+        publish_plot(true, hik_active, guide, target, hik_active ? &plan : nullptr);
 
         if (display)
         {
