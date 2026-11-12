@@ -39,9 +39,11 @@ Perceptron::Perceptron(
             detect_fps, detect_interval_s_, max_age_s);
 
     // USB 搜索链路只需要检测：
-    //   - 不加载独立数字分类器（编号由检测器的分类头直接给出）
+    //   - 不加载独立数字分类器（编号由 YOLOv5/YOLO11 自带的类别头给出）
     //   - 不做传统角点二次矫正（那是海康精确链路的行为）
     //   - 默认走 OpenVINO，即使海康配置 use_tensorrt=true
+    // 注意 use_classifier 只对 yolov8 生效（v8 无类别头，为 false 会直接抛异常）；
+    // 在 v5/v11 上是空操作——分类器本就由它们内部的 Detector(..., false) 关掉了
     YOLOOptions options;
     options.debug = false;
     options.use_tensorrt = use_tensorrt;

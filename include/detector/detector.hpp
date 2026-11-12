@@ -45,7 +45,9 @@ private:
     double max_rectangular_error_;
 
     bool debug_;
-    bool use_classifier_;  // 是否使用数字分类器（USB 全向路线为 false）
+    // 是否加载独立数字分类器：YOLOv5/YOLO11 自带类别头，复用本类时传 false；
+    // 传统检测链路（main / traditional_debug）传 true
+    bool use_classifier_;
     std::string save_path_;
 
     // 帧级复用缓冲：避免每帧重复分配二值图与轮廓容器

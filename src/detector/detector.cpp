@@ -97,7 +97,9 @@ std::vector<Armor> Detector::detect(const cv::Mat & bgr_img, int frame_count)
                 armor.type = get_type(armor);
                 if (!check_type(armor)) continue;
             } else {
-                // USB 全向感知路线：仅灯条几何匹配，不识别编号
+                // 不加载独立分类器：只保留灯条几何结果，编号置 not_armor。
+                // 当前 use_classifier=false 的调用方（YOLOv5/YOLO11 的内部 Detector）只复用
+                // ROI 角点矫正与 check_* 判定，不会调用 detect(img)，此分支目前不可达
                 armor.name = ArmorName::not_armor;
                 armor.type = ArmorType::small;
                 armor.confidence = 1.0;  // 无分类器，置默认值避免后续读取未初始化字段
