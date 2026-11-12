@@ -1,0 +1,43 @@
+# 本仓库代码风格（由现有代码反推并用 clang-format 实测校正）
+#
+# 注意：这不是 Google 默认风格。Google 预设是 K&R 花括号 + 2 空格缩进，
+# 而本仓库实际是 Allman 花括号 + 4 空格缩进 + 100 列。
+# 用 true Google 会重排全仓库，因此这里基于 Google 覆盖了关键项。
+#
+# 用法：
+#   格式化单文件   clang-format -i path/to/file.cpp
+#   校验单文件     clang-format --dry-run --Werror path/to/file.cpp
+#   校验全部改动   git clang-format --diff
+---
+Language: Cpp
+BasedOnStyle: Google
+
+# ---- 缩进 ----
+IndentWidth: 4
+ContinuationIndentWidth: 4
+AccessModifierOffset: -4        # public:/private: 与 class 左对齐
+NamespaceIndentation: All       # namespace 内代码缩进（Google 默认不缩进）
+
+# ---- 花括号：Allman ----
+# 函数、类、控制语句的花括号一律独占一行
+BreakBeforeBraces: Allman
+
+# ---- 列宽 ----
+ColumnLimit: 100
+
+# ---- 短语句 ----
+AllowShortFunctionsOnASingleLine: All     # float clip(...) { return ...; }
+AllowShortLambdasOnASingleLine: All
+AllowShortIfStatementsOnASingleLine: Never # if (x)\n    y;  （不写成一行）
+
+# ---- 换行 ----
+# 参数超长时换行到左括号之后，不再与左括号对齐
+AlignAfterOpenBracket: AlwaysBreak
+
+# ---- 空格 ----
+PointerAlignment: Right                  # const Armor &armor
+SpacesBeforeTrailingComments: 1          # int x; // 注释
+
+# ---- 头文件 ----
+# 仓库内存在跨分组的 include，交给人工维护
+SortIncludes: Never
