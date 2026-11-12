@@ -25,11 +25,12 @@ const std::string keys =
 
 using namespace std::chrono_literals;
 
-int main(int argc, char * argv[])
+int main(int argc, char *argv[])
 {
     cv::CommandLineParser cli(argc, argv, keys);
     auto config_path = cli.get<std::string>("@config-path");
-    if (cli.has("help") || !cli.has("@config-path")) {
+    if (cli.has("help") || !cli.has("@config-path"))
+    {
         cli.printMessage();
         return 0;
     }
@@ -55,41 +56,49 @@ int main(int argc, char * argv[])
     // 冻结入口：只为消除模式切换瞬间的双写者窗口，不改变架构（见 issue #6）
     std::mutex send_mutex;
 
-    auto plan_thread = std::thread([&]() {
-        auto t0 = std::chrono::steady_clock::now();
-        uint16_t last_bullet_count = 0;
+    auto plan_thread = std::thread(
+        [&]()
+        {
+            auto t0 = std::chrono::steady_clock::now();
+            uint16_t last_bullet_count = 0;
 
-        while (!quit) {
-            if (!target_queue.empty() && mode == GimbalMode::AUTO_AIM) {
-                auto target = target_queue.front();
-                auto gs = gimbal.state();
-                auto plan = planner.plan(target, gs.bullet_speed);
-                auto is_empty = target.has_value() ? false : true;
-
+            while (!quit)
+            {
+                if (!target_queue.empty() && mode == GimbalMode::AUTO_AIM)
                 {
-                    std::lock_guard<std::mutex> lock(send_mutex);
-                    if (mode != GimbalMode::AUTO_AIM) continue;
-                    gimbal.send(
-                        plan.control, plan.fire, plan.yaw, plan.yaw_vel, plan.yaw_acc, plan.pitch,
-                        plan.pitch_vel, plan.pitch_acc, is_empty);
-                }
+                    auto target = target_queue.front();
+                    auto gs = gimbal.state();
+                    auto plan = planner.plan(target, gs.bullet_speed);
+                    auto is_empty = target.has_value() ? false : true;
 
-                std::this_thread::sleep_for(10ms);
-            } else
-                std::this_thread::sleep_for(200ms);
-        }
-    });
+                    {
+                        std::lock_guard<std::mutex> lock(send_mutex);
+                        if (mode != GimbalMode::AUTO_AIM)
+                            continue;
+                        gimbal.send(
+                            plan.control, plan.fire, plan.yaw, plan.yaw_vel, plan.yaw_acc,
+                            plan.pitch, plan.pitch_vel, plan.pitch_acc, is_empty);
+                    }
+
+                    std::this_thread::sleep_for(10ms);
+                }
+                else
+                    std::this_thread::sleep_for(200ms);
+            }
+        });
 
     cv::Mat img;
     std::chrono::steady_clock::time_point t;
 
-    while (!exiter.exit()) {
+    while (!exiter.exit())
+    {
         {
             std::lock_guard<std::mutex> lock(send_mutex);
             mode = gimbal.mode();
         }
 
-        if (last_mode != mode) {
+        if (last_mode != mode)
+        {
             logger()->info("Switch to {}", gimbal.str(mode));
             last_mode = mode.load();
         }
@@ -100,7 +109,8 @@ int main(int argc, char * argv[])
         solver.set_R_gimbal2world(q);
 
         /// 自瞄
-        if (mode.load() == GimbalMode::AUTO_AIM) {
+        if (mode.load() == GimbalMode::AUTO_AIM)
+        {
             auto armors = yolo.detect(img);
             auto targets = tracker.track(armors, t, gimbal.state().id);
             if (!targets.empty())
@@ -109,7 +119,8 @@ int main(int argc, char * argv[])
                 target_queue.push(std::nullopt);
         }
 
-        else {
+        else
+        {
             std::lock_guard<std::mutex> lock(send_mutex);
             if (mode != GimbalMode::AUTO_AIM)
                 gimbal.send(false, false, 0, 0, 0, 0, 0, 0);
@@ -117,7 +128,8 @@ int main(int argc, char * argv[])
     }
 
     quit = true;
-    if (plan_thread.joinable()) plan_thread.join();
+    if (plan_thread.joinable())
+        plan_thread.join();
     gimbal.send(false, false, 0, 0, 0, 0, 0, 0);
 
     return 0;

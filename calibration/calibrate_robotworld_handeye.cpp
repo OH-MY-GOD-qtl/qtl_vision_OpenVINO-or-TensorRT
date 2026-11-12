@@ -1,7 +1,7 @@
 #include <fmt/core.h>
 #include <yaml-cpp/yaml.h>
 
-#include <Eigen/Dense>  // 必须在opencv2/core/eigen.hpp上面
+#include <Eigen/Dense> // 必须在opencv2/core/eigen.hpp上面
 #include <fstream>
 #include <opencv2/core/eigen.hpp>
 #include <opencv2/opencv.hpp>
@@ -15,12 +15,14 @@ const std::string keys =
     "{@config-path   | configs/calibration.yaml | yaml配置文件路径 }"
     "{@input-folder  | assets/img_with_q        | 输入文件夹路径   }";
 
-std::vector<cv::Point3f> centers_3d(const cv::Size & pattern_size, const float center_distance)
+std::vector<cv::Point3f> centers_3d(const cv::Size &pattern_size, const float center_distance)
 {
     std::vector<cv::Point3f> centers_3d;
 
-    for (int i = 0; i < pattern_size.height; i++) {
-        for (int j = 0; j < pattern_size.width; j++) {
+    for (int i = 0; i < pattern_size.height; i++)
+    {
+        for (int j = 0; j < pattern_size.width; j++)
+        {
             float x = 0;
             float y = (-j + 0.5 * pattern_size.width) * center_distance;
             float z = (-i + 0.5 * pattern_size.height) * center_distance;
@@ -31,7 +33,7 @@ std::vector<cv::Point3f> centers_3d(const cv::Size & pattern_size, const float c
     return centers_3d;
 }
 
-Eigen::Quaterniond read_q(const std::string & q_path)
+Eigen::Quaterniond read_q(const std::string &q_path)
 {
     std::ifstream q_file(q_path);
     double w, x, y, z;
@@ -40,10 +42,10 @@ Eigen::Quaterniond read_q(const std::string & q_path)
 }
 
 void yaml_load(
-    const std::string & input_folder, const std::string & config_path,
-    std::vector<double> & R_gimbal2imubody_data, std::vector<cv::Mat> & R_world2gimbal_list,
-    std::vector<cv::Mat> & t_world2gimbal_list, std::vector<cv::Mat> & rvecs,
-    std::vector<cv::Mat> & tvecs)
+    const std::string &input_folder, const std::string &config_path,
+    std::vector<double> &R_gimbal2imubody_data, std::vector<cv::Mat> &R_world2gimbal_list,
+    std::vector<cv::Mat> &t_world2gimbal_list, std::vector<cv::Mat> &rvecs,
+    std::vector<cv::Mat> &tvecs)
 {
     // 读取yaml参数
     auto yaml = yaml_load(config_path);
@@ -59,19 +61,21 @@ void yaml_load(
     cv::Matx33d camera_matrix(camera_matrix_data.data());
     cv::Mat distort_coeffs(distort_coeffs_data);
 
-    for (int i = 1; true; i++) {
+    for (int i = 1; true; i++)
+    {
         // 读取图片和对应四元数
         auto img_path = fmt::format("{}/{}.jpg", input_folder, i);
         auto q_path = fmt::format("{}/{}.txt", input_folder, i);
         auto img = cv::imread(img_path);
         Eigen::Quaterniond q = read_q(q_path);
-        if (img.empty()) break;
+        if (img.empty())
+            break;
 
         // 计算云台的欧拉角
         Eigen::Matrix3d R_imubody2imuabs = q.toRotationMatrix();
         Eigen::Matrix3d R_gimbal2world =
             R_gimbal2imubody.transpose() * R_imubody2imuabs * R_gimbal2imubody;
-        Eigen::Vector3d ypr = eulers(R_gimbal2world, 2, 1, 0) * 57.3;  // degree
+        Eigen::Vector3d ypr = eulers(R_gimbal2world, 2, 1, 0) * 57.3; // degree
 
         // 在图片上显示云台的欧拉角，用来检验R_gimbal2imubody是否正确
         auto drawing = img.clone();
@@ -82,17 +86,18 @@ void yaml_load(
         // 识别标定板
         std::vector<cv::Point2f> centers_2d;
         auto success =
-            cv::findChessboardCorners(img, pattern_size, centers_2d);  // 默认是方形网格图案
+            cv::findChessboardCorners(img, pattern_size, centers_2d); // 默认是方形网格图案
 
         // 显示识别结果
         cv::drawChessboardCorners(drawing, pattern_size, centers_2d, success);
-        cv::resize(drawing, drawing, {}, 0.5, 0.5);  // 显示时缩小图片尺寸
+        cv::resize(drawing, drawing, {}, 0.5, 0.5); // 显示时缩小图片尺寸
         cv::imshow("Press any to continue", drawing);
         cv::waitKey(0);
 
         // 输出识别结果
         fmt::print("[{}] {}\n", success ? "success" : "failure", img_path);
-        if (!success) continue;
+        if (!success)
+            continue;
 
         // 计算所需的数据
         Eigen::Matrix3d R_world2gimbal = R_gimbal2world.transpose();
@@ -114,9 +119,9 @@ void yaml_load(
 }
 
 void print_yaml(
-    const std::vector<double> & R_gimbal2imubody_data, const cv::Mat & R_camera2gimbal,
-    const cv::Mat & t_camera2gimbal, const Eigen::Vector3d & camera_ypr, double distance,
-    const Eigen::Vector3d & board_ypr)
+    const std::vector<double> &R_gimbal2imubody_data, const cv::Mat &R_camera2gimbal,
+    const cv::Mat &t_camera2gimbal, const Eigen::Vector3d &camera_ypr, double distance,
+    const Eigen::Vector3d &board_ypr)
 {
     YAML::Emitter result;
     std::vector<double> R_camera2gimbal_data(
@@ -150,11 +155,12 @@ void print_yaml(
     fmt::print("\n{}\n", result.c_str());
 }
 
-int main(int argc, char * argv[])
+int main(int argc, char *argv[])
 {
     // 读取命令行参数
     cv::CommandLineParser cli(argc, argv, keys);
-    if (cli.has("help")) {
+    if (cli.has("help"))
+    {
         cli.printMessage();
         return 0;
     }
@@ -175,8 +181,8 @@ int main(int argc, char * argv[])
     cv::calibrateRobotWorldHandEye(
         rvecs, tvecs, R_world2gimbal_list, t_world2gimbal_list, R_world2board, t_world2board,
         R_gimbal2camera, t_gimbal2camera);
-    t_gimbal2camera /= 1e3;  // mm to m
-    t_world2board /= 1e3;    // mm to m
+    t_gimbal2camera /= 1e3; // mm to m
+    t_world2board /= 1e3;   // mm to m
 
     // 计算所需的数据
     cv::Mat R_camera2gimbal, t_camera2gimbal;
@@ -191,7 +197,7 @@ int main(int argc, char * argv[])
     cv::cv2eigen(R_camera2gimbal, R_camera2gimbal_eigen);
     Eigen::Matrix3d R_gimbal2ideal{{0, -1, 0}, {0, 0, -1}, {1, 0, 0}};
     Eigen::Matrix3d R_camera2ideal = R_gimbal2ideal * R_camera2gimbal_eigen;
-    Eigen::Vector3d camera_ypr = eulers(R_camera2ideal, 1, 0, 2) * 57.3;  // degree
+    Eigen::Vector3d camera_ypr = eulers(R_camera2ideal, 1, 0, 2) * 57.3; // degree
 
     // 计算标定板到世界坐标系原点的水平距离
     auto x = t_board2world.at<double>(0);
@@ -201,7 +207,7 @@ int main(int argc, char * argv[])
     // 计算标定板同竖直摆放时的偏角
     Eigen::Matrix3d R_board2world_eigen;
     cv::cv2eigen(R_board2world, R_board2world_eigen);
-    Eigen::Vector3d board_ypr = eulers(R_board2world_eigen, 2, 1, 0) * 57.3;  // degree
+    Eigen::Vector3d board_ypr = eulers(R_board2world_eigen, 2, 1, 0) * 57.3; // degree
 
     // 输出yaml
     print_yaml(

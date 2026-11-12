@@ -8,15 +8,17 @@
 
 namespace
 {
-void require(bool condition, const std::string & message)
-{
-    if (!condition) throw std::runtime_error(message);
-}
-}  // namespace
+    void require(bool condition, const std::string &message)
+    {
+        if (!condition)
+            throw std::runtime_error(message);
+    }
+} // namespace
 
 int main()
 {
-    try {
+    try
+    {
         Eigen::VectorXd x0(4);
         x0.setZero();
         Eigen::MatrixXd P0 = Eigen::MatrixXd::Identity(4, 4);
@@ -46,7 +48,9 @@ int main()
 
         std::puts("ekf_test passed");
         return 0;
-    } catch (const std::exception & e) {
+    }
+    catch (const std::exception &e)
+    {
         std::fprintf(stderr, "ekf_test failed: %s\n", e.what());
         return 1;
     }

@@ -30,13 +30,13 @@ const std::string keys =
 OrderedQueue frame_queue;
 
 // 处理detect任务的线程函数
-void detect_frame(Frame && frame, YOLO & yolo)
+void detect_frame(Frame &&frame, YOLO &yolo)
 {
     frame.armors = yolo.detect(frame.img);
     frame_queue.enqueue(frame);
 }
 
-int main(int argc, char * argv[])
+int main(int argc, char *argv[])
 {
     Exiter exiter;
     Plotter plotter;
@@ -44,28 +44,32 @@ int main(int argc, char * argv[])
 
     cv::CommandLineParser cli(argc, argv, keys);
     auto config_path = cli.get<std::string>(0);
-    if (cli.has("help") || config_path.empty()) {
+    if (cli.has("help") || config_path.empty())
+    {
         cli.printMessage();
         return 0;
     }
 
     // 处理线程函数
-    auto process_thread = std::thread([&]() {
-        Frame process_frame;
-        while (!exiter.exit()) {
-            process_frame = frame_queue.dequeue();
-            auto img = process_frame.img;
-            auto armors = process_frame.armors;
-            auto t = process_frame.t;
+    auto process_thread = std::thread(
+        [&]()
+        {
+            Frame process_frame;
+            while (!exiter.exit())
+            {
+                process_frame = frame_queue.dequeue();
+                auto img = process_frame.img;
+                auto armors = process_frame.armors;
+                auto t = process_frame.t;
 
-            nlohmann::json data;
-            data["armor_num"] = armors.size();
+                nlohmann::json data;
+                data["armor_num"] = armors.size();
 
-            plotter.plot(data);
-            // cv::resize(img, img, {}, 0.5, 0.5);
-            // cv::imshow("reprojection", img);
-        }
-    });
+                plotter.plot(data);
+                // cv::resize(img, img, {}, 0.5, 0.5);
+                // cv::imshow("reprojection", img);
+            }
+        });
 
     Camera camera(config_path);
     int num_yolo_thread = 8;
@@ -81,7 +85,8 @@ int main(int argc, char * argv[])
 
     int frame_id = 0;
 
-    while (!exiter.exit()) {
+    while (!exiter.exit())
+    {
         camera.read(img, t);
         auto dt = delta_time(t, last_t);
         last_t = t;
@@ -95,28 +100,34 @@ int main(int argc, char * argv[])
 
         // 将处理任务提交到线程池
         std::mutex yolo_mutex;
-        thread_pool.enqueue([&, frame_id, t] {
-            YOLO * yolo = nullptr;
-            int yolo_id = -1;
-            for (int i = 0; i < num_yolo_thread; i++) {
-                if (!yolo_used[i]) {
-                    yolo_used[i] = true;
-                    yolo = &yolos[i];
-                    yolo_id = i;
-                    break;
+        thread_pool.enqueue(
+            [&, frame_id, t]
+            {
+                YOLO *yolo = nullptr;
+                int yolo_id = -1;
+                for (int i = 0; i < num_yolo_thread; i++)
+                {
+                    if (!yolo_used[i])
+                    {
+                        yolo_used[i] = true;
+                        yolo = &yolos[i];
+                        yolo_id = i;
+                        break;
+                    }
                 }
-            }
-            if (yolo) {
-                Frame frame{frame_id, img.clone(), t};
-                detect_frame(std::move(frame), *yolo);
+                if (yolo)
+                {
+                    Frame frame{frame_id, img.clone(), t};
+                    detect_frame(std::move(frame), *yolo);
 
-                yolo_used[yolo_id] = false;
-            }
-        });
+                    yolo_used[yolo_id] = false;
+                }
+            });
         plotter.plot(data);
 
         auto key = cv::waitKey(1);
-        if (key == 'q') break;
+        if (key == 'q')
+            break;
     }
 
     return 0;

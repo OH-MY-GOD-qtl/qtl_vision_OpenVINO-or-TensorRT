@@ -19,13 +19,15 @@ void set_logger()
     auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
     console_sink->set_level(spdlog::level::debug);
 
-    logger_ = std::make_shared<spdlog::logger>("", spdlog::sinks_init_list{file_sink, console_sink});
+    logger_ =
+        std::make_shared<spdlog::logger>("", spdlog::sinks_init_list{file_sink, console_sink});
     logger_->set_level(spdlog::level::debug);
     logger_->flush_on(spdlog::level::info);
 }
 
 std::shared_ptr<spdlog::logger> logger()
 {
-    if (!logger_) set_logger();
+    if (!logger_)
+        set_logger();
     return logger_;
 }

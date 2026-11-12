@@ -16,12 +16,13 @@ const std::string keys =
 
 using namespace std::chrono_literals;
 
-int main(int argc, char * argv[])
+int main(int argc, char *argv[])
 {
     cv::CommandLineParser cli(argc, argv, keys);
     auto test_fire = cli.get<bool>("f");
     auto config_path = cli.get<std::string>("@config-path");
-    if (cli.has("help") || !cli.has("@config-path")) {
+    if (cli.has("help") || !cli.has("@config-path"))
+    {
         cli.printMessage();
         return 0;
     }
@@ -40,10 +41,12 @@ int main(int argc, char * argv[])
     auto fire_stamp = std::chrono::steady_clock::now();
     auto first_fired = false;
 
-    while (!exiter.exit()) {
+    while (!exiter.exit())
+    {
         auto mode = gimbal.mode();
 
-        if (mode != last_mode) {
+        if (mode != last_mode)
+        {
             logger()->info("Gimbal mode changed: {}", gimbal.str(mode));
             last_mode = mode;
         }
@@ -56,16 +59,20 @@ int main(int argc, char * argv[])
         // 移除bullet_count相关代码
         auto fired = false; // 简单处理，因为没有bullet_count了
 
-        if (!first_fired && fired) {
+        if (!first_fired && fired)
+        {
             first_fired = true;
             logger()->info("Gimbal first fired after: {:.3f}s", delta_time(t, fire_stamp));
         }
 
-        if (fire && fire_count > 20) {
+        if (fire && fire_count > 20)
+        {
             // 0.2 s
             fire = false;
             fire_count = 0;
-        } else if (!fire && fire_count > 100) {
+        }
+        else if (!fire && fire_count > 100)
+        {
             // 1s
             fire = true;
             fire_count = 0;

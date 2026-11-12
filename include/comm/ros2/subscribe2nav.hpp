@@ -39,4 +39,4 @@ private:
     ThreadSafeQueue<sp_msgs::msg::AutoaimTargetMsg> autoaim_target_queue_;
 };
 
-#endif  // IO__SUBSCRIBE2NAV_HPP
+#endif // IO__SUBSCRIBE2NAV_HPP

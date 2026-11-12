@@ -1,7 +1,7 @@
 #ifndef TOOLS__PLOTTER_HPP
 #define TOOLS__PLOTTER_HPP
 
-#include <netinet/in.h>  // sockaddr_in
+#include <netinet/in.h> // sockaddr_in
 
 #include <mutex>
 #include <nlohmann/json.hpp>
@@ -14,7 +14,7 @@ public:
 
     ~Plotter();
 
-    void plot(const nlohmann::json & json);
+    void plot(const nlohmann::json &json);
 
 private:
     int socket_;
@@ -22,4 +22,4 @@ private:
     std::mutex mutex_;
 };
 
-#endif  // TOOLS__PLOTTER_HPP
+#endif // TOOLS__PLOTTER_HPP

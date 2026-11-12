@@ -130,92 +130,94 @@ void HikRobot::capture_start()
         return;
     }
 
-    capture_thread_ = std::thread{[this]
-                                  {
-                                      logger()->info("HikRobot's capture thread started.");
+    capture_thread_ = std::thread{
+        [this]
+        {
+            logger()->info("HikRobot's capture thread started.");
 
-                                      capturing_ = true;
+            capturing_ = true;
 
-                                      MV_FRAME_OUT raw;
-                                      MV_CC_PIXEL_CONVERT_PARAM cvt_param;
-                                      bool timestamp_logged = false;
+            MV_FRAME_OUT raw;
+            MV_CC_PIXEL_CONVERT_PARAM cvt_param;
+            bool timestamp_logged = false;
 
-                                      while (!capture_quit_)
-                                      {
-                                          std::this_thread::sleep_for(1ms);
+            while (!capture_quit_)
+            {
+                std::this_thread::sleep_for(1ms);
 
-                                          unsigned int ret;
-                                          unsigned int nMsec = 100;
+                unsigned int ret;
+                unsigned int nMsec = 100;
 
-                                          ret = MV_CC_GetImageBuffer(handle_, &raw, nMsec);
-                                          if (ret != MV_OK)
-                                          {
-                                              logger()->warn("MV_CC_GetImageBuffer failed: {:#x}", ret);
-                                              break;
-                                          }
+                ret = MV_CC_GetImageBuffer(handle_, &raw, nMsec);
+                if (ret != MV_OK)
+                {
+                    logger()->warn("MV_CC_GetImageBuffer failed: {:#x}", ret);
+                    break;
+                }
 
-                                          const auto &frame_info = raw.stFrameInfo;
+                const auto &frame_info = raw.stFrameInfo;
 
-                                          // 时间戳对齐：帧内容是曝光区间 [t0, t0+exposure] 的积分，姿态应取曝光中点 t0+exposure/2。
-                                          // MV_CC_GetImageBuffer 在整帧传输完成后才返回，晚于曝光中点 (exposure/2 + 读出 + 传输)，
-                                          // 所以用帧信息里的真实曝光时间回退一半，再回退配置的固定读出/传输延迟。
-                                          auto timestamp = std::chrono::steady_clock::now();
-                                          // fExposureTime 单位为 us（与 ExposureTime 特性一致）。与配置值差一个数量级以上
-                                          // 说明该机型没填这个字段或单位不同，退回配置值，避免补偿量被放大/缩小 1000 倍。
-                                          const double raw_exposure_us = static_cast<double>(frame_info.fExposureTime);
-                                          const bool exposure_sane = raw_exposure_us > 0.0 &&
-                                                                     raw_exposure_us > exposure_us_ * 0.1 &&
-                                                                     raw_exposure_us < exposure_us_ * 10.0;
-                                          const double frame_exposure_us = exposure_sane ? raw_exposure_us : exposure_us_;
-                                          const double compensate_ms = frame_exposure_us * 0.5e-3 + timestamp_latency_ms_;
-                                          timestamp -= std::chrono::microseconds(static_cast<long long>(compensate_ms * 1e3));
-                                          if (!timestamp_logged)
-                                          {
-                                              timestamp_logged = true;
-                                              logger()->info(
-                                                  "[HikRobot] frame timestamp = dequeue - {:.3f} ms (frame exposure {:.1f} us, "
-                                                  "config {:.1f} us, latency {:.3f} ms)",
-                                                  compensate_ms, raw_exposure_us, exposure_us_, timestamp_latency_ms_);
-                                          }
+                // 时间戳对齐：帧内容是曝光区间 [t0, t0+exposure] 的积分，姿态应取曝光中点 t0+exposure/2。
+                // MV_CC_GetImageBuffer 在整帧传输完成后才返回，晚于曝光中点 (exposure/2 + 读出 + 传输)，
+                // 所以用帧信息里的真实曝光时间回退一半，再回退配置的固定读出/传输延迟。
+                auto timestamp = std::chrono::steady_clock::now();
+                // fExposureTime 单位为 us（与 ExposureTime 特性一致）。与配置值差一个数量级以上
+                // 说明该机型没填这个字段或单位不同，退回配置值，避免补偿量被放大/缩小 1000 倍。
+                const double raw_exposure_us = static_cast<double>(frame_info.fExposureTime);
+                const bool exposure_sane = raw_exposure_us > 0.0 &&
+                                           raw_exposure_us > exposure_us_ * 0.1 &&
+                                           raw_exposure_us < exposure_us_ * 10.0;
+                const double frame_exposure_us = exposure_sane ? raw_exposure_us : exposure_us_;
+                const double compensate_ms = frame_exposure_us * 0.5e-3 + timestamp_latency_ms_;
+                timestamp -= std::chrono::microseconds(static_cast<long long>(compensate_ms * 1e3));
+                if (!timestamp_logged)
+                {
+                    timestamp_logged = true;
+                    logger()->info(
+                        "[HikRobot] frame timestamp = dequeue - {:.3f} ms (frame exposure {:.1f} "
+                        "us, "
+                        "config {:.1f} us, latency {:.3f} ms)",
+                        compensate_ms, raw_exposure_us, exposure_us_, timestamp_latency_ms_);
+                }
 
-                                          cv::Mat img(
-                                              cv::Size(frame_info.nWidth, frame_info.nHeight), CV_8U, raw.pBufAddr);
+                cv::Mat img(cv::Size(frame_info.nWidth, frame_info.nHeight), CV_8U, raw.pBufAddr);
 
-                                          cvt_param.nWidth = raw.stFrameInfo.nWidth;
-                                          cvt_param.nHeight = raw.stFrameInfo.nHeight;
+                cvt_param.nWidth = raw.stFrameInfo.nWidth;
+                cvt_param.nHeight = raw.stFrameInfo.nHeight;
 
-                                          cvt_param.pSrcData = raw.pBufAddr;
-                                          cvt_param.nSrcDataLen = raw.stFrameInfo.nFrameLen;
-                                          cvt_param.enSrcPixelType = raw.stFrameInfo.enPixelType;
+                cvt_param.pSrcData = raw.pBufAddr;
+                cvt_param.nSrcDataLen = raw.stFrameInfo.nFrameLen;
+                cvt_param.enSrcPixelType = raw.stFrameInfo.enPixelType;
 
-                                          cvt_param.pDstBuffer = img.data;
-                                          cvt_param.nDstBufferSize = img.total() * img.elemSize();
-                                          cvt_param.enDstPixelType = PixelType_Gvsp_BGR8_Packed;
+                cvt_param.pDstBuffer = img.data;
+                cvt_param.nDstBufferSize = img.total() * img.elemSize();
+                cvt_param.enDstPixelType = PixelType_Gvsp_BGR8_Packed;
 
-                                          // ret = MV_CC_ConvertPixelType(handle_, &cvt_param);
-                                          auto pixel_type = frame_info.enPixelType;
-                                          cv::Mat dst_image;
-                                          const static std::unordered_map<MvGvspPixelType, cv::ColorConversionCodes> type_map = {
-                                              {PixelType_Gvsp_BayerGR8, cv::COLOR_BayerGR2RGB},
-                                              {PixelType_Gvsp_BayerRG8, cv::COLOR_BayerRG2RGB},
-                                              {PixelType_Gvsp_BayerGB8, cv::COLOR_BayerGB2RGB},
-                                              {PixelType_Gvsp_BayerBG8, cv::COLOR_BayerBG2RGB}};
-                                          cv::cvtColor(img, dst_image, type_map.at(pixel_type));
-                                          img = dst_image;
+                // ret = MV_CC_ConvertPixelType(handle_, &cvt_param);
+                auto pixel_type = frame_info.enPixelType;
+                cv::Mat dst_image;
+                const static std::unordered_map<MvGvspPixelType, cv::ColorConversionCodes>
+                    type_map = {
+                        {PixelType_Gvsp_BayerGR8, cv::COLOR_BayerGR2RGB},
+                        {PixelType_Gvsp_BayerRG8, cv::COLOR_BayerRG2RGB},
+                        {PixelType_Gvsp_BayerGB8, cv::COLOR_BayerGB2RGB},
+                        {PixelType_Gvsp_BayerBG8, cv::COLOR_BayerBG2RGB}};
+                cv::cvtColor(img, dst_image, type_map.at(pixel_type));
+                img = dst_image;
 
-                                          queue_.push({img, timestamp});
+                queue_.push({img, timestamp});
 
-                                          ret = MV_CC_FreeImageBuffer(handle_, &raw);
-                                          if (ret != MV_OK)
-                                          {
-                                              logger()->warn("MV_CC_FreeImageBuffer failed: {:#x}", ret);
-                                              break;
-                                          }
-                                      }
+                ret = MV_CC_FreeImageBuffer(handle_, &raw);
+                if (ret != MV_OK)
+                {
+                    logger()->warn("MV_CC_FreeImageBuffer failed: {:#x}", ret);
+                    break;
+                }
+            }
 
-                                      capturing_ = false;
-                                      logger()->info("HikRobot's capture thread stopped.");
-                                  }};
+            capturing_ = false;
+            logger()->info("HikRobot's capture thread stopped.");
+        }};
 }
 
 void HikRobot::capture_stop()

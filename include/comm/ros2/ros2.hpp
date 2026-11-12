@@ -11,7 +11,7 @@ public:
 
     ~ROS2();
 
-    void publish(const Eigen::Vector4d & target_pos);
+    void publish(const Eigen::Vector4d &target_pos);
 
     std::vector<int8_t> subscribe_enemy_status();
 
@@ -19,7 +19,7 @@ public:
 
     template <typename T>
     std::shared_ptr<rclcpp::Publisher<T>> create_publisher(
-        const std::string & node_name, const std::string & topic_name, size_t queue_size)
+        const std::string &node_name, const std::string &topic_name, size_t queue_size)
     {
         auto node = std::make_shared<rclcpp::Node>(node_name);
 

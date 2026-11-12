@@ -11,9 +11,9 @@
 class VideoCamera : public CameraBase
 {
 public:
-    explicit VideoCamera(const std::string & config_path);
+    explicit VideoCamera(const std::string &config_path);
 
-    void read(cv::Mat & img, std::chrono::steady_clock::time_point & timestamp) override;
+    void read(cv::Mat &img, std::chrono::steady_clock::time_point &timestamp) override;
 
 private:
     cv::VideoCapture cap_;

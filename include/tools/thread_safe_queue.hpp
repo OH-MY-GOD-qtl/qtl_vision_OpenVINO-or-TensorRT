@@ -13,18 +13,22 @@ class ThreadSafeQueue
 public:
     ThreadSafeQueue(
         size_t max_size, std::function<void(void)> full_handler = [] {})
-    : max_size_(max_size), full_handler_(full_handler)
+        : max_size_(max_size), full_handler_(full_handler)
     {
     }
 
-    void push(const T & value)
+    void push(const T &value)
     {
         std::unique_lock<std::mutex> lock(mutex_);
 
-        if (queue_.size() >= max_size_) {
-            if (PopWhenFull) {
+        if (queue_.size() >= max_size_)
+        {
+            if (PopWhenFull)
+            {
                 queue_.pop();
-            } else {
+            }
+            else
+            {
                 full_handler_();
                 return;
             }
@@ -34,13 +38,14 @@ public:
         not_empty_condition_.notify_all();
     }
 
-    void pop(T & value)
+    void pop(T &value)
     {
         std::unique_lock<std::mutex> lock(mutex_);
 
         not_empty_condition_.wait(lock, [this] { return !queue_.empty(); });
 
-        if (queue_.empty()) {
+        if (queue_.empty())
+        {
             std::cerr << "Error: Attempt to pop from an empty queue." << std::endl;
             return;
         }
@@ -60,13 +65,15 @@ public:
         return std::move(value);
     }
 
-    bool try_pop(T & value, int timeout_ms)
+    bool try_pop(T &value, int timeout_ms)
     {
         std::unique_lock<std::mutex> lock(mutex_);
 
         if (not_empty_condition_.wait_for(
-                lock, std::chrono::milliseconds(timeout_ms), [this] { return !queue_.empty(); })) {
-            if (!queue_.empty()) {
+                lock, std::chrono::milliseconds(timeout_ms), [this] { return !queue_.empty(); }))
+        {
+            if (!queue_.empty())
+            {
                 value = queue_.front();
                 queue_.pop();
                 return true;
@@ -83,11 +90,12 @@ public:
         return queue_.front();
     }
 
-    void back(T & value)
+    void back(T &value)
     {
         std::unique_lock<std::mutex> lock(mutex_);
 
-        if (queue_.empty()) {
+        if (queue_.empty())
+        {
             std::cerr << "Error: Attempt to access the back of an empty queue." << std::endl;
             return;
         }
@@ -104,10 +112,11 @@ public:
     void clear()
     {
         std::unique_lock<std::mutex> lock(mutex_);
-        while (!queue_.empty()) {
+        while (!queue_.empty())
+        {
             queue_.pop();
         }
-        not_empty_condition_.notify_all();  // 如果其他线程正在等待队列不为空，这样可以唤醒它们
+        not_empty_condition_.notify_all(); // 如果其他线程正在等待队列不为空，这样可以唤醒它们
     }
 
 private:
@@ -118,4 +127,4 @@ private:
     std::function<void(void)> full_handler_;
 };
 
-#endif  // TOOLS__THREAD_SAFE_QUEUE_HPP
+#endif // TOOLS__THREAD_SAFE_QUEUE_HPP

@@ -12,14 +12,14 @@
 #include "tools/logger.hpp"
 #include "tracker/tracker.hpp"
 
-int main(int argc, char ** argv)
+int main(int argc, char **argv)
 {
     // 配置文件路径：命令行参数或默认 configs/standard1.yaml
     std::string config_path = (argc > 1) ? argv[1] : "configs/standard1.yaml";
 
     Camera camera(config_path);
     Gimbal gimbal(config_path);
-    Detector detector(config_path, true);  // 传统检测器 + 调试窗口
+    Detector detector(config_path, true); // 传统检测器 + 调试窗口
     Solver solver(config_path);
     Tracker tracker(config_path, solver);
     Aimer aimer(config_path);
@@ -28,20 +28,23 @@ int main(int argc, char ** argv)
     logger()->info("[Main] qtl_vision 启动，配置文件: {}", config_path);
 
     cv::Mat img;
-    while (true) {
+    while (true)
+    {
         std::chrono::steady_clock::time_point t;
         camera.read(img, t);
-        if (img.empty()) continue;
+        if (img.empty())
+            continue;
 
         auto gs = gimbal.state();
         auto mode = gimbal.mode();
 
-        if (mode == GimbalMode::AUTO_AIM) {
+        if (mode == GimbalMode::AUTO_AIM)
+        {
             // 识别流水线：检测 → 位姿解算 → 跟踪 → 瞄准 → 开火判定
             solver.set_R_gimbal2world(gimbal.q(t));
 
             auto armors = detector.detect(img);
-            for (auto & armor : armors) solver.solve(armor);
+            for (auto &armor : armors) solver.solve(armor);
 
             auto targets = tracker.track(armors, t, gs.id);
             auto command = aimer.aim(targets, t, gs.bullet_speed, true);
@@ -57,11 +60,14 @@ int main(int argc, char ** argv)
 
             gimbal.send(
                 command.control, fire, command.yaw, 0, 0, command.pitch, 0, 0, targets.empty());
-        } else {
+        }
+        else
+        {
             gimbal.send(false, false, 0, 0, 0, 0, 0, 0, true);
         }
 
-        if (cv::waitKey(1) == 'q') break;
+        if (cv::waitKey(1) == 'q')
+            break;
     }
 
     gimbal.send(false, false, 0, 0, 0, 0, 0, 0, true);

@@ -17,11 +17,12 @@ const std::string keys =
     "{@end-index     | 0                      | 视频结束帧下标    }"
     "{tradition t    |  false                 | 是否使用传统方法识别}";
 
-int main(int argc, char * argv[])
+int main(int argc, char *argv[])
 {
     // 读取命令行参数
     cv::CommandLineParser cli(argc, argv, keys);
-    if (cli.has("help")) {
+    if (cli.has("help"))
+    {
         cli.printMessage();
         return 0;
     }
@@ -41,13 +42,16 @@ int main(int argc, char * argv[])
 
     video.set(cv::CAP_PROP_POS_FRAMES, start_index);
 
-    for (int frame_count = start_index; !exiter.exit(); frame_count++) {
-        if (end_index > 0 && frame_count > end_index) break;
+    for (int frame_count = start_index; !exiter.exit(); frame_count++)
+    {
+        if (end_index > 0 && frame_count > end_index)
+            break;
 
         cv::Mat img;
         std::vector<Armor> armors;
         video.read(img);
-        if (img.empty()) break;
+        if (img.empty())
+            break;
         // cv::GaussianBlur(img, img, cv::Size(5, 5), 0, 0, cv::BORDER_DEFAULT);
 
         if (use_tradition)
@@ -62,8 +66,10 @@ int main(int argc, char * argv[])
             cv::Scalar(0, 255, 0), 2);
 
         // 显示检测结果
-        for (const auto & armor : armors) {
-            for (int i = 0; i < 4; i++) {
+        for (const auto &armor : armors)
+        {
+            for (int i = 0; i < 4; i++)
+            {
                 cv::line(img, armor.points[i], armor.points[(i + 1) % 4], cv::Scalar(0, 0, 255), 2);
             }
         }
@@ -71,7 +77,8 @@ int main(int argc, char * argv[])
         // 显示图像
         cv::imshow("Detection", img);
 
-        if (!armors.empty()) {
+        if (!armors.empty())
+        {
             nlohmann::json data;
             auto armor = armors.front();
 
@@ -87,7 +94,8 @@ int main(int argc, char * argv[])
         }
 
         auto key = cv::waitKey(33);
-        if (key == 'q') break;
+        if (key == 'q')
+            break;
     }
 
     return 0;

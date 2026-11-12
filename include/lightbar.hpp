@@ -17,14 +17,14 @@ struct Lightbar
     double angle, angle_error, length, width, ratio;
     cv::RotatedRect rotated_rect;
 
-    Lightbar(const cv::RotatedRect & rotated_rect, std::size_t id);
+    Lightbar(const cv::RotatedRect &rotated_rect, std::size_t id);
     Lightbar() {};
 };
 
 // 灯条几何筛选参数（来自 yaml：max_angle_error / min,max_lightbar_ratio / min_lightbar_length）
 struct LightbarParams
 {
-    double max_angle_error = 45 / 57.3;  // rad
+    double max_angle_error = 45 / 57.3; // rad
     double min_lightbar_ratio = 1.5;
     double max_lightbar_ratio = 20;
     double min_lightbar_length = 8;
@@ -32,16 +32,16 @@ struct LightbarParams
 
 // 从轮廓中提取灯条：最小外接矩形拟合 → 几何筛选 → 颜色判定
 std::vector<Lightbar> extract_lightbars(
-    const cv::Mat & bgr_img, const std::vector<std::vector<cv::Point>> & contours,
-    const LightbarParams & params);
+    const cv::Mat &bgr_img, const std::vector<std::vector<cv::Point>> &contours,
+    const LightbarParams &params);
 
 // 灯条几何筛选：角度误差、长宽比、最小长度
-bool check_lightbar_geometry(const Lightbar & lightbar, const LightbarParams & params);
+bool check_lightbar_geometry(const Lightbar &lightbar, const LightbarParams &params);
 
 // 按轮廓像素的红蓝分量和判定灯条颜色
-Color get_lightbar_color(const cv::Mat & bgr_img, const std::vector<cv::Point> & contour);
+Color get_lightbar_color(const cv::Mat &bgr_img, const std::vector<cv::Point> &contour);
 
 // 利用 PCA 回归灯条角点，参考自 https://github.com/CSU-FYT-Vision/FYT2024_vision
-void correct_lightbar_points(Lightbar & lightbar, const cv::Mat & gray_img);
+void correct_lightbar_points(Lightbar &lightbar, const cv::Mat &gray_img);
 
-#endif  // LIGHTBAR__LIGHTBAR_HPP
+#endif // LIGHTBAR__LIGHTBAR_HPP

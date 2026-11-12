@@ -3,9 +3,9 @@
 #include <numeric>
 
 ExtendedKalmanFilter::ExtendedKalmanFilter(
-    const Eigen::VectorXd & x0, const Eigen::MatrixXd & P0,
+    const Eigen::VectorXd &x0, const Eigen::MatrixXd &P0,
     std::function<Eigen::VectorXd(const Eigen::VectorXd &, const Eigen::VectorXd &)> x_add)
-: x(x0), P(P0), I(Eigen::MatrixXd::Identity(x0.rows(), x0.rows())), x_add(x_add)
+    : x(x0), P(P0), I(Eigen::MatrixXd::Identity(x0.rows(), x0.rows())), x_add(x_add)
 {
     data["residual_yaw"] = 0.0;
     data["residual_pitch"] = 0.0;
@@ -19,13 +19,13 @@ ExtendedKalmanFilter::ExtendedKalmanFilter(
 }
 
 Eigen::VectorXd ExtendedKalmanFilter::predict(
-    const Eigen::Ref<const Eigen::MatrixXd> & F, const Eigen::Ref<const Eigen::MatrixXd> & Q)
+    const Eigen::Ref<const Eigen::MatrixXd> &F, const Eigen::Ref<const Eigen::MatrixXd> &Q)
 {
-    return predict(F, Q, [&](const Eigen::VectorXd & x) { return F * x; });
+    return predict(F, Q, [&](const Eigen::VectorXd &x) { return F * x; });
 }
 
 Eigen::VectorXd ExtendedKalmanFilter::predict(
-    const Eigen::Ref<const Eigen::MatrixXd> & F, const Eigen::Ref<const Eigen::MatrixXd> & Q,
+    const Eigen::Ref<const Eigen::MatrixXd> &F, const Eigen::Ref<const Eigen::MatrixXd> &Q,
     std::function<Eigen::VectorXd(const Eigen::VectorXd &)> f)
 {
     P = F * P * F.transpose() + Q;
@@ -34,16 +34,16 @@ Eigen::VectorXd ExtendedKalmanFilter::predict(
 }
 
 Eigen::VectorXd ExtendedKalmanFilter::update(
-    const Eigen::Ref<const Eigen::VectorXd> & z, const Eigen::Ref<const Eigen::MatrixXd> & H,
-    const Eigen::Ref<const Eigen::MatrixXd> & R,
+    const Eigen::Ref<const Eigen::VectorXd> &z, const Eigen::Ref<const Eigen::MatrixXd> &H,
+    const Eigen::Ref<const Eigen::MatrixXd> &R,
     std::function<Eigen::VectorXd(const Eigen::VectorXd &, const Eigen::VectorXd &)> z_subtract)
 {
-    return update(z, H, R, [&](const Eigen::VectorXd & x) { return H * x; }, z_subtract);
+    return update(z, H, R, [&](const Eigen::VectorXd &x) { return H * x; }, z_subtract);
 }
 
 Eigen::VectorXd ExtendedKalmanFilter::update(
-    const Eigen::Ref<const Eigen::VectorXd> & z, const Eigen::Ref<const Eigen::MatrixXd> & H,
-    const Eigen::Ref<const Eigen::MatrixXd> & R,
+    const Eigen::Ref<const Eigen::VectorXd> &z, const Eigen::Ref<const Eigen::MatrixXd> &H,
+    const Eigen::Ref<const Eigen::MatrixXd> &R,
     std::function<Eigen::VectorXd(const Eigen::VectorXd &)> h,
     std::function<Eigen::VectorXd(const Eigen::VectorXd &, const Eigen::VectorXd &)> z_subtract)
 {
@@ -67,14 +67,17 @@ Eigen::VectorXd ExtendedKalmanFilter::update(
     constexpr double nis_threshold = 9.488;
     constexpr double nees_threshold = 9.488;
 
-    if (nis > nis_threshold) nis_count_++, data["nis_fail"] = 1;
-    if (nees > nees_threshold) nees_count_++, data["nees_fail"] = 1;
+    if (nis > nis_threshold)
+        nis_count_++, data["nis_fail"] = 1;
+    if (nees > nees_threshold)
+        nees_count_++, data["nees_fail"] = 1;
     total_count_++;
     last_nis = nis;
 
     recent_nis_failures.push_back(nis > nis_threshold ? 1 : 0);
 
-    if (recent_nis_failures.size() > window_size) {
+    if (recent_nis_failures.size() > window_size)
+    {
         recent_nis_failures.pop_front();
     }
 

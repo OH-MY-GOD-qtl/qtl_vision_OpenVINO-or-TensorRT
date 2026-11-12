@@ -27,11 +27,12 @@ const std::string keys =
     "{help h usage ? |      | 输出命令行参数说明}"
     "{@config-path   | configs/standard3.yaml | 位置参数，yaml配置文件路径 }";
 
-int main(int argc, char * argv[])
+int main(int argc, char *argv[])
 {
     cv::CommandLineParser cli(argc, argv, keys);
     auto config_path = cli.get<std::string>(0);
-    if (cli.has("help") || config_path.empty()) {
+    if (cli.has("help") || config_path.empty())
+    {
         cli.printMessage();
         return 0;
     }
@@ -52,7 +53,8 @@ int main(int argc, char * argv[])
     // 血量灯条：检测 + 同面装甲板尺度换算 + 三档迟滞；功能关闭时不创建上报器
     BloodBarPipeline hp_pipeline(config_path);
     std::unique_ptr<HpReporter> hp_reporter;
-    if (hp_pipeline.enabled()) hp_reporter = make_hp_reporter(config_path);
+    if (hp_pipeline.enabled())
+        hp_reporter = make_hp_reporter(config_path);
 
     cv::Mat img;
     Eigen::Quaterniond q;
@@ -61,12 +63,14 @@ int main(int argc, char * argv[])
     auto mode = Mode::idle;
     auto last_mode = Mode::idle;
 
-    while (!exiter.exit()) {
+    while (!exiter.exit())
+    {
         camera.read(img, t);
         q = cboard.imu_at(t - 1ms);
         mode = cboard.mode;
 
-        if (last_mode != mode) {
+        if (last_mode != mode)
+        {
             logger()->info("Switch to {}", MODES[mode]);
             last_mode = mode;
         }
@@ -80,7 +84,8 @@ int main(int argc, char * argv[])
         auto armors = detector.detect(img);
 
         // 血量识别：与当前帧装甲板配对；检不到即上报 unknown（3）
-        if (hp_pipeline.enabled()) {
+        if (hp_pipeline.enabled())
+        {
             const auto hp = hp_pipeline.update(img, armors);
             if (hp_reporter)
                 hp_reporter->report({static_cast<int>(hp.level), hp.percent, hp.valid});

@@ -8,19 +8,21 @@
 #include "camera/video_camera.hpp"
 #include "tools/yaml.hpp"
 
-Camera::Camera(const std::string & config_path)
+Camera::Camera(const std::string &config_path)
 {
     auto yaml = yaml_load(config_path);
     auto camera_name = yaml_read<std::string>(yaml, "camera_name");
     auto exposure_ms = yaml_read<double>(yaml, "exposure_ms");
 
-    if (camera_name == "mindvision") {
+    if (camera_name == "mindvision")
+    {
         auto gamma = yaml_read<double>(yaml, "gamma");
         auto vid_pid = yaml_read<std::string>(yaml, "vid_pid");
         camera_ = std::make_unique<MindVision>(exposure_ms, gamma, vid_pid);
     }
 
-    else if (camera_name == "hikrobot") {
+    else if (camera_name == "hikrobot")
+    {
         auto gain = yaml_read<double>(yaml, "gain");
         auto vid_pid = yaml_read<std::string>(yaml, "vid_pid");
         // exposure/2 的曝光中点补偿由 HikRobot 内部按帧信息自动完成；
@@ -35,27 +37,30 @@ Camera::Camera(const std::string & config_path)
             exposure_ms, gain, vid_pid, timestamp_latency_ms, balance_white_auto);
     }
 
-    else if (camera_name == "usb") {
+    else if (camera_name == "usb")
+    {
         auto usb_device = yaml["usb_device"] ? yaml["usb_device"].as<std::string>() : "video0";
         camera_ = std::make_unique<USBCamera>(usb_device, config_path);
     }
 
-    else if (camera_name == "video") {
+    else if (camera_name == "video")
+    {
         camera_ = std::make_unique<VideoCamera>(config_path);
     }
 
-    else {
+    else
+    {
         throw std::runtime_error("Unknow camera_name: " + camera_name + "!");
     }
 }
 
-void Camera::read(cv::Mat & img, std::chrono::steady_clock::time_point & timestamp)
+void Camera::read(cv::Mat &img, std::chrono::steady_clock::time_point &timestamp)
 {
     camera_->read(img, timestamp);
 }
 
 bool Camera::try_read(
-    cv::Mat & img, std::chrono::steady_clock::time_point & timestamp, int timeout_ms)
+    cv::Mat &img, std::chrono::steady_clock::time_point &timestamp, int timeout_ms)
 {
     return camera_->try_read(img, timestamp, timeout_ms);
 }

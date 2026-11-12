@@ -3,9 +3,9 @@
 #include "image.hpp"
 #include "tools/logger.hpp"
 
-Buff_Detector::Buff_Detector(const std::string & config) : status_(LOSE), lose_(0), MODE_(config) {}
+Buff_Detector::Buff_Detector(const std::string &config) : status_(LOSE), lose_(0), MODE_(config) {}
 
-void Buff_Detector::handle_img(const cv::Mat & bgr_img, cv::Mat & dilated_img)
+void Buff_Detector::handle_img(const cv::Mat &bgr_img, cv::Mat &dilated_img)
 {
     // 灰度 + 二值化(阈值100) + 5x5 矩形核膨胀（预处理算法见 image 模块，缓冲帧间复用）
     to_gray(bgr_img, gray_);
@@ -13,11 +13,12 @@ void Buff_Detector::handle_img(const cv::Mat & bgr_img, cv::Mat & dilated_img)
     dilate_binary(binary_, cv::Size(5, 5), dilated_img);
 }
 
-cv::Point2f Buff_Detector::get_r_center(std::vector<FanBlade> & fanblades, cv::Mat & bgr_img)
+cv::Point2f Buff_Detector::get_r_center(std::vector<FanBlade> &fanblades, cv::Mat &bgr_img)
 {
     /// error
 
-    if (fanblades.empty()) {
+    if (fanblades.empty())
+    {
         logger()->debug("[Buff_Detector] 无法计算r_center!");
         return {0, 0};
     }
@@ -25,10 +26,11 @@ cv::Point2f Buff_Detector::get_r_center(std::vector<FanBlade> & fanblades, cv::M
     /// 算出大概位置
 
     cv::Point2f r_center_t = {0, 0};
-    for (auto & fanblade : fanblades) {
-        auto point5 = fanblade.points[4];  // point5是扇叶的中心
+    for (auto &fanblade : fanblades)
+    {
+        auto point5 = fanblade.points[4]; // point5是扇叶的中心
         auto point6 = fanblade.points[5];
-        r_center_t += (point6 - point5) * 1.4 + point5;  // TODO
+        r_center_t += (point6 - point5) * 1.4 + point5; // TODO
         // r_center_t += 4.7 * point - (4.7 - 1) * fanblade.center;
     }
     r_center_t /= float(fanblades.size());
@@ -38,10 +40,10 @@ cv::Point2f Buff_Detector::get_r_center(std::vector<FanBlade> & fanblades, cv::M
     cv::Mat dilated_img;
     handle_img(bgr_img, dilated_img);
     double radius = cv::norm(fanblades[0].points[2] - fanblades[0].center) * 0.8;
-    cv::Mat mask = cv::Mat::zeros(dilated_img.size(), CV_8U);  // mask
+    cv::Mat mask = cv::Mat::zeros(dilated_img.size(), CV_8U); // mask
     circle(mask, r_center_t, radius, cv::Scalar(255), -1);
-    bitwise_and(dilated_img, mask, dilated_img);        // 将遮罩应用于二值化图像
-    draw_point(bgr_img, r_center_t, {255, 255, 0}, 5);  // 调试用
+    bitwise_and(dilated_img, mask, dilated_img);       // 将遮罩应用于二值化图像
+    draw_point(bgr_img, r_center_t, {255, 255, 0}, 5); // 调试用
     // cv::imshow("Dilated Image", dilated_img);                // 调试用
 
     /// 获取轮廓点,矩阵框筛选  TODO
@@ -49,15 +51,17 @@ cv::Point2f Buff_Detector::get_r_center(std::vector<FanBlade> & fanblades, cv::M
     std::vector<std::vector<cv::Point>> contours;
     auto r_center = r_center_t;
     cv::findContours(
-        dilated_img, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE);  // external找外部区域
+        dilated_img, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE); // external找外部区域
     double ratio_1 = INF;
-    for (auto & it : contours) {
+    for (auto &it : contours)
+    {
         auto rotated_rect = cv::minAreaRect(it);
         double ratio = rotated_rect.size.height > rotated_rect.size.width
                            ? rotated_rect.size.height / rotated_rect.size.width
                            : rotated_rect.size.width / rotated_rect.size.height;
         ratio += cv::norm(rotated_rect.center - r_center_t) / (radius / 3);
-        if (ratio < ratio_1) {
+        if (ratio < ratio_1)
+        {
             ratio_1 = ratio;
             r_center = rotated_rect.center;
         }
@@ -68,7 +72,8 @@ cv::Point2f Buff_Detector::get_r_center(std::vector<FanBlade> & fanblades, cv::M
 void Buff_Detector::handle_lose()
 {
     lose_++;
-    if (lose_ >= LOSE_MAX) {
+    if (lose_ >= LOSE_MAX)
+    {
         status_ = LOSE;
         last_powerrune_ = std::nullopt;
         return;
@@ -76,7 +81,7 @@ void Buff_Detector::handle_lose()
     status_ = TEM_LOSE;
 }
 
-std::optional<PowerRune> Buff_Detector::detect_24(cv::Mat & bgr_img)
+std::optional<PowerRune> Buff_Detector::detect_24(cv::Mat &bgr_img)
 {
     /// onnx 模型检测
 
@@ -84,7 +89,8 @@ std::optional<PowerRune> Buff_Detector::detect_24(cv::Mat & bgr_img)
 
     /// 处理未获得的情况
 
-    if (results.empty()) {
+    if (results.empty())
+    {
         handle_lose();
         return std::nullopt;
     }
@@ -92,7 +98,7 @@ std::optional<PowerRune> Buff_Detector::detect_24(cv::Mat & bgr_img)
     /// results转扇叶FanBlade
 
     std::vector<FanBlade> fanblades;
-    for (auto & result : results)
+    for (auto &result : results)
         fanblades.emplace_back(FanBlade(result.kpt, result.kpt[4], _light));
 
     /// 生成PowerRune
@@ -100,7 +106,8 @@ std::optional<PowerRune> Buff_Detector::detect_24(cv::Mat & bgr_img)
     PowerRune powerrune(fanblades, r_center, last_powerrune_);
 
     /// handle error
-    if (powerrune.is_unsolve()) {
+    if (powerrune.is_unsolve())
+    {
         handle_lose();
         return std::nullopt;
     }
@@ -113,7 +120,7 @@ std::optional<PowerRune> Buff_Detector::detect_24(cv::Mat & bgr_img)
     return P;
 }
 
-std::optional<PowerRune> Buff_Detector::detect(cv::Mat & bgr_img)
+std::optional<PowerRune> Buff_Detector::detect(cv::Mat &bgr_img)
 {
     /// onnx 模型检测
 
@@ -121,7 +128,8 @@ std::optional<PowerRune> Buff_Detector::detect(cv::Mat & bgr_img)
 
     /// 处理未获得的情况
 
-    if (results.empty()) {
+    if (results.empty())
+    {
         handle_lose();
         return std::nullopt;
     }
@@ -137,7 +145,8 @@ std::optional<PowerRune> Buff_Detector::detect(cv::Mat & bgr_img)
     PowerRune powerrune(fanblades, r_center, last_powerrune_);
 
     /// handle error
-    if (powerrune.is_unsolve()) {
+    if (powerrune.is_unsolve())
+    {
         handle_lose();
         return std::nullopt;
     }
@@ -150,7 +159,7 @@ std::optional<PowerRune> Buff_Detector::detect(cv::Mat & bgr_img)
     return P;
 }
 
-std::optional<PowerRune> Buff_Detector::detect_debug(cv::Mat & bgr_img, cv::Point2f v)
+std::optional<PowerRune> Buff_Detector::detect_debug(cv::Mat &bgr_img, cv::Point2f v)
 {
     /// onnx 模型检测
 
@@ -158,24 +167,28 @@ std::optional<PowerRune> Buff_Detector::detect_debug(cv::Mat & bgr_img, cv::Poin
 
     /// 处理未获得的情况
 
-    if (results.empty()) return std::nullopt;
+    if (results.empty())
+        return std::nullopt;
 
     /// results转扇叶FanBlade
 
     std::vector<FanBlade> fanblades_t;
-    for (auto & result : results)
+    for (auto &result : results)
         fanblades_t.emplace_back(FanBlade(result.kpt, result.kpt[4], _light));
 
     /// 计算r_center,筛选fanblade
     auto r_center = get_r_center(fanblades_t, bgr_img);
     std::vector<FanBlade> fanblades;
-    for (auto & fanblade : fanblades_t) {
-        if (cv::norm((fanblade.center - r_center) - v) < 10 || results.size() == 1) {
+    for (auto &fanblade : fanblades_t)
+    {
+        if (cv::norm((fanblade.center - r_center) - v) < 10 || results.size() == 1)
+        {
             fanblades.emplace_back(fanblade);
             break;
         }
     }
-    if (fanblades.empty()) return std::nullopt;
+    if (fanblades.empty())
+        return std::nullopt;
     PowerRune powerrune(fanblades, r_center, std::nullopt);
 
     std::optional<PowerRune> P;

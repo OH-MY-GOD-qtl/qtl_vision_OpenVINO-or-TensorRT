@@ -14,12 +14,13 @@ const std::string keys =
     "{help h usage ? | | 输出命令行参数说明}"
     "{@config-path   | | yaml配置文件路径 }";
 
-int main(int argc, char * argv[])
+int main(int argc, char *argv[])
 {
     // 读取命令行参数
     cv::CommandLineParser cli(argc, argv, keys);
     auto config_path = cli.get<std::string>(0);
-    if (cli.has("help") || config_path.empty()) {
+    if (cli.has("help") || config_path.empty())
+    {
         cli.printMessage();
         return 0;
     }
@@ -40,14 +41,17 @@ int main(int argc, char * argv[])
     plan.pitch_vel = 0;
     plan.pitch_acc = 0;
 
-    while (!exiter.exit()) {
+    while (!exiter.exit())
+    {
         auto now = std::chrono::steady_clock::now();
         auto gs = gimbal.state();
-        if (delta_time(now, last_t) > 1.600) {
+        if (delta_time(now, last_t) > 1.600)
+        {
             plan.mode = 2;
             logger()->debug("fire!");
             last_t = now;
-        } else
+        }
+        else
             plan.mode = 1;
 
         gimbal.send(plan);
@@ -56,14 +60,16 @@ int main(int argc, char * argv[])
 
         nlohmann::json data;
 
-        if (plan.mode != 0) {
+        if (plan.mode != 0)
+        {
             data["shoot"] = plan.mode == 2 ? 1 : 0;
         }
 
         plotter.plot(data);
 
         auto key = cv::waitKey(1);
-        if (key == 'q') break;
+        if (key == 'q')
+            break;
     }
 
     return 0;

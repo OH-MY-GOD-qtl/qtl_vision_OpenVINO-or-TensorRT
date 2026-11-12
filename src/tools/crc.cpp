@@ -45,13 +45,14 @@ const uint16_t CRC16_TABLE[256] = {
     0xf78f, 0xe606, 0xd49d, 0xc514, 0xb1ab, 0xa022, 0x92b9, 0x8330, 0x7bc7, 0x6a4e, 0x58d5, 0x495c,
     0x3de3, 0x2c6a, 0x1ef1, 0x0f78};
 
-uint8_t get_crc8(const uint8_t * data, uint16_t len)
+uint8_t get_crc8(const uint8_t *data, uint16_t len)
 {
     uint8_t crc8 = CRC8_INIT;
     uint8_t byte;
     uint8_t i;
 
-    while (len--) {
+    while (len--)
+    {
         byte = *data++;
         i = crc8 ^ byte;
         crc8 = CRC8_TABLE[i];
@@ -60,18 +61,19 @@ uint8_t get_crc8(const uint8_t * data, uint16_t len)
     return crc8;
 }
 
-bool check_crc8(const uint8_t * data, uint16_t len)
+bool check_crc8(const uint8_t *data, uint16_t len)
 {
     return get_crc8(data, len - 1) == data[len - 1];
 }
 
-uint16_t get_crc16(const uint8_t * data, uint32_t len)
+uint16_t get_crc16(const uint8_t *data, uint32_t len)
 {
     uint16_t crc16 = CRC16_INIT;
     uint8_t byte;
     uint8_t i;
 
-    while (len--) {
+    while (len--)
+    {
         byte = *data++;
         i = (crc16 ^ byte) & 0x00ff;
         crc16 = (crc16 >> 8) ^ CRC16_TABLE[i];
@@ -80,7 +82,7 @@ uint16_t get_crc16(const uint8_t * data, uint32_t len)
     return crc16;
 }
 
-bool check_crc16(const uint8_t * data, uint32_t len)
+bool check_crc16(const uint8_t *data, uint32_t len)
 {
     uint16_t crc16 = (data[len - 1] << 8) | data[len - 2];
     return get_crc16(data, len - 2) == crc16;

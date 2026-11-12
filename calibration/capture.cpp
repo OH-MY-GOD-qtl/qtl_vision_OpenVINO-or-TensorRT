@@ -17,7 +17,7 @@ const std::string keys =
     "{@config-path    | configs/calibration.yaml | yaml配置文件路径 }"
     "{@output-folder  | assets/img_with_q        | 输出文件夹路径   }";
 
-void write_q(const std::string q_path, const Eigen::Quaterniond & q)
+void write_q(const std::string q_path, const Eigen::Quaterniond &q)
 {
     std::ofstream q_file(q_path);
     Eigen::Vector4d xyzw = q.coeffs();
@@ -27,8 +27,8 @@ void write_q(const std::string q_path, const Eigen::Quaterniond & q)
 }
 
 void capture_loop(
-    int pattern_cols, int pattern_rows, const std::string & config_path,
-    const std::string & output_folder)
+    int pattern_cols, int pattern_rows, const std::string &config_path,
+    const std::string &output_folder)
 {
     Gimbal gimbal(config_path);
     Camera camera(config_path);
@@ -36,13 +36,14 @@ void capture_loop(
     std::chrono::steady_clock::time_point timestamp;
 
     int count = 0;
-    while (true) {
+    while (true)
+    {
         camera.read(img, timestamp);
         Eigen::Quaterniond q = gimbal.q(timestamp);
 
         // 在图像上显示欧拉角，用来判断imuabs系的xyz正方向，同时判断imu是否存在零漂
         auto img_with_ypr = img.clone();
-        Eigen::Vector3d zyx = eulers(q, 2, 1, 0) * 57.3;  // degree
+        Eigen::Vector3d zyx = eulers(q, 2, 1, 0) * 57.3; // degree
         draw_text(img_with_ypr, fmt::format("Yaw {:.2f}", zyx[0]), {40, 40}, {0, 0, 255});
         draw_text(img_with_ypr, fmt::format("Pitch {:.2f}", zyx[1]), {40, 80}, {0, 0, 255});
         draw_text(img_with_ypr, fmt::format("Roll {:.2f}", zyx[2]), {40, 120}, {0, 0, 255});
@@ -64,7 +65,8 @@ void capture_loop(
             cv::CALIB_CB_ADAPTIVE_THRESH | cv::CALIB_CB_NORMALIZE_IMAGE | cv::CALIB_CB_FAST_CHECK);
 
         // 如果检测成功，可以进一步精确角点位置
-        if (success) {
+        if (success)
+        {
             cv::cornerSubPix(
                 gray, centers_2d, cv::Size(11, 11), cv::Size(-1, -1),
                 cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::MAX_ITER, 30, 0.001));
@@ -72,7 +74,7 @@ void capture_loop(
 
         // 绘制检测结果
         cv::drawChessboardCorners(img_with_ypr, cv::Size(11, 8), centers_2d, success);
-        cv::resize(img_with_ypr, img_with_ypr, {}, 0.5, 0.5);  // 显示时缩小图片尺寸
+        cv::resize(img_with_ypr, img_with_ypr, {}, 0.5, 0.5); // 显示时缩小图片尺寸
 
         // 按“s”保存图片和对应四元数，按“q”退出程序
         cv::imshow("Press s to save, q to quit", img_with_ypr);
@@ -94,11 +96,12 @@ void capture_loop(
     // 离开该作用域时，camera和gimbal会自动关闭
 }
 
-int main(int argc, char * argv[])
+int main(int argc, char *argv[])
 {
     // 读取命令行参数
     cv::CommandLineParser cli(argc, argv, keys);
-    if (cli.has("help")) {
+    if (cli.has("help"))
+    {
         cli.printMessage();
         return 0;
     }

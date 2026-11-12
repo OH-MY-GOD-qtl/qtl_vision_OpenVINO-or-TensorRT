@@ -34,6 +34,11 @@ AllowShortIfStatementsOnASingleLine: Never # if (x)\n    y;  （不写成一行�
 # 参数超长时换行到左括号之后，不再与左括号对齐
 AlignAfterOpenBracket: AlwaysBreak
 
+# ---- 注释 ----
+# 仓库里有大量注释掉的调试代码，重排会把相邻的 // 行合并成一段，
+# 取消注释时无法还原，因此保持注释原样
+ReflowComments: false
+
 # ---- 空格 ----
 PointerAlignment: Right                  # const Armor &armor
 SpacesBeforeTrailingComments: 1          # int x; // 注释

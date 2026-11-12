@@ -19,11 +19,12 @@ const std::string keys =
     "{@end-index     | 0                      | 视频结束帧下标    }"
     "{@output-path   | records/Big/2024-05-14_11-6-26 | avi和txt文件的路径}";
 
-int main(int argc, char * argv[])
+int main(int argc, char *argv[])
 {
     // 读取命令行参数
     cv::CommandLineParser cli(argc, argv, keys);
-    if (cli.has("help")) {
+    if (cli.has("help"))
+    {
         cli.printMessage();
         return 0;
     }
@@ -44,7 +45,8 @@ int main(int argc, char * argv[])
 
     // 设置视频起始帧
     video.set(cv::CAP_PROP_POS_FRAMES, start_index);
-    for (int i = 0; i < start_index; i++) {
+    for (int i = 0; i < start_index; i++)
+    {
         double t, w, x, y, z;
         text >> t >> w >> x >> y >> z;
     }
@@ -64,11 +66,14 @@ int main(int argc, char * argv[])
     cv::Mat img;
 
     // 循环处理视频帧
-    for (int frame_count = start_index; !exiter.exit(); frame_count++) {
-        if (end_index > 0 && frame_count > end_index) break;
+    for (int frame_count = start_index; !exiter.exit(); frame_count++)
+    {
+        if (end_index > 0 && frame_count > end_index)
+            break;
 
         video.read(img);
-        if (img.empty()) break;
+        if (img.empty())
+            break;
 
         outvideo.write(img);
 
@@ -79,10 +84,11 @@ int main(int argc, char * argv[])
         cv::imshow("result", img);
 
         int key = cv::waitKey(1);
-        if (key == 'q') break;
+        if (key == 'q')
+            break;
     }
     cv::destroyAllWindows();
-    text.close();  // 关闭文件
+    text.close(); // 关闭文件
     outtext.close();
 
     return 0;

@@ -10,9 +10,9 @@
 #include "tools/yaml.hpp"
 
 Perceptron::Perceptron(
-    USBCamera * usbcam1, USBCamera * usbcam2, USBCamera * usbcam3, const Decider & decider,
-    const std::string & config_path)
-: detection_queue_(30), decider_(decider), stop_flag_(false)
+    USBCamera *usbcam1, USBCamera *usbcam2, USBCamera *usbcam3, const Decider &decider,
+    const std::string &config_path)
+    : detection_queue_(30), decider_(decider), stop_flag_(false)
 {
     auto yaml = yaml_load(config_path);
     const bool use_tensorrt =
@@ -49,7 +49,7 @@ Perceptron::Perceptron(
     options.use_tensorrt = use_tensorrt;
     options.use_traditional = false;
     options.use_classifier = false;
-    for (auto & detector : detectors_) detector = std::make_unique<YOLO>(config_path, options);
+    for (auto &detector : detectors_) detector = std::make_unique<YOLO>(config_path, options);
 
     // 相机标识 usb0/usb1/usb2 与 omni_usb_cameras 索引一一对应，由 index 派生
     threads_.emplace_back([this, usbcam1] { search_thread(usbcam1, 0); });
@@ -66,13 +66,15 @@ Perceptron::~Perceptron()
 {
     {
         std::unique_lock<std::mutex> lock(mutex_);
-        stop_flag_ = true;  // 设置退出标志
+        stop_flag_ = true; // 设置退出标志
     }
-    condition_.notify_all();  // 唤醒所有等待的线程
+    condition_.notify_all(); // 唤醒所有等待的线程
 
     // 等待线程结束
-    for (auto & t : threads_) {
-        if (t.joinable()) {
+    for (auto &t : threads_)
+    {
+        if (t.joinable())
+        {
             t.join();
         }
     }
@@ -85,7 +87,8 @@ std::vector<DetectionResult> Perceptron::get_detection_queue()
     DetectionResult temp;
 
     // 注意：这里的 pop 不阻塞（队列为空时直接返回空 vector）
-    while (!detection_queue_.empty()) {
+    while (!detection_queue_.empty())
+    {
         detection_queue_.pop(temp);
         result.push_back(std::move(temp));
     }
@@ -100,10 +103,11 @@ std::array<cv::Mat, 3> Perceptron::latest_frames() const
 }
 
 // USB 搜索线程
-void Perceptron::search_thread(USBCamera * cam, int index)
+void Perceptron::search_thread(USBCamera *cam, int index)
 {
     const std::string camera_key = "usb" + std::to_string(index);
-    if (!cam) {
+    if (!cam)
+    {
         logger()->error("USB camera pointer is null ({})!", camera_key);
         return;
     }
@@ -115,18 +119,23 @@ void Perceptron::search_thread(USBCamera * cam, int index)
     bool unavailable = false;
     std::chrono::steady_clock::time_point last_detect_t{};
 
-    try {
-        while (true) {
+    try
+    {
+        while (true)
+        {
             {
                 std::unique_lock<std::mutex> lock(mutex_);
-                if (stop_flag_) break;  // 检查是否需要退出
+                if (stop_flag_)
+                    break; // 检查是否需要退出
             }
 
             cv::Mat img;
             std::chrono::steady_clock::time_point ts;
-            if (!cam->try_read(img, ts, read_timeout_ms)) {
+            if (!cam->try_read(img, ts, read_timeout_ms))
+            {
                 // 连续 ~1s 无帧才报一次"暂不可用"，恢复时再报一次，避免刷屏
-                if (++timeout_count >= 10 && !unavailable) {
+                if (++timeout_count >= 10 && !unavailable)
+                {
                     unavailable = true;
                     logger()->warn(
                         "[omni] {} temporarily unavailable (no frame for ~{}ms)", camera_key,
@@ -134,13 +143,15 @@ void Perceptron::search_thread(USBCamera * cam, int index)
                 }
                 continue;
             }
-            if (unavailable) {
+            if (unavailable)
+            {
                 unavailable = false;
                 logger()->info("[omni] {} recovered", camera_key);
             }
             timeout_count = 0;
 
-            if (img.empty()) {
+            if (img.empty())
+            {
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
                 continue;
             }
@@ -158,18 +169,22 @@ void Perceptron::search_thread(USBCamera * cam, int index)
             }
 
             const auto now = std::chrono::steady_clock::now();
-            if (detect_interval_s_ > 0 && last_detect_t != std::chrono::steady_clock::time_point{} &&
+            if (detect_interval_s_ > 0 &&
+                last_detect_t != std::chrono::steady_clock::time_point{} &&
                 std::chrono::duration<double>(now - last_detect_t).count() < detect_interval_s_)
                 continue;
             last_detect_t = now;
 
             auto armors = detectors_[index]->detect(detect_img);
             decider_.filter_enemy_color(armors);
-            if (armors.empty()) continue;
+            if (armors.empty())
+                continue;
 
             // 表观宽度统一用四点几何，YOLO/传统路径通用
-            auto armor_width = [](const Armor & armor) {
-                if (armor.points.size() != 4) return 0.0;
+            auto armor_width = [](const Armor &armor)
+            {
+                if (armor.points.size() != 4)
+                    return 0.0;
                 return std::max(
                     cv::norm(armor.points[0] - armor.points[1]),
                     cv::norm(armor.points[3] - armor.points[2]));
@@ -177,20 +192,23 @@ void Perceptron::search_thread(USBCamera * cam, int index)
 
             int selected_index = -1;
             double best_width = 0.0;
-            for (int i = 0; i < static_cast<int>(armors.size()); ++i) {
+            for (int i = 0; i < static_cast<int>(armors.size()); ++i)
+            {
                 const double width = armor_width(armors[i]);
-                if (width > best_width) {
+                if (width > best_width)
+                {
                     best_width = width;
                     selected_index = i;
                 }
             }
-            if (selected_index < 0 || img.cols <= 0) continue;
+            if (selected_index < 0 || img.cols <= 0)
+                continue;
 
             auto delta_angle = decider_.delta_angle(armors[selected_index], camera_key);
 
             DetectionResult dr;
             dr.armors = std::move(armors);
-            dr.timestamp = ts;  // 采集时刻，供上层做时间对齐
+            dr.timestamp = ts; // 采集时刻，供上层做时间对齐
             dr.delta_yaw = delta_angle[0] / 57.3;
             dr.delta_pitch = delta_angle[1] / 57.3;
             dr.source = DetectionSource::USB;
@@ -199,7 +217,9 @@ void Perceptron::search_thread(USBCamera * cam, int index)
             dr.size_score = best_width / static_cast<double>(img.cols);
             detection_queue_.push(dr);
         }
-    } catch (const std::exception & e) {
+    }
+    catch (const std::exception &e)
+    {
         logger()->error("Exception in search_thread({}): {}", camera_key, e.what());
     }
 }

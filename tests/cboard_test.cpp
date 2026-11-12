@@ -14,10 +14,11 @@ const std::string keys =
     "{help h usage ? |                       | 输出命令行参数说明}"
     "{@config-path   | configs/standard.yaml | yaml配置文件路径 }";
 
-int main(int argc, char * argv[])
+int main(int argc, char *argv[])
 {
     cv::CommandLineParser cli(argc, argv, keys);
-    if (cli.has("help")) {
+    if (cli.has("help"))
+    {
         cli.printMessage();
         return 0;
     }
@@ -27,7 +28,8 @@ int main(int argc, char * argv[])
 
     CBoard cboard(config_path);
 
-    while (!exiter.exit()) {
+    while (!exiter.exit())
+    {
         auto timestamp = std::chrono::steady_clock::now();
 
         std::this_thread::sleep_for(1ms);

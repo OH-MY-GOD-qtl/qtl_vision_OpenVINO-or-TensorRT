@@ -6,11 +6,11 @@
 #include "tools/trajectory.hpp"
 #include "tools/yaml.hpp"
 
-BuffAimer::BuffAimer(const std::string & config_path)
+BuffAimer::BuffAimer(const std::string &config_path)
 {
     auto yaml = yaml_load(config_path);
-    yaw_offset_ = yaml_read<double>(yaml, "yaw_offset") / 57.3;      // degree to rad
-    pitch_offset_ = yaml_read<double>(yaml, "pitch_offset") / 57.3;  // degree to rad
+    yaw_offset_ = yaml_read<double>(yaml, "yaw_offset") / 57.3;     // degree to rad
+    pitch_offset_ = yaml_read<double>(yaml, "pitch_offset") / 57.3; // degree to rad
     fire_gap_time_ = yaml_read<double>(yaml, "fire_gap_time");
     predict_time_ = yaml_read<double>(yaml, "predict_time");
 
@@ -18,11 +18,12 @@ BuffAimer::BuffAimer(const std::string & config_path)
 }
 
 Command BuffAimer::aim(
-    BuffTarget & target, std::chrono::steady_clock::time_point & timestamp, double bullet_speed,
+    BuffTarget &target, std::chrono::steady_clock::time_point &timestamp, double bullet_speed,
     bool to_now)
 {
     Command command = {false, false, 0, 0};
-    if (target.is_unsolve()) return command;
+    if (target.is_unsolve())
+        return command;
 
     bullet_speed = sanitize_bullet_speed(bullet_speed, "BuffAimer");
 
@@ -32,19 +33,24 @@ Command BuffAimer::aim(
     auto future = to_now ? (detect_now_gap + predict_time_) : 0.1 + predict_time_;
     double yaw, pitch;
 
-    if (get_send_angle(target, future, bullet_speed, to_now, yaw, pitch)) {
+    if (get_send_angle(target, future, bullet_speed, to_now, yaw, pitch))
+    {
         command.yaw = yaw;
-        command.pitch = -pitch;  //世界坐标系下的pitch向上为负
-        if (mistake_count_ > 3) {
+        command.pitch = -pitch; //世界坐标系下的pitch向上为负
+        if (mistake_count_ > 3)
+        {
             switch_fanblade_ = true;
             mistake_count_ = 0;
             command.control = true;
-        } else if (
-            std::abs(last_yaw_ - yaw) > 5 / 57.3 || std::abs(last_pitch_ - pitch) > 5 / 57.3) {
+        }
+        else if (std::abs(last_yaw_ - yaw) > 5 / 57.3 || std::abs(last_pitch_ - pitch) > 5 / 57.3)
+        {
             switch_fanblade_ = true;
             mistake_count_++;
             command.control = false;
-        } else {
+        }
+        else
+        {
             switch_fanblade_ = false;
             mistake_count_ = 0;
             command.control = true;
@@ -53,10 +59,13 @@ Command BuffAimer::aim(
         last_pitch_ = pitch;
     }
 
-    if (switch_fanblade_) {
+    if (switch_fanblade_)
+    {
         command.shoot = false;
         last_fire_t_ = now;
-    } else if (!switch_fanblade_ && delta_time(now, last_fire_t_) > fire_gap_time_) {
+    }
+    else if (!switch_fanblade_ && delta_time(now, last_fire_t_) > fire_gap_time_)
+    {
         command.shoot = true;
         last_fire_t_ = now;
     }
@@ -65,8 +74,8 @@ Command BuffAimer::aim(
 }
 
 bool BuffAimer::get_send_angle(
-    BuffTarget & target, const double predict_time, const double bullet_speed, const bool to_now,
-    double & yaw, double & pitch)
+    BuffTarget &target, const double predict_time, const double bullet_speed, const bool to_now,
+    double &yaw, double &pitch)
 {
     // 考虑detecor所消耗的时间，此外假设aimer的用时可忽略不计
     // 如果 to_now 为 true，则根据当前时间和时间戳预测目标位置,deltatime = 现在时间减去当时照片时间，加上0.1
@@ -81,7 +90,8 @@ bool BuffAimer::get_send_angle(
 
     // 创建弹道对象
     BallisticTrajectory trajectory0(bullet_speed, d, h);
-    if (trajectory0.unsolvable) {  // 如果弹道无法解算，返回未命中结果
+    if (trajectory0.unsolvable)
+    { // 如果弹道无法解算，返回未命中结果
         logger()->debug(
             "[BuffAimer] Unsolvable trajectory0: {:.2f} {:.2f} {:.2f}", bullet_speed, d, h);
         return false;
@@ -96,7 +106,8 @@ bool BuffAimer::get_send_angle(
     d = fsqrt(aim_in_world[0] * aim_in_world[0] + aim_in_world[1] * aim_in_world[1]);
     h = aim_in_world[2];
     BallisticTrajectory trajectory1(bullet_speed, d, h);
-    if (trajectory1.unsolvable) {  // 如果弹道无法解算，返回未命中结果
+    if (trajectory1.unsolvable)
+    { // 如果弹道无法解算，返回未命中结果
         logger()->debug(
             "[BuffAimer] Unsolvable trajectory1: {:.2f} {:.2f} {:.2f}", bullet_speed, d, h);
         return false;
@@ -104,7 +115,8 @@ bool BuffAimer::get_send_angle(
 
     // 计算时间误差
     auto time_error = trajectory1.fly_time - trajectory0.fly_time;
-    if (std::abs(time_error) > 0.01) {  // 如果时间误差过大，返回未命中结果
+    if (std::abs(time_error) > 0.01)
+    { // 如果时间误差过大，返回未命中结果
         logger()->debug("[BuffAimer] Large time error: {:.3f}", time_error);
         return false;
     }

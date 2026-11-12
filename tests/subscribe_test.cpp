@@ -5,16 +5,18 @@
 #include "tools/exiter.hpp"
 #include "tools/logger.hpp"
 
-int main(int argc, char ** argv)
+int main(int argc, char **argv)
 {
     Exiter exiter;
     ROS2 ros2;
 
     int i = 0;
-    while (!exiter.exit()) {
+    while (!exiter.exit())
+    {
         auto x = ros2.subscribe_enemy_status();
         // logger()->info("invincible enemy ids size is{}", x.size());
-        for (const auto & id : x) {
+        for (const auto &id : x)
+        {
             logger()->info("id:{}", id);
         }
         // i++;

@@ -24,19 +24,21 @@ struct Frame
     std::vector<Armor> armors;
 };
 
-inline std::vector<YOLO> create_yolo11s(const std::string & config_path, int numebr, bool debug)
+inline std::vector<YOLO> create_yolo11s(const std::string &config_path, int numebr, bool debug)
 {
     std::vector<YOLO> yolo11s;
-    for (int i = 0; i < numebr; i++) {
+    for (int i = 0; i < numebr; i++)
+    {
         yolo11s.push_back(YOLO(config_path, debug));
     }
     return yolo11s;
 }
 
-inline std::vector<YOLO> create_yolov8s(const std::string & config_path, int numebr, bool debug)
+inline std::vector<YOLO> create_yolov8s(const std::string &config_path, int numebr, bool debug)
 {
     std::vector<YOLO> yolov8s;
-    for (int i = 0; i < numebr; i++) {
+    for (int i = 0; i < numebr; i++)
+    {
         yolov8s.push_back(YOLO(config_path, debug));
     }
     return yolov8s;
@@ -59,31 +61,37 @@ public:
         logger()->info("OrderedQueue destroyed, queue and buffer cleared.");
     }
 
-    void enqueue(const Frame & item)
+    void enqueue(const Frame &item)
     {
         std::lock_guard<std::mutex> lock(mutex_);
 
-        if (item.id < current_id_) {
+        if (item.id < current_id_)
+        {
             logger()->warn("small id");
             return;
         }
 
-        if (item.id == current_id_) {
+        if (item.id == current_id_)
+        {
             main_queue_.push(item);
             current_id_++;
 
             auto it = buffer_.find(current_id_);
-            while (it != buffer_.end()) {
+            while (it != buffer_.end())
+            {
                 main_queue_.push(it->second);
                 buffer_.erase(it);
                 current_id_++;
                 it = buffer_.find(current_id_);
             }
 
-            if (main_queue_.size() >= 1) {
+            if (main_queue_.size() >= 1)
+            {
                 cond_var_.notify_one();
             }
-        } else {
+        }
+        else
+        {
             buffer_[item.id] = item;
         }
     }
@@ -100,10 +108,11 @@ public:
     }
 
     // 不会阻塞队列
-    bool try_dequeue(Frame & item)
+    bool try_dequeue(Frame &item)
     {
         std::lock_guard<std::mutex> lock(mutex_);
-        if (main_queue_.empty()) {
+        if (main_queue_.empty())
+        {
             return false;
         }
         item = main_queue_.front();
@@ -121,4 +130,4 @@ private:
     std::condition_variable cond_var_;
 };
 
-#endif  // OMNIPERCEPTION__DETECT_FRAME_HPP
+#endif // OMNIPERCEPTION__DETECT_FRAME_HPP

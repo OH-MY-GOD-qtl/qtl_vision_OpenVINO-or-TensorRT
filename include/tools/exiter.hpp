@@ -9,4 +9,4 @@ public:
     bool exit() const;
 };
 
-#endif  // TOOLS__EXITER_HPP
+#endif // TOOLS__EXITER_HPP
