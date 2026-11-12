@@ -3,6 +3,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <fstream>
 #include <mutex>
 #include <nlohmann/json.hpp>
 #include <opencv2/opencv.hpp>
@@ -24,7 +25,8 @@
 
 const std::string keys =
     "{help h usage ? | | 输出命令行参数说明}"
-    "{@config-path   | | yaml配置文件路径 }";
+    "{@config-path   | | yaml配置文件路径 }"
+    "{d diag | | 逐帧诊断：检测/跟踪判据写入 logs/flicker_diag.csv }";
 
 using namespace std::chrono_literals;
 
@@ -35,6 +37,14 @@ int main(int argc, char * argv[])
     if (cli.has("help") || !cli.has("@config-path")) {
         cli.printMessage();
         return 0;
+    }
+
+    // 逐帧诊断：每帧落一行，记录检测数、跟踪状态和每块装甲板的判据，
+    // 用于区分“检测层抖”（n_armors 变）还是“匹配层抖”（n_armors 不变但 state 变）
+    std::ofstream diag_csv;
+    if (cli.has("diag")) {
+        diag_csv.open("logs/flicker_diag.csv", std::ios::out | std::ios::trunc);
+        diag_csv << "frame,t_ms,dt_ms,n_armors,state,target,armors\n";
     }
 
     Exiter exiter;
@@ -111,6 +121,10 @@ int main(int argc, char * argv[])
 
     cv::Mat img;
     std::chrono::steady_clock::time_point t;
+    std::chrono::steady_clock::time_point prev_t;
+    const auto t_start = std::chrono::steady_clock::now();
+    std::size_t frame_idx = 0;
+    bool show_raw = true;  // 'r' 切换原始检测框（灰色细框）
 
     while (!exiter.exit()) {
         {
@@ -124,6 +138,11 @@ int main(int argc, char * argv[])
         }
 
         camera.read(img, t);
+        // 帧间隔：与 Tracker 内部同口径，用于判断是否触发 dt>0.1s 的强制 lost
+        const double dt_ms = (prev_t.time_since_epoch().count() == 0)
+                                 ? 0.0
+                                 : std::chrono::duration<double, std::milli>(t - prev_t).count();
+        prev_t = t;
         auto q = gimbal.q(t);
         solver.set_R_gimbal2world(q);
 
@@ -133,23 +152,61 @@ int main(int argc, char * argv[])
         if (mode.load() == GimbalMode::AUTO_AIM) {
             auto armors = detector.detect(img);  // 使用传统检测方法
 
-            // 绘制装甲板
-            for (const auto & armor : armors) {
-                if (armor.points.size() != 4) continue;
-                // 绘制装甲板边界框
-                for (int i = 0; i < 4; i++) {
-                    cv::line(
-                        img, cv::Point(armor.points[i].x, armor.points[i].y),
-                        cv::Point(armor.points[(i + 1) % 4].x, armor.points[(i + 1) % 4].y),
-                        {0, 255, 0}, 2);
-                }
-            }
-
+            // 先跟踪、再画框：tracker 内部会按敌方颜色过滤 armors，且只有它确认过的目标
+            // （tracking / temp_lost）才画亮框。原始检测只画细暗框，避免把检测抖动误读成
+            // 跟踪状态抖动（排查“闪烁”时按 'r' 可关掉原始框）。
             auto targets = tracker.track(armors, t, gimbal.state().id);
             if (!targets.empty())
                 target_queue.push(targets.front());
             else
                 target_queue.push(std::nullopt);
+
+            const bool has_target = !targets.empty();
+
+            for (const auto & armor : armors) {
+                if (armor.points.size() != 4) continue;
+
+                const bool locked = has_target && armor.name == targets.front().name &&
+                                    armor.type == targets.front().armor_type;
+                if (!locked && !show_raw) continue;
+
+                const auto color = locked ? cv::Scalar(0, 255, 0) : cv::Scalar(0, 170, 255);
+                const int thickness = locked ? 2 : 1;
+
+                for (int i = 0; i < 4; i++)
+                    cv::line(
+                        img, cv::Point(armor.points[i].x, armor.points[i].y),
+                        cv::Point(armor.points[(i + 1) % 4].x, armor.points[(i + 1) % 4].y), color,
+                        thickness);
+            }
+
+            // HUD：跟踪状态 + 过滤后的检测数，用于区分“检测掉”还是“状态掉”
+            cv::putText(
+                img, fmt::format("{} armors={} raw={}", tracker.state(), armors.size(), show_raw),
+                {10, 30}, cv::FONT_HERSHEY_SIMPLEX, 1.0, {0, 255, 255}, 2);
+
+            if (diag_csv.is_open()) {
+                // 每块板：name/type/conf/ratio/side_ratio/rect_deg/cx/cy
+                std::string desc;
+                for (const auto & armor : armors) {
+                    if (!desc.empty()) desc += ';';
+                    desc += fmt::format(
+                        "{}/{}/{:.2f}/{:.2f}/{:.2f}/{:.1f}/{:.0f}/{:.0f}", ARMOR_NAMES[armor.name],
+                        ARMOR_TYPES[armor.type], armor.confidence, armor.ratio, armor.side_ratio,
+                        armor.rectangular_error * 57.3, armor.center.x, armor.center.y);
+                }
+                const auto target_desc =
+                    targets.empty()
+                        ? std::string("-")
+                        : fmt::format(
+                              "{}/{}", ARMOR_NAMES[targets.front().name],
+                              ARMOR_TYPES[targets.front().armor_type]);
+                diag_csv << frame_idx << ','
+                         << std::chrono::duration<double, std::milli>(t - t_start).count() << ','
+                         << dt_ms << ',' << armors.size() << ',' << tracker.state() << ','
+                         << target_desc << ',' << desc << '\n';
+                if (frame_idx % 30 == 0) diag_csv.flush();
+            }
         }
 
         else {
@@ -163,6 +220,8 @@ int main(int argc, char * argv[])
         cv::imshow("Detection", img);
         auto key = cv::waitKey(1);
         if (key == 'q') break;
+        if (key == 'r') show_raw = !show_raw;
+        frame_idx++;
     }
 
     quit = true;
