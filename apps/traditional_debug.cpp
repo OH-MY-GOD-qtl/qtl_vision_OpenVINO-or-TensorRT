@@ -51,6 +51,7 @@ int main(int argc, char *argv[])
 
     Exiter exiter;
     Recorder recorder;
+    Plotter plotter; // UDP 127.0.0.1:9870，供 PlotJuggler 显示
 
     Gimbal gimbal(config_path);
     Camera camera(config_path);
@@ -120,6 +121,8 @@ int main(int argc, char *argv[])
                     data["is_empty"] = is_empty;
                     data["bullet_speed"] = gs.bullet_speed;
                     data["fps"] = fps; // 在data中添加帧率信息
+
+                    plotter.plot(data);
 
                     std::this_thread::sleep_for(10ms);
                 }
