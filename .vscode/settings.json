@@ -1,4 +1,11 @@
 {
     "cmake.cmakePath": "/usr/bin/cmake",
-    "C_Cpp.default.compilerPath": "/usr/bin/g++"
+    "C_Cpp.default.compilerPath": "/usr/bin/g++",
+    // C++ 格式化一律走 C/C++ 扩展的 clang-format，并强制读仓库根 .clang-format。
+    // 缺了这两项时，编辑器可能退回内置默认风格，把整片代码重排成和 .clang-format 相反的样子。
+    "C_Cpp.formatting": "clangFormat",
+    "C_Cpp.clang_format_style": "file",
+    "[cpp]": {
+        "editor.defaultFormatter": "ms-vscode.cpptools"
+    }
 }
