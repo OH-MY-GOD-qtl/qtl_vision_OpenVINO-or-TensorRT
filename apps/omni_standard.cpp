@@ -222,8 +222,8 @@ int main(int argc, char *argv[])
     // （UDP 127.0.0.1:9870）。guide_* 是 omni_standard 额外的 USB 引导诊断量，
     // mode 仍是云台模式（不是控制/开火状态），避免破坏现有调参布局。
     auto publish_plot = [&](bool hik_ok, bool hik_active, const Decider::Guide &guide,
-                            const std::optional<Target> &target, const Plan &plan,
-                            bool fire_cmd, bool is_empty)
+                            const std::optional<Target> &target, const Plan &plan, bool fire_cmd,
+                            bool is_empty)
     {
         nlohmann::json data;
         data["t"] = delta_time(std::chrono::steady_clock::now(), t0);
@@ -235,7 +235,7 @@ int main(int argc, char *argv[])
 
         // phase: 0=none 1=lock 2=coast；camera: usb0..2 -> 0..2，未锁定 -1
         data["guide_valid"] = guide.valid ? 1 : 0;
-        data["guide_phase"] = guide.phase == Decider::GuidePhase::LOCKED   ? 1
+        data["guide_phase"] = guide.phase == Decider::GuidePhase::LOCKED  ? 1
                               : guide.phase == Decider::GuidePhase::COAST ? 2
                                                                           : 0;
         int camera_index = -1;
@@ -410,8 +410,8 @@ int main(int argc, char *argv[])
                     if (hik_active)
                     {
                         gimbal.send(
-                            plan.control, fire_cmd, plan.yaw, yaw_vel_cmd, plan.yaw_acc,
-                            plan.pitch, pitch_vel_cmd, plan.pitch_acc, is_empty);
+                            plan.control, fire_cmd, plan.yaw, yaw_vel_cmd, plan.yaw_acc, plan.pitch,
+                            pitch_vel_cmd, plan.pitch_acc, is_empty);
                     }
                     else
                     {
