@@ -1,7 +1,7 @@
 # qtl_vision_OpenVINO-or-TensorRT
 
 RoboMaster 视觉系统（C++17）：源自 dx_vision（同济 SuperPower 25 赛季开源），
-按"功能等价、算法管线优化、模块化清晰、Jetson适配"标准重构。
+按"功能等价、算法管线优化、模块化清晰、Jetson 适配"标准重构。
 
 > **新装甲迁移中（2026-10-27）**
 > 新装甲取消灯条、改为中央图案发光；现有传统检测与模型均面向旧装甲，不能直接复用。
@@ -15,7 +15,8 @@ RoboMaster 视觉系统（C++17）：源自 dx_vision（同济 SuperPower 25 赛
 - **推理双后端**：YOLOv5 支持 OpenVINO（CPU，机器人端）与 TensorRT（GPU，本机），改 `use_tensorrt` 一键切换
 - **能量机关**：yolo11_buff 检测 + 解算 + 预测 + 瞄准
 - **全向感知**：3 路 USB YOLO 做方位搜索 + 1 路海康 YOLO 主瞄准，海康优先决策、安装角/FOV 可配置、按采集时间戳对齐
-- **工具链**：相机标定（内参 / 手眼 / 机器人基座系）、视频切帧、YOLO 冒烟、19+ 项测试
+- **控制链路**：视觉线程只出目标，控制线程是云台唯一写入者；非阻塞快照让控制与绘图稳住约 100 Hz，不随相机帧率抖动（[ADR-0004](docs/adr/0004-control-loop-decoupling.md)）
+- **工具链**：相机标定（内参 / 手眼 / 机器人基座系）、视频切帧、YOLO 冒烟、23 项测试
 
 ---
 
@@ -27,7 +28,9 @@ RoboMaster 视觉系统（C++17）：源自 dx_vision（同济 SuperPower 25 赛
 - [快速上手（海康相机 + 自瞄）](#快速上手海康相机--自瞄)
 - [程序入口速查](#程序入口速查)
 - [配置说明](#配置说明)
+- [血量灯条识别（hp_bar）](#血量灯条识别hp_bar)
 - [全向感知](#全向感知)
+- [控制链路（视觉 / 控制解耦）](#控制链路视觉--控制解耦)
 - [推理引擎：OpenVINO / TensorRT 双后端](#推理引擎openvino--tensorrt-双后端)
 - [标定流程](#标定流程)
 - [通讯与串口协议](#通讯与串口协议)
@@ -48,7 +51,7 @@ qtl_vision_OpenVINO-or-TensorRT/
 ├── src/                        # 源文件，与 include/ 对应（单文件模块同样平铺）
 ├── apps/                       # 主程序入口（6 个）
 ├── calibration/                # 标定工具（5 个）
-├── tests/                      # 测试（23 个，其中 3 个 ROS2 默认不编译）
+├── tests/                      # 测试（26 个源文件，其中 3 个 ROS2 默认不编译）
 ├── configs/                    # yaml 配置
 ├── assets/                     # 模型文件（onnx/xml/bin/engine）+ demo 视频
 ├── third_party/
@@ -114,7 +117,8 @@ sudo udevadm control --reload && sudo udevadm trigger
 - 海康 MVS 的核心库 `libMvCameraControl.so` 运行时会去**同目录**加载传输层库
   `libMvUsb3vTL.so`。当前 amd64 目录已放入 **MVS 5.0.2（SDK 4.8.1.2）完整库集**，
   缺其中任何一个 .so 都会导致相机枚举失败（`MV_CC_EnumDevices failed: 0x80000006`）。
-- 程序已通过 rpath 链接该目录，**不需要**设置 `LD_LIBRARY_PATH`。
+- 程序已在构建树内通过 rpath 链接该目录（CMake 配置时写入的**绝对路径**），
+  **不需要**设置 `LD_LIBRARY_PATH`；仓库搬家或只拷可执行文件时需重新配置。
 - `lib/arm64/`（机器人 Jetson 用）仍是旧版且**不完整**：上机前需用
   MVS 官方 aarch64 包按同样方式补齐，否则会出现与 x86 相同的枚举失败。
 - 迈德威视目录仅有 `libMVSDK.so`。
@@ -131,7 +135,7 @@ mkdir build && cd build
 cmake .. && make -j
 ```
 
-生成 33 个可执行文件：`apps/` 6 个、标定工具 5 个、测试 22 个。
+生成 34 个可执行文件：`apps/` 6 个、标定工具 5 个、测试 23 个。
 
 > 构建必需 OpenVINO；TensorRT/CUDA 仅在 `QTL_ENABLE_TENSORRT=ON`（默认）时必需。
 > TensorRT 仅 YOLOv5 链路用到，其余模型走 OpenVINO。
@@ -153,6 +157,10 @@ cd qtl_vision_OpenVINO-or-TensorRT  # 进入项目根目录
 # ③ 接上云台串口后的实机自瞄
 ./build/traditional_debug configs/standard1.yaml
 ./build/auto_aim_debug_mpc configs/standard1.yaml
+
+# ④ 全向感知（3 路 USB 搜索 + 海康主瞄准；--display 显示四宫格画面）
+./build/omni_standard configs/omni.yaml --simulate --display  # 无云台
+./build/omni_standard configs/omni.yaml --display             # 实机
 ```
 
 前提：
@@ -160,6 +168,8 @@ cd qtl_vision_OpenVINO-or-TensorRT  # 进入项目根目录
 - 相机 USB 权限（udev 规则）已配置，见[环境准备](#环境准备)
 - `standard1.yaml` 的相机段指向海康（`camera_name: "hikrobot"`、`vid_pid: "2bdf:0001"`）
 - 实机自瞄需要云台串口 `/dev/ttyACM0` 存在，否则程序会直接退出（见 FAQ）
+- `omni_standard` 另外还需要 3 路 USB 相机，设备节点与安装角写在 `omni.yaml` 的
+  `omni_usb_cameras` 里（建议用 `/dev/v4l/by-path/*`，见[全向感知](#全向感知)）
 
 窗口退出统一按 **q**（或 Ctrl+C）；**不要按 Ctrl+Z**（进程只是被暂停，会继续占用相机/串口）。
 
@@ -169,7 +179,7 @@ cd qtl_vision_OpenVINO-or-TensorRT  # 进入项目根目录
 
 | 程序 | 支持等级 | 源文件 | 用途 | 检测 | 瞄准/规划 | 下发通道 | 默认/推荐配置 |
 |---|---|---|---|---|---|---|---|
-| `camera_test` | debug | `tests/camera_test.cpp` | 相机出图+fps 验证（`-d` 显示画面） | — | — | — | `standard1.yaml` |
+| `camera_test` | debug | `tests/camera_test.cpp` | 相机出图+fps 验证（`-d` 显示画面） | — | — | — | `camera.yaml`（默认） |
 | `MAIN` | debug | `apps/main.cpp` | 精简传统流水线（调试窗口） | 传统 | 弹道 Aimer+Shooter | 串口 Gimbal | `standard1.yaml`（无硬件用 `video_demo.yaml`） |
 | `traditional_debug` | frozen | `apps/traditional_debug.cpp` | 传统视觉自瞄（调试窗口） | 传统 | MPC Planner | 串口 Gimbal | `standard1(_sim).yaml` |
 | `auto_aim_debug_mpc` | debug | `apps/auto_aim_debug_mpc.cpp` | YOLO+EKF+MPC 自瞄（重投影窗口） | YOLO | MPC Planner | 串口 Gimbal | `standard1(_sim).yaml` |
@@ -234,11 +244,11 @@ simulate: true                 # 模拟模式（见上）
 | 文件 | 相机 | 用途 | 使用入口 |
 |---|---|---|---|
 | `standard1.yaml` / `standard3.yaml` / `mvs.yaml` / `calibration.yaml` | hikrobot | 实机自瞄/标定主配置 | `traditional_debug` / `standard` / `standard_mpc` / 标定工具 |
-| `standard1_sim.yaml` / `calibration_sim.yaml` | hikrobot | 模拟模式（本次接入海康相机时生成） | `traditional_debug` / `auto_aim_debug_mpc` / `capture --simulate` |
+| `standard1_sim.yaml` / `calibration_sim.yaml` | hikrobot | 模拟模式（不打开云台串口） | `traditional_debug` / `auto_aim_debug_mpc` / `capture`（传 `calibration_sim.yaml`） |
 | `camera_auto_aim.yaml` | hikrobot | 相机+自瞄离线测试 | `camera_auto_aim_test` |
 | `camera.yaml` / `hero.yaml` | hikrobot | 相机测试/英雄 | `camera_test`（`hero` 为英雄车配置） |
 | `example.yaml` | 迈德威视 | 示例 | 手动指定给 `camera_test` |
-| `demo.yaml` | hikrobot | YOLO 回放测试 | `detector_video_test` |
+| `demo.yaml` | hikrobot | YOLO 回放测试 | `auto_aim_test` |
 | `video_demo.yaml` | 视频文件 | 无硬件调试（自带 `simulate: true`） | `MAIN` |
 | `omni.yaml` | hikrobot + USB ×3 | 全向感知（3 USB YOLO + 1 海康 YOLO） | `omni_standard` |
 | `new_armor.yaml` | hikrobot | 新装甲骨架（YOLO11-pose；模型/尺寸未定，暂不可运行） | 暂无 |
@@ -254,9 +264,11 @@ simulate: true                 # 模拟模式（见上）
 | 项 | 说明 |
 |---|---|
 | 尺度参考 | 同面装甲板外框宽 141 mm → `px/mm`，`p = lit_len_px / (186 × px_per_mm)`；同一平面下透视压缩比在分子分母抵消，无需 `cos(yaw)` 修正 |
-| 兜底 | 无可用装甲板时用血条自身 22 mm 自归一化，仅当条高 ≥ 12 px（≈ 4.4 m 内） |
-| 同面校验 | 血条高 / 装甲板高 ≈ 22/125（与距离无关），配合图像距离与朝向选最佳配对 |
-| 分档 | ≤30% 低 / ≤60% 中 / 其余 高，±5% 迟滞 + 5 帧中值 || 几何错配 | 估计 > `max_valid_percent`（默认 105%）直接报 `unknown`，不截断成满血 || 丢失 | 立即 `unknown`，不做保持 |
+| 兜底 | 无可用装甲板时用血量灯条自身 22 mm 自归一化，仅当条高 ≥ 12 px（≈ 4.4 m 内） |
+| 同面校验 | 血量灯条高 / 装甲板高 ≈ 22/125（与距离无关），配合图像距离与朝向选最佳配对 |
+| 分档 | ≤30% 低 / ≤60% 中 / 其余 高，±5% 迟滞 + 5 帧中值 |
+| 几何错配 | 估计 > `max_valid_percent`（默认 105%）直接报 `unknown`，不截断成满血 |
+| 丢失 | 立即 `unknown`，不做保持 |
 
 ROS2 上报（构建时打开 `-DQTL_ENABLE_ROS2=ON`，并先 `source /opt/ros/<distro>/setup.bash`）：
 
@@ -307,7 +319,7 @@ ros2 topic echo /enemy_hp std_msgs/msg/String
   冷却 `omni_guide_cooldown_s`（默认 0.5 s）后重新选最近目标。
 - 锁定/coast 发 `mode=1, is_empty=false`；无锁定且不在 coast 时发 `mode=0`。
 
-详见 `docs/adr/0003-omni-arbitration.md`。
+详见 [`docs/adr/0003-omni-arbitration.md`](docs/adr/0003-omni-arbitration.md)。
 
 离线验证：`./build/omni_arbitration_test`（合成结果覆盖锁定、coast、超时与海康接管）。
 
@@ -331,23 +343,24 @@ ros2 topic echo /enemy_hp std_msgs/msg/String
 
 **时间戳对齐（与异步多线程方案的关键区别）**：
 
-- 云台只有一个写入者（主循环），不存在异步命令线程复用旧时间戳导致的抖动；
+- 云台只有一个写入者（控制线程），不存在异步命令线程复用旧时间戳导致的抖动；
 - 每个 USB 结果带采集时刻 `t`，`Decider` 用 `gimbal.q(t)` 还原采集时刻的云台姿态，
   再做延迟补偿（`yaw_vel × age`）+ 老化过滤 + 低通 + 限速。
 
 配置键见 `configs/omni.yaml` 的 `omni_*` 段。USB 设备与安装角可以绑定在同一项中；
-`yaw_offset_from_hik` 表示相对海康视线的水平安装角。下面只是格式示例，实际设备节点与角度对应关系需安装后核实并填写：
+`yaw_offset_from_hik` 表示相对海康视线的水平安装角。下面是 `configs/omni.yaml` 的当前取值，
+设备节点与安装角对应关系需安装后核实：
 
 ```yaml
 omni_usb_cameras:
   - device: "video0"
-    yaw_offset_from_hik: 30   # 示例值
+    yaw_offset_from_hik: 30
   - device: "video2"
-    yaw_offset_from_hik: -30  # 示例值
+    yaw_offset_from_hik: -30
   - device: "video4"
-    yaw_offset_from_hik: 180  # 示例值
-omni_usb_detect_fps: 15                            # 每路 USB 检测限频
-omni_usb_detect_gain: 1.0                          # 送检前亮度缩放（1.0=不处理）；--display 显示送检图
+    yaw_offset_from_hik: -180
+omni_usb_detect_fps: 30                            # 每路 USB 检测限频（代码默认 15）
+omni_usb_detect_gain: 0.5                          # 送检前亮度缩放（1.0=不处理）；--display 显示送检图
 omni_usb_use_tensorrt: false                       # 仅 YOLOv5 生效：USB 默认 OpenVINO
 omni_usb_fov_h: 37.0                              # USB水平/垂直FOV(deg)
 omni_usb_fov_v: 40.9
@@ -374,9 +387,38 @@ USB 设备名建议使用 `/dev/v4l/by-path/*-video-index0`：`videoN` 会随插
 该选项不连接串口，也不会驱动实机。
 
 > USB 链路固定使用 YOLO 检测：**只做检测，不加载独立数字分类器**（编号由检测器的分类头给出），
-> 也不做传统角点二次矫正；**选目标仍按表观距离**，编号不参与优先级。默认每路限频
-> `omni_usb_detect_fps=15`，USB 走 OpenVINO（`omni_usb_use_tensorrt=false`）；
+> 也不做传统角点二次矫正；**选目标仍按表观距离**，编号不参与优先级。检测限频
+> `omni_usb_detect_fps`（代码默认 15，`configs/omni.yaml` 当前设为 30），
+> USB 走 OpenVINO（`omni_usb_use_tensorrt=false`）；
 > 海康仍按顶层 `use_tensorrt` / `use_traditional` 走 TensorRT 与传统角点矫正。
+
+---
+
+## 控制链路（视觉 / 控制解耦）
+
+`auto_aim_debug_mpc` 与 `omni_standard` 共用同一条控制链路，与 dx_vision 的单循环写法有本质区别：
+
+```text
+视觉线程 ──Target / nullopt──▶ 单槽队列（容量 1，push 顶掉旧的）
+                                     │
+                                     │ try_pop(…, 0) 非阻塞
+                                     ▼
+控制线程（云台唯一写入者）：MPC → 速度环反馈 → 开火门控 → 串口下发 + PlotJuggler 发布
+```
+
+| 设计点 | 做法 | 为什么 |
+|---|---|---|
+| 单写入者 | 云台只由控制线程 `gimbal.send` | 多线程各写一帧会各自复用旧时间戳，云台出现异步抖动 |
+| 非阻塞快照 | `try_pop(incoming, 0)`，取不到就沿用上一帧目标 | 控制与绘图节拍由 10 ms 循环决定（循环体 + 10 ms 休眠），不随相机帧率下降；阻塞写法在海康叠加 3 路 USB YOLO 时会被拖到十几 Hz，PlotJuggler 里退化成稀疏折线 |
+| 目标老化 | 快照年龄 > `kTargetStaleS`（0.3 s）视为丢目标并主动停 | 解耦后阻塞读自带的「隐式冻结」消失，否则视觉线程卡住会一直规划旧目标 |
+| 每拍重算 MPC | 不复用上一拍 `Plan` | `Planner::plan` 用 `now` 做延迟补偿与命中时刻预测，复用旧解会让 setpoint 系统性滞后 |
+| 开火门控 | `plan.fire` ∧ 姿态滞后 ≤ 一阶跟随稳态滞后 | `plan.fire` 只比较 MPC 解与它自己的参考，不含真实云台姿态，静止目标实测恒为 true |
+
+PlotJuggler 每帧同时发布 `target_age`（快照年龄）与 `plan_ms`（单次 MPC 耗时）：前者一旦超过 0.3 说明视觉停摆，
+后者持续 > 3 ms 说明该退化成「新目标到达才重算 MPC」。两个 app 的字段口径一致，曲线可以直接叠在一起看。
+
+决策与被否方案见 [`docs/adr/0004-control-loop-decoupling.md`](docs/adr/0004-control-loop-decoupling.md)。
+`standard` / `MAIN` 仍走 `Aimer + Shooter` 的同步链路，不在本节范围内。
 
 ---
 
@@ -511,7 +553,7 @@ trtexec --onnx=assets/0526.onnx --saveEngine=assets/yolov5.engine
 - **裁判系统 CBoard**（`comm/cboard`）：SocketCAN 读取裁判系统数据（imu/模式/弹速），
   仅 `standard` 依赖 can0（`standard_mpc` 使用串口 `Gimbal`）。
 - **达妙 IMU**（`comm/dm_imu`）：串口读取 IMU 姿态。
-- **ros2**（`comm/ros2`）：publish2nav/subscribe2nav 预留，未参与构建；
+- **ROS2**（`comm/ros2`）：publish2nav/subscribe2nav 预留，未参与构建；
   `hp_reporter_ros2.cpp` 在 `QTL_ENABLE_ROS2=ON` 时参与构建。
 
 ---
@@ -636,7 +678,7 @@ crontab -e
 `assets/demo.avi`（约 60MB，gitignore）+ `assets/demo.txt`（每帧云台四元数真值，
 620 帧）配套使用；缺失时从 dx_vision 仓库 `assets/demo/demo.avi` 复制。
 
-其余 20 个 `*_test` 覆盖相机/检测/云台/弹道/规划等模块，ROS2 相关 3 个测试
+其余 22 个 `*_test` 覆盖相机/检测/云台/弹道/规划等模块；另有 3 个 ROS2 相关测试
 默认不编译（CMake 中注释）。
 
 ---
@@ -679,7 +721,11 @@ crontab -e
    默认值；日志节流；资产平铺到 `assets/`；命名冲突改名；
    **YOLOv5 双后端推理**（新增 `TensorRTInfer` 接口，`use_tensorrt` 一键切换
    OpenVINO / TensorRT，见[推理引擎：OpenVINO / TensorRT 双后端](#推理引擎openvino--tensorrt-双后端)）。
-5. **清理**：删除无人引用的 ceres 源码包、`archive/` 等残留与孤儿模型。
+5. **控制链路重构**：视觉线程只出目标，控制线程独占云台写入；用非阻塞快照替掉阻塞式队列读取，
+   控制与 PlotJuggler 发布不再被相机帧率牵着走，并配套目标老化与开火门控，
+   两套 MPC 入口（`auto_aim_debug_mpc` / `omni_standard`）保持同构
+   （见[控制链路](#控制链路视觉--控制解耦)）。
+6. **清理**：删除无人引用的 ceres 源码包、`archive/` 等残留与孤儿模型。
 
 ---
 
