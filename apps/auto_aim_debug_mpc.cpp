@@ -24,6 +24,10 @@
 
 using namespace std::chrono_literals;
 
+// 最新目标超过这个年龄就当作丢了：控制线程已与视觉帧率解耦，
+// 相机停流时必须主动失效，否则会一直规划一条很旧的目标。
+constexpr double kTargetStaleS = 0.3;
+
 const std::string keys =
     "{help h usage ? |                        | 输出命令行参数说明}"
     "{@config-path   | configs/standard1.yaml | 位置参数，yaml配置文件路径 }";
@@ -49,8 +53,10 @@ int main(int argc, char *argv[])
     Tracker tracker(config_path, solver);
     Planner planner(config_path);
 
+    // 单槽队列 + PopWhenFull：push 顶掉旧的，队列里永远是最新一条目标。
+    // 控制线程用 try_pop(…, 0) 非阻塞取，取不到就沿用上次快照，
+    // 拍频由下面的 10 ms 循环决定，不再被相机帧率拖成稀疏折线。
     ThreadSafeQueue<std::optional<Target>, true> target_queue(1);
-    target_queue.push(std::nullopt);
 
     std::atomic<bool> quit = false;
     auto plan_thread = std::thread(
@@ -58,11 +64,33 @@ int main(int argc, char *argv[])
         {
             auto t0 = std::chrono::steady_clock::now();
 
+            // 最新目标快照：只在视觉线程推入新结果时刷新，其余拍沿用
+            std::optional<Target> latest_target;
+            std::chrono::steady_clock::time_point latest_target_t = t0 - 10s;
+
             while (!quit)
             {
-                auto target = target_queue.front();
+                const auto now = std::chrono::steady_clock::now();
+
+                std::optional<Target> incoming;
+                if (target_queue.try_pop(incoming, 0))
+                {
+                    latest_target = incoming;
+                    latest_target_t = now;
+                }
+
+                auto target = latest_target;
+                if (target && delta_time(now, latest_target_t) > kTargetStaleS)
+                    target.reset(); // 相机停流：不再拿旧目标规划
+                // 快照比阈值旧时这里仍会继续增长，是刻意的诊断量
+                const double target_age = latest_target ? delta_time(now, latest_target_t) : 0.0;
+
                 auto gs = gimbal.state();
+                const auto plan_t0 = std::chrono::steady_clock::now();
                 auto plan = planner.plan(target, gs.bullet_speed);
+                const double plan_ms = std::chrono::duration<double, std::milli>(
+                                           std::chrono::steady_clock::now() - plan_t0)
+                                           .count();
                 auto is_empty = target.has_value() ? false : true;
 
                 // MPC 两次求解 + 22 次弹道求解要几 ms，反馈和绘图统一用求解后的最新姿态，
@@ -140,6 +168,9 @@ int main(int argc, char *argv[])
                 data["bullet_speed"] = gs.bullet_speed;
                 data["robot_id"] = gs.id;
                 data["mode"] = plan.control ? (fire_cmd ? 2 : 1) : 0;
+                // 目标快照年龄与单次 MPC 求解耗时：解耦后这两个量直接反映链路健康度
+                data["target_age"] = target_age;
+                data["plan_ms"] = plan_ms;
                 if (target.has_value())
                 {
                     data["target_z"] = target->ekf_x()[4];  // z目标在世界坐标系中的z轴位置坐标

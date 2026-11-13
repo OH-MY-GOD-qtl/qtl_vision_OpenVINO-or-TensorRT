@@ -49,6 +49,10 @@ using namespace std::chrono_literals;
 
 namespace
 {
+    // 最新目标超过这个年龄就当作丢了：控制线程已与视觉帧率解耦，
+    // 视觉线程卡住/相机停流时必须主动失效，否则会一直规划一条很旧的目标。
+    constexpr double kTargetStaleS = 0.3;
+
     void draw_armor(cv::Mat &canvas, const Armor &armor, const cv::Scalar &color, int thickness = 2)
     {
         if (armor.points.size() != 4)
@@ -194,9 +198,11 @@ int main(int argc, char *argv[])
 
     // ---- 线程间状态（与 auto_aim_debug_mpc 同构）----
     // 视觉线程只「出目标」，控制线程是云台唯一写入者。
-    // 单槽队列 + 预置 nullopt：front() 阻塞且不 pop，保证控制线程第一拍就有值。
+    // 单槽队列 + PopWhenFull：push 顶掉旧的，队列里永远是最新一条目标。
+    // 控制线程用 try_pop(…, 0) 非阻塞取，取不到就沿用上次快照——控制/绘图节拍
+    // 只由下面那个 10 ms 循环决定，不再被海康帧率 + 3 路 USB YOLO 拖慢；
+    // 否则 PlotJuggler 里的曲线会随相机帧率退化成稀疏折线。
     ThreadSafeQueue<std::optional<Target>, true> target_queue(1);
-    target_queue.push(std::nullopt);
 
     std::atomic<bool> quit = false;
     std::atomic<bool> hik_frame_ok = false; // 视觉线程写，控制线程读（只用于日志/绘图）
@@ -223,7 +229,7 @@ int main(int argc, char *argv[])
     // mode 仍是云台模式（不是控制/开火状态），避免破坏现有调参布局。
     auto publish_plot = [&](bool hik_ok, bool hik_active, const Decider::Guide &guide,
                             const std::optional<Target> &target, const Plan &plan, bool fire_cmd,
-                            bool is_empty)
+                            bool is_empty, double target_age, double plan_ms)
     {
         nlohmann::json data;
         data["t"] = delta_time(std::chrono::steady_clock::now(), t0);
@@ -232,6 +238,9 @@ int main(int argc, char *argv[])
         data["hik_target"] = target.has_value() ? 1 : 0;
         data["hik_active"] = hik_active ? 1 : 0;
         data["is_empty"] = is_empty ? 1 : 0;
+        // 目标快照年龄与单次 MPC 求解耗时：解耦后这两个量直接反映链路健康度
+        data["target_age"] = target_age;
+        data["plan_ms"] = plan_ms;
 
         // phase: 0=none 1=lock 2=coast；camera: usb0..2 -> 0..2，未锁定 -1
         data["guide_valid"] = guide.valid ? 1 : 0;
@@ -262,10 +271,12 @@ int main(int argc, char *argv[])
         data["diff_yaw"] = limit_rad(plan.yaw - gs.yaw) * 57.3;
         data["diff_pitch"] = (plan.pitch - gs.pitch) * 57.3;
 
+        // 与 auto_aim_debug_mpc 口径一致：distance/w 每拍都发，无目标填 0。
+        // 缺键会让 PlotJuggler 把前后两点直接连成一条直线，看起来像数据断点。
+        data["distance"] = target ? std::hypot(target->ekf_x()[0], target->ekf_x()[2]) : 0.0;
+        data["w"] = target ? target->ekf_x()[7] : 0.0;
         if (target)
         {
-            data["distance"] = std::hypot(target->ekf_x()[0], target->ekf_x()[2]);
-            data["w"] = target->ekf_x()[7];
             data["target_z"] = target->ekf_x()[4];
             data["target_vz"] = target->ekf_x()[5];
         }
@@ -283,6 +294,11 @@ int main(int argc, char *argv[])
             bool was_hik_ok = true;
             int guide_log_count = 0;
             std::unordered_map<std::string, DetectionResult> usb_latest;
+
+            // 最新目标快照：只在视觉线程推入新结果时刷新，其余拍沿用。
+            // 这样控制节拍由 10 ms 循环决定，而不是被视觉帧率牵着走。
+            std::optional<Target> latest_target;
+            std::chrono::steady_clock::time_point latest_target_t = long_ago;
 
             // USB 引导指令：锁定/coast 都发 mode=1 + is_empty=false（视觉控 yaw、不开火）。
             // guide 无效时只发停止，不 reset_guide——内部可能正处于冷却，清掉会让它立刻重新锁定。
@@ -307,6 +323,8 @@ int main(int argc, char *argv[])
 
             while (!quit)
             {
+                const auto now = std::chrono::steady_clock::now();
+
                 auto mode = gimbal.mode();
                 if (last_mode != mode)
                 {
@@ -326,10 +344,28 @@ int main(int argc, char *argv[])
                         slot = dr;
                 }
 
-                auto target = target_queue.front();
+                // 非阻塞取最新目标；这一拍没有新帧就沿用上次快照。
+                // 原来用阻塞的 front()，拍频被海康帧率（还叠加 3 路 USB YOLO）拖到
+                // 十几 Hz，PlotJuggler 里就成了稀疏折线。
+                std::optional<Target> incoming;
+                if (target_queue.try_pop(incoming, 0))
+                {
+                    latest_target = incoming;
+                    latest_target_t = now;
+                }
+
+                auto target = latest_target;
+                if (target && delta_time(now, latest_target_t) > kTargetStaleS)
+                    target.reset(); // 视觉停摆：不再拿旧目标规划
+                // 快照比阈值旧时这里仍会继续增长，是刻意的诊断量
+                const double target_age = latest_target ? delta_time(now, latest_target_t) : 0.0;
 
                 auto gs = gimbal.state();
+                const auto plan_t0 = std::chrono::steady_clock::now();
                 auto plan = planner.plan(target, gs.bullet_speed);
+                const double plan_ms = std::chrono::duration<double, std::milli>(
+                                           std::chrono::steady_clock::now() - plan_t0)
+                                           .count();
 
                 // MPC 两次求解 + 22 次弹道求解要几 ms，反馈统一用求解后的最新姿态，
                 // 否则位置环会带一个固定滞后
@@ -375,7 +411,6 @@ int main(int argc, char *argv[])
                 }
 
                 const bool is_empty = !target.has_value();
-                const auto now = std::chrono::steady_clock::now();
 
                 // 海康回退迟滞：连续空 hik_lost_s 才交给 USB，避免两套目标反复抢控制
                 if (target)
@@ -419,7 +454,9 @@ int main(int argc, char *argv[])
                     }
                 }
 
-                publish_plot(hik_ok, hik_active, guide, target, plan, fire_cmd, is_empty);
+                publish_plot(
+                    hik_ok, hik_active, guide, target, plan, fire_cmd, is_empty, target_age,
+                    plan_ms);
 
                 {
                     std::lock_guard<std::mutex> lock(snapshot_mutex);
